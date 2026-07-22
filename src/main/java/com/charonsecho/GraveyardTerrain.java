@@ -20,13 +20,18 @@ public final class GraveyardTerrain {
 
     /** Top of the flat-generator base — sculpting starts above this. */
     private static final int BASE_Y = 30;
-    /** Mean terrain height and hill amplitude: h ranges ~[50, 76]. */
-    private static final int MEAN_H = 63;
-    private static final int AMP = 13;
+    /**
+     * Mean terrain height. Relief is asymmetric: hills rise hard (up to ~+26)
+     * while vales sink gently (to ~-13), so the land reads as dramatic hills
+     * without flooding into lakes everywhere.
+     */
+    private static final int MEAN_H = 64;
+    private static final double AMP_UP = 26.0;
+    private static final double AMP_DOWN = 13.0;
     /** Church plateau: flat at PLATEAU_H within FLAT_R, blended out to BLEND_R. */
     private static final int PLATEAU_H = 64;
-    private static final double FLAT_R = 48.0;
-    private static final double BLEND_R = 96.0;
+    private static final double FLAT_R = 32.0;
+    private static final double BLEND_R = 80.0;
     /** Any column whose ground ends below this gets still water up to it. */
     private static final int WATER_TOP = 52;
 
@@ -79,16 +84,16 @@ public final class GraveyardTerrain {
 
     /** Final ground height (y of the surface block) for a column. Pure function of (x, z). */
     public static int groundHeight(int x, int z) {
-        double n = 0.6 * valueNoise(x / 96.0, z / 96.0)
-                 + 0.3 * valueNoise(x / 37.0 + 100.0, z / 37.0 + 100.0)
-                 + 0.1 * valueNoise(x / 13.0 + 200.0, z / 13.0 + 200.0);
-        double h = MEAN_H + n * AMP;
+        double n = 0.45 * valueNoise(x / 220.0, z / 220.0)
+                 + 0.35 * valueNoise(x / 80.0 + 100.0, z / 80.0 + 100.0)
+                 + 0.20 * valueNoise(x / 28.0 + 200.0, z / 28.0 + 200.0);
+        double h = MEAN_H + (n >= 0 ? n * AMP_UP : n * AMP_DOWN);
 
         // River: a winding band where a large-scale noise field crosses zero.
         double rn = valueNoise(x / 150.0 + 500.0, z / 150.0 + 500.0);
         double band = Math.abs(rn);
-        if (band < 0.09) {
-            double cut = 1.0 - smooth(Math.max(0.0, (band - 0.03) / 0.06)); // 1 in channel → 0 at banks
+        if (band < 0.10) {
+            double cut = 1.0 - smooth(Math.max(0.0, (band - 0.035) / 0.065)); // 1 in channel → 0 at banks
             h = h + (49.0 - h) * cut;
         }
 
