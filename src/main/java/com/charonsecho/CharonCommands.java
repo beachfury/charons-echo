@@ -66,6 +66,7 @@ public final class CharonCommands {
                 }))
                 .then(Commands.literal("back").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    StudioMode.restoreMode(player);
                     ServerLevel overworld = player.level().getServer().overworld();
                     var spawn = overworld.getRespawnData().pos();
                     player.teleportTo(overworld, spawn.getX() + 0.5, spawn.getY() + 1, spawn.getZ() + 0.5,

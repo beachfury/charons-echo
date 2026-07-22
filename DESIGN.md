@@ -94,7 +94,10 @@ whole server. Not per-player.
 - **World rules:** no build, no break, no damage, no hunger, no natural mob spawns (only
   Gravekeepers, below), no explosions, no aggro of any kind. Living players may visit via
   the spawn portal (buy shards, pay respects, flower-vote, ransom items). Ghosts of other
-  players are visible here — the social hub of the dead.
+  players are visible here — the social hub of the dead. **Admin bypass:** players with
+  gamemaster permission are exempt from build/break restrictions and may use creative mode
+  freely (checked via `permissions().hasPermission(...)` — the isOp() path silently fails
+  for the single-player host).
 - **Ambience:** custom biome carries Pale-Garden-style sound — near-silence, muffled mood,
   occasional creaking-wood and eerie ambient cues (biome ambience/music fields are
   data-synced to Java clients; Bedrock gets nearest-fallback). The mod layers positional

@@ -47,7 +47,19 @@ public final class StudioMode {
 
     public static final List<StudioPlot> PLOTS = buildLayout();
 
+    /** Game mode each player had before entering the Studio, restored on /charon back. */
+    private static final java.util.Map<java.util.UUID, GameType> MODE_BEFORE_STUDIO =
+            new java.util.HashMap<>();
+
     private StudioMode() {}
+
+    /** Restore the game mode a player had before /charon studio switched them to creative. */
+    public static void restoreMode(ServerPlayer player) {
+        GameType previous = MODE_BEFORE_STUDIO.remove(player.getUUID());
+        if (previous != null && previous != GameType.CREATIVE) {
+            player.setGameMode(previous);
+        }
+    }
 
     /**
      * Plot grid per the DESIGN.md build list. Rows run along +X with 6-block
@@ -105,6 +117,7 @@ public final class StudioMode {
         stampLayout(studio);
         int y = surfaceY(studio, -4, -4);
         player.teleportTo(studio, -4.5, y + 1, -4.5, Set.<Relative>of(), 45f, 0f, false);
+        MODE_BEFORE_STUDIO.putIfAbsent(player.getUUID(), player.gameMode());
         player.setGameMode(GameType.CREATIVE);
         player.sendSystemMessage(Component.literal("Welcome to the Studio. Build inside the outlines; ")
                 .withStyle(ChatFormatting.GRAY)
