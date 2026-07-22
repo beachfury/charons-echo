@@ -60,6 +60,9 @@ whole server. Not per-player.
   vales (simple layered noise, our code, no vanilla biome gen). Grave fields sit on flattened
   terraces cut into hillsides; the church crowns a rise at origin. A still, dark **River Styx**
   winds through the vales (optional flourish — thematically free).
+- **No caves, no underground:** solid deepslate/tuff below the surface — no carvers, no
+  ores, no getting lost. **Hydrology:** rivers are fine, small ponds are fine (local noise
+  depressions, capped size); no oceans or large lakes — noise amplitude keeps water minor.
 - **Sky:** dimension type uses `effects: minecraft:the_end` — the End's void skybox, which
   vanilla clients render on custom dimensions — plus `fixed_time` for unchanging gloom.
   No sun, no moon, no day cycle.
@@ -75,13 +78,35 @@ whole server. Not per-player.
   - **Book of the Dead** — lectern, opens the death-ledger sgui (§8)
   - **Death of the Week plinth** — outside the entrance (§9)
   - **Charon's Vault** — item-frame/display wall behind the altar showing tolled items (§5)
-- **The Graveyard:** infinite procedural grave fields terraced into the hills radiating from
-  the church. Plots allocated sequentially; headstone variants (cross, slab, obelisk, cairn —
-  hand-built templates, see §Studio) chosen per death. Lych-gates, fences, and pale trees
-  scattered on a deterministic pattern following the terrain.
-- **World rules:** no build, no break, no damage, no hunger, no mob spawns, no explosions.
-  Living players may visit via the spawn portal (buy shards, pay respects, flower-vote,
-  ransom items). Ghosts of other players are visible here — the social hub of the dead.
+- **The Graveyard — how graves are added:** the yard is built from **grave fields**: a
+  40×40 terraced enclosure holding a 6×8 grid of 5×5 plots (48 graves), fenced, with a
+  lych-gate, pale trees, and a path linking it to the church spine. Fields are allocated on
+  a deterministic spiral around the church; within a field, plots fill row by row. Each
+  death takes the next plot index → `(field, row, col)` → world coords; the terrace is cut,
+  the headstone template pasted, the sign written. When a field's 48th grave is dug, the
+  next field on the spiral is prepared (fence + gate + trees appear — the yard visibly
+  grows).
+- **Expanding world border:** vanilla per-dimension world border, centered on the church.
+  Starts tight (~192 blocks, church + first two fields) and expands with a slow animation
+  whenever a new field opens, sized to outermost-field + margin. The border's shimmer wall
+  is the mist at the edge of the world; the graveyard literally grows as the server's dead
+  accumulate. Living visitors and ghosts can never outrun the yard.
+- **World rules:** no build, no break, no damage, no hunger, no natural mob spawns (only
+  Gravekeepers, below), no explosions, no aggro of any kind. Living players may visit via
+  the spawn portal (buy shards, pay respects, flower-vote, ransom items). Ghosts of other
+  players are visible here — the social hub of the dead.
+- **Ambience:** custom biome carries Pale-Garden-style sound — near-silence, muffled mood,
+  occasional creaking-wood and eerie ambient cues (biome ambience/music fields are
+  data-synced to Java clients; Bedrock gets nearest-fallback). The mod layers positional
+  sounds on top: distant bell tolls from the church, wind, whispers near old graves.
+- **The Gravekeepers (passive mobs):** a small controlled population — **Creakings**
+  drifting among the pale trees and **Wardens** slowly patrolling the field paths as blind
+  caretakers. All fully passive: targeting/anger is cleared continuously, they never attack,
+  never emit the Warden's darkness pulse to visitors (config to allow it for atmosphere),
+  and deal no damage (world rule backstop). Spawn budget, not natural spawning: ~2 Creakings
+  per field near trees, 1 Warden per 2–3 fields; persistent (no despawn), re-seeded on field
+  creation. The Creaking's freeze-when-watched behavior is server-side AI and works untouched
+  — statues that move when you look away, in a graveyard. Free.
 
 ## 3. Portals
 
@@ -362,3 +387,8 @@ that publish happens only after in-game approval of the Phase 1 build.
   (`charon.ghost` + gray-name team) and tethered to ~24 blocks around their portal in the
   living world; free roam only inside Charon's Echo. Ghosts cannot pass through walls. Beds
   don't set respawn (config-restorable). Return portal → death site, never spawn/bed.
+- 2026-07-21 (later): no caves/ores — solid underground. Rivers + small ponds only, no
+  oceans/large lakes. Graves allocated as 48-plot spiral fields; vanilla world border
+  centered on church expands as fields open. Pale-Garden silence ambience. Only mobs are
+  passive Gravekeepers: Creakings among trees, patrolling Wardens; zero aggro, spawn-budget
+  controlled, persistent.
