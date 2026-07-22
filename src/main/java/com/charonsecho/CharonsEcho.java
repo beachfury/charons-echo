@@ -2,7 +2,8 @@ package com.charonsecho;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -22,8 +23,11 @@ public final class CharonsEcho implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        // Hills, river, and church plateau are sculpted as graveyard chunks generate.
-        ServerChunkEvents.CHUNK_GENERATE.register(GraveyardTerrain::onGenerate);
+        // Real chunk generator — terrain is built at the noise stage so vanilla
+        // computes lighting/heightmaps normally (see GraveyardChunkGenerator).
+        Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
+                Identifier.fromNamespaceAndPath(MOD_ID, "graveyard"),
+                GraveyardChunkGenerator.CODEC);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) ->
                 CharonCommands.register(dispatcher));

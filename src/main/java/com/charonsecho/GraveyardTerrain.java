@@ -1,25 +1,13 @@
 package com.charonsecho;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-
 /**
- * Sculpts the graveyard dimension as chunks generate: gentle monochrome hills,
- * a flattened plateau for the church at the origin, a winding river, and small
- * ponds in the lowest vales. Deterministic — same chunk always generates the
- * same terrain, no Random state.
- *
- * The flat generator supplies bedrock + deepslate up to y=30; everything above
- * is written here with chunk.setBlockState (NEVER level.setBlock mid-generation
- * — that deadlocks chunk gen).
+ * Pure terrain math for the graveyard dimension: gentle monochrome hills, a
+ * flattened plateau for the church at the origin, a winding river, and small
+ * ponds in the lowest vales. Deterministic — pure function of (x, z), no
+ * Random state. Blocks are written by {@link GraveyardChunkGenerator}.
  */
 public final class GraveyardTerrain {
 
-    /** Top of the flat-generator base — sculpting starts above this. */
-    private static final int BASE_Y = 30;
     /**
      * Mean terrain height. Relief is asymmetric: hills rise hard (up to ~+26)
      * while vales sink gently (to ~-13), so the land reads as dramatic hills
@@ -33,54 +21,9 @@ public final class GraveyardTerrain {
     private static final double FLAT_R = 32.0;
     private static final double BLEND_R = 80.0;
     /** Any column whose ground ends below this gets still water up to it. */
-    private static final int WATER_TOP = 52;
+    public static final int WATER_TOP = 52;
 
     private GraveyardTerrain() {}
-
-    public static void onGenerate(ServerLevel level, LevelChunk chunk) {
-        if (level.dimension() != CharonsEcho.GRAVEYARD_DIM) return;
-
-        final int baseX = chunk.getPos().getMinBlockX();
-        final int baseZ = chunk.getPos().getMinBlockZ();
-        final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-
-        final BlockState deepslate = Blocks.DEEPSLATE.defaultBlockState();
-        final BlockState tuff = Blocks.TUFF.defaultBlockState();
-        final BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
-        final BlockState gravel = Blocks.GRAVEL.defaultBlockState();
-        final BlockState water = Blocks.WATER.defaultBlockState();
-
-        try {
-            for (int dx = 0; dx < 16; dx++) {
-                for (int dz = 0; dz < 16; dz++) {
-                    int x = baseX + dx, z = baseZ + dz;
-                    int h = groundHeight(x, z);
-                    boolean flooded = h < WATER_TOP;
-
-                    for (int y = BASE_Y; y < h - 3; y++) {
-                        pos.set(x, y, z);
-                        chunk.setBlockState(pos, deepslate);
-                    }
-                    for (int y = Math.max(BASE_Y, h - 3); y < h; y++) {
-                        pos.set(x, y, z);
-                        chunk.setBlockState(pos, tuff);
-                    }
-                    pos.set(x, h, z);
-                    chunk.setBlockState(pos, flooded ? gravel : moss);
-
-                    if (flooded) {
-                        for (int y = h + 1; y <= WATER_TOP; y++) {
-                            pos.set(x, y, z);
-                            chunk.setBlockState(pos, water);
-                        }
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            System.out.println("[CharonsEcho] terrain error during CHUNK_GENERATE: " + t);
-            t.printStackTrace();
-        }
-    }
 
     /** Final ground height (y of the surface block) for a column. Pure function of (x, z). */
     public static int groundHeight(int x, int z) {

@@ -6,6 +6,8 @@
 - Charon's Echo graveyard dimension: monochrome rolling hills (pale moss / tuff / deepslate),
   church plateau at origin, winding river with small ponds, no caves, End-style void skybox,
   fixed time, silent gray-tinted custom biome, no natural mob spawns
+- Terrain is built by a real registered chunk generator (`charons_echo:graveyard`) at the
+  noise stage, so vanilla computes lighting and heightmaps correctly
 - Studio authoring dimension with labeled plot grid for hand-building structure templates
 - Commands: `/charon studio`, `/charon export [name]`, `/charon place <name>`,
   `/charon visit`, `/charon back` (gamemaster-level)
