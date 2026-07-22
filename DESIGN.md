@@ -56,18 +56,29 @@ Key decisions (locked):
 A single runtime-created dimension (same approach as FabricPlots plot worlds) shared by the
 whole server. Not per-player.
 
-- **Aesthetic:** flat, misty, perpetual dusk. Soul-fire lanterns, dead grass/podzol paths,
-  coarse dirt plots, fog via world effects where possible. Grayscale-adjacent palette using
-  vanilla blocks only (server-side — no custom textures).
+- **Terrain:** NOT flat — a custom chunk generator produces gentle rolling hills and shallow
+  vales (simple layered noise, our code, no vanilla biome gen). Grave fields sit on flattened
+  terraces cut into hillsides; the church crowns a rise at origin. A still, dark **River Styx**
+  winds through the vales (optional flourish — thematically free).
+- **Sky:** dimension type uses `effects: minecraft:the_end` — the End's void skybox, which
+  vanilla clients render on custom dimensions — plus `fixed_time` for unchanging gloom.
+  No sun, no moon, no day cycle.
+- **Palette (monochromatic — Pale Garden + Deep Dark only, plus soul-blue accents):**
+  pale oak wood/planks/logs, pale moss blocks + carpet, pale hanging moss, deepslate variants,
+  tuff, basalt, blackstone, calcite, bone blocks, cobwebs, gray/white candles, soul lanterns,
+  soul fire, sculk + sculk veins as sparing dark accents. A custom biome definition tints
+  grass/foliage/water/fog/sky to grays (biome colors are data-synced and client-rendered —
+  works on vanilla Java clients; Bedrock falls back to nearest vanilla biome colors).
 - **The Church:** generated at dimension origin on first creation. Gothic chapel — deepslate,
   blackstone, dark oak, candles, tinted/stained panes. Contains:
   - **Charon's Altar** — buy shards, pay ransom (§5), block-built hooded statue with skull
   - **Book of the Dead** — lectern, opens the death-ledger sgui (§8)
   - **Death of the Week plinth** — outside the entrance (§9)
   - **Charon's Vault** — item-frame/display wall behind the altar showing tolled items (§5)
-- **The Graveyard:** infinite procedural rows radiating from the church. Plots allocated
-  sequentially; 3–4 headstone variants (cross, slab, obelisk, cairn) chosen per death.
-  Lych-gate, fences, dead trees scattered on a deterministic pattern.
+- **The Graveyard:** infinite procedural grave fields terraced into the hills radiating from
+  the church. Plots allocated sequentially; headstone variants (cross, slab, obelisk, cairn —
+  hand-built templates, see §Studio) chosen per death. Lych-gates, fences, and pale trees
+  scattered on a deterministic pattern following the terrain.
 - **World rules:** no build, no break, no damage, no hunger, no mob spawns, no explosions.
   Living players may visit via the spawn portal (buy shards, pay respects, flower-vote,
   ransom items). Ghosts of other players are visible here — the social hub of the dead.
@@ -83,10 +94,46 @@ detected by position — same pattern as FabricPlots portals. No custom blocks n
 | **Return portal** | beside your grave | after you reclaim your items | your death site (safe-adjusted) |
 | **Spawn portal** | world spawn, small shrine structure | permanent, generated on first server start | church entrance in Charon's Echo (and back) |
 
-- Death/return portals are **private** — only the owning ghost may use them; they despawn
-  after use. Death portal persists (chunk-load safe) until the ghost crosses.
-- Spawn portal is public, two-way, usable by the living. Config: auto-generate shrine at
-  spawn on/off + `/charon shrine place` command for manual placement on existing servers.
+- Death/return portals are **one-shot and private**: only the owning ghost may use them, and
+  they vanish the moment the ghost passes through. The death portal persists across
+  chunk-unload/logout/restart until crossed (state is saved; visuals rebroadcast on login).
+- **Visibility:** death/return portals place **no blocks in the living world** — they are
+  per-player particle/sound broadcasts. Full portal visuals are sent only to the owning
+  ghost. Other players see a faint soul-ember flicker at the site (config:
+  `portal_trace_for_living: on/off`) — enough to say "someone died here" without clutter.
+- Spawn portal is public, two-way, block-built (shrine template), usable by the living.
+  Config: auto-generate shrine at spawn on/off + `/charon shrine place` command for manual
+  placement on existing servers.
+
+## 3b. The Studio — structure authoring workflow
+
+No client-side custom assets exist in a server-side mod, so all landmark builds are
+hand-built **structure templates** (.nbt) that the mod ships and pastes. The mod includes a
+dev-only authoring mode so builds happen in parallel with coding:
+
+- `/charon studio` — generates a creative authoring world: superflat pale-moss ground, a
+  grid of labeled plots with sign markers and glass outlines showing exact footprint,
+  orientation arrows, and anchor corners.
+- `/charon export <name>` — saves the plot's build volume to
+  `src/main/resources/data/charons_echo/structure/<name>.nbt`.
+- `/charon place <name>` — paste any template for in-place review.
+
+**Build list (plot sizes are maximums; anchor = north-west corner, entrances face south):**
+
+| Template | Footprint | Count | Notes |
+|---|---|---|---|
+| `church` | 32×32×24h | 1 | altar (barrier/lodestone anchor block), lectern spot, vault wall behind altar — marker blocks define interaction points |
+| `spawn_shrine` | 7×7×7h | 1 | overworld portal shrine; must look at home in any biome |
+| `headstone_1..6` | 3×3×4h | 6 | cross, slab, obelisk, cairn, broken column, statue — each with a sign position marker |
+| `plinth` | 5×5×6h | 1 | Death of the Week display, space for gilded headstone copy + candles |
+| `lych_gate` | 5×3×5h | 1 | graveyard field entrances |
+| `pale_tree_1..4` | 7×7×10h | 4 | dead/pale tree variants scattered on hills |
+| `styx_dock` | 9×5×6h | 1 | optional: Charon's ferry dock + boat on the river |
+| `clutter_1..N` | 3×3×3h | ~6 | benches, urns, candle clusters, statues — sprinkled deterministically |
+
+Marker-block convention inside templates: structure voids / barrier blocks with agreed
+positions mark sign placement, altar interaction point, plinth center, etc. The paste code
+reads markers and replaces them with air + registers the interaction volume.
 
 ## 4. Echo Shards
 
@@ -130,8 +177,19 @@ roll decides the toll:
 - Invisible + **soul-particle silhouette**: a wispy column of SOUL/SMOKE particles broadcast
   at the player's position so the living see a drifting ghost with a nametag. Particles are
   plain server packets — crossplays cleanly.
-- Flight (mayfly), spectral speed boost toward portal travel, slow-fall drift, no hunger
-  drain, invulnerable, cannot attack / interact / pick up / drop / open containers.
+- Flight (mayfly), spectral drift speed, slow-fall, no hunger drain, invulnerable, cannot
+  attack / interact / pick up / drop / open containers.
+- **Tagged dead:** every ghost carries the scoreboard tag `charon.ghost` (visible to admins
+  and other mods/datapacks) and is placed on the `charon_dead` team — gray, italic nametag
+  so the living instantly read them as dead.
+- **Tethered in the living world:** a ghost may not roam. Movement is leashed to a radius
+  around their death portal (default 24 blocks, config). Approaching the edge pushes the
+  ghost gently back toward the portal with a darkness-vignette effect (mining-fatigue-style
+  soft wall — velocity nudge, hard teleport at 2× radius as backstop). No scouting caves,
+  no spying on bases, no ghost couriers.
+- **Free movement inside Charon's Echo** — the dimension is no-interaction anyway, and the
+  walk from arrival to grave through the misty graveyard IS the experience. The soul wisp
+  leads the way.
 - Cannot use other dimension portals (nether/end) — only Charon's portals.
 - Ambient audio: occasional soul-sand-valley ambience + bell toll on state transitions.
 - **Persistence:** ghost state, grave records, vault contents, epitaphs, flower votes all
@@ -216,6 +274,9 @@ structures:
   (Bedrock particle budget is lower — config for reduced density).
 - Anvil-input epitaph GUI: works via Geyser (it translates to a Bedrock form) — verify in
   testing on 26.x Geyser.
+- End skybox + custom biome tints: Java clients render both from synced registries. Geyser
+  maps custom dimensions to a vanilla one — verify which skybox Bedrock players get and
+  accept nearest-fallback biome colors there. The block palette carries the mood regardless.
 
 ## 12. Edge Cases
 
@@ -250,10 +311,14 @@ structures:
 ## 14. Build Phases vs Jam Timeline
 
 **Phase 1 — Core loop (target: live on CurseForge by Aug 1, before Aug 4 mid-contest round)**
+0. **Studio mode first** (`/charon studio` / `export` / `place`) so structure building runs
+   in parallel with everything below; simple generated placeholders stand in until real
+   templates land
 1. Death interception + grave records + persistence
-2. Ghost state (effects, particles, restrictions, persistence)
-3. Dimension creation + church/graveyard generation + plot allocation
-4. Portals (death/return/spawn) + safe-placement scan
+2. Ghost state (effects, particles, tag/team, tether, persistence)
+3. Dimension creation (hill-noise generator, End sky, gray biome) + graveyard terracing +
+   plot allocation + church paste
+4. Portals (death/return/spawn) + one-shot/owner-only visibility + safe-placement scan
 5. Reclaim at headstone + XP restore
 6. Echo Shard item + crafting + soul-binding + toll (XP/item roll, no vault yet)
 7. Death sgui (respawn button + timeout + shard donation)
@@ -285,3 +350,15 @@ that publish happens only after in-game approval of the Phase 1 build.
 3. Does the spawn shrine auto-build, or command-only by default? (Spec says auto, toggle off.)
 4. Exact death sgui copy/flavor text — write during Phase 1.
 5. Mod ID: `charons_echo`. CurseForge slug: `charons-echo`.
+6. Include the River Styx + ferry dock, or cut for scope? (Pure flourish — costs one
+   template and a river carve in the generator.)
+
+## Decisions log
+
+- 2026-07-21: dimension is shaped terrain (hills/terraces), monochrome Pale Garden + Deep
+  Dark palette, End skybox, gray-tinted custom biome. Landmark builds are hand-authored
+  structure templates via Studio mode. Death/return portals are one-shot, place no blocks,
+  full visuals owner-only (faint trace for others, config). Ghosts are tagged
+  (`charon.ghost` + gray-name team) and tethered to ~24 blocks around their portal in the
+  living world; free roam only inside Charon's Echo. Ghosts cannot pass through walls. Beds
+  don't set respawn (config-restorable). Return portal → death site, never spawn/bed.
