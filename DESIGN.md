@@ -314,6 +314,12 @@ structures:
 - **Death inside Charon's Echo:** impossible (no damage) — but guard anyway: teleport to
   church, no new grave.
 - **Death sgui + server stop:** timeout state persisted; on rejoin, player resumes as ghost.
+- **Other mods fighting game mode / abilities:** mods like FabricPlots (creative-in-plots)
+  and Dimensional Inventories (pool game modes) set game mode on dimension-change ticks.
+  Ghost state must be re-asserted every few ticks / after any dimension change, never
+  assumed from a one-time setup. (Found in testing: FabricPlots flipped players to survival
+  when crossing plots → Charon's Echo; its `manage-gamemode=false` escape hatch avoids the
+  fight on shared servers.)
 - **keepInventory on:** mod stands down (config).
 - **Totem of Undying:** fires before death — unaffected.
 - **Ender dragon / respawn-anchor explosions / /kill:** normal loop; `/kill` while ghost is
