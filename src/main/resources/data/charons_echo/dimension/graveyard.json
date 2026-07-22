@@ -1,0 +1,16 @@
+{
+  "type": "charons_echo:graveyard_type",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "charons_echo:graveyard_biome",
+      "lakes": false,
+      "features": false,
+      "layers": [
+        { "block": "minecraft:bedrock", "height": 1 },
+        { "block": "minecraft:deepslate", "height": 49 }
+      ],
+      "structure_overrides": []
+    }
+  }
+}

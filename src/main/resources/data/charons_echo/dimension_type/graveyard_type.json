@@ -1,0 +1,41 @@
+{
+  "ambient_light": 0.35,
+  "attributes": {
+    "minecraft:audio/ambient_sounds": {
+      "mood": {
+        "block_search_extent": 8,
+        "offset": 2.0,
+        "sound": "minecraft:ambient.soul_sand_valley.mood",
+        "tick_delay": 4800
+      }
+    },
+    "minecraft:gameplay/bed_rule": {
+      "can_set_spawn": "never",
+      "can_sleep": "never",
+      "error_message": {
+        "translate": "block.minecraft.bed.no_sleep"
+      }
+    },
+    "minecraft:gameplay/nether_portal_spawns_piglin": false,
+    "minecraft:gameplay/respawn_anchor_works": false,
+    "minecraft:visual/ambient_light_color": "#2e2e33",
+    "minecraft:visual/fog_color": "#3b3b41",
+    "minecraft:visual/sky_color": "#0b0b0f",
+    "minecraft:visual/sky_light_color": "#8b93a6",
+    "minecraft:visual/sky_light_factor": 0.15
+  },
+  "coordinate_scale": 1.0,
+  "default_clock": "minecraft:the_end",
+  "has_ceiling": false,
+  "has_ender_dragon_fight": false,
+  "has_fixed_time": true,
+  "has_skylight": true,
+  "height": 256,
+  "infiniburn": "#minecraft:infiniburn_overworld",
+  "logical_height": 256,
+  "min_y": 0,
+  "monster_spawn_block_light_limit": 0,
+  "monster_spawn_light_level": 0,
+  "skybox": "end",
+  "timelines": "#minecraft:in_end"
+}

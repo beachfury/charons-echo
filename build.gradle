@@ -1,0 +1,45 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17.12'
+}
+
+// Jar is stamped with the Minecraft version, e.g. charons-echo-0.1.0+26.2.jar
+version = "${project.mod_version}+${project.minecraft_version}"
+group = 'com.charonsecho'
+
+base {
+    archivesName = 'charons-echo'
+}
+
+repositories {
+    maven { url = 'https://maven.nucleoid.xyz' }   // sgui (Patbox)
+}
+
+dependencies {
+    // Minecraft 26.x ships unobfuscated with official names — no 'mappings' line needed.
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Server-side GUIs (death screen, Book of the Dead, epitaph input, altar shop).
+    // Not JiJ'd on the unobf toolchain — ship sgui's jar in the server mods folder.
+    implementation "eu.pb4:sgui:${project.sgui_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_dep", project.minecraft_dep
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version, "minecraft_dep": project.minecraft_dep
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = 25
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
