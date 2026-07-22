@@ -1,0 +1,287 @@
+# Charon's Echo — Design Spec
+
+**A server-side Fabric mod for the CurseForge Minecraft ModJam 2026 — "Echoes of the Past"**
+
+When you die, your items don't scatter on the ground. Charon takes them. A smoking portal
+rises at the site of your death, and your ghost must cross into **Charon's Echo** — an endless
+misty graveyard dimension — to pay the Ferryman and reclaim what you lost. Every death leaves
+a headstone. The graveyard *is* the history of your server.
+
+- **Category:** Java Mods (Fabric, server-side only — vanilla clients, Bedrock crossplay via Geyser)
+- **MC target:** 26.2 primary; 26.1.2 backport if time allows (jam requires 26.1+)
+- **Jam deadline:** submissions close Sept 1, 2026. Mid-contest reward rounds Aug 4 & Aug 18 —
+  core loop must be live on CurseForge before Aug 4.
+- **Repo:** github.com/beachfury/charons-echo (required for judging)
+
+---
+
+## 1. The Death Loop (core state machine)
+
+```
+ALIVE
+  └─ death event → intercept drops + XP → store as Grave record
+DEAD (death screen suppressed, death sgui shown)
+  ├─ body lies at death site (visual only)
+  ├─ sgui: flavor text + [Respawn] button
+  ├─ teammates may drop an Echo Shard onto the body (donation window)
+  └─ [Respawn] clicked OR 60s timeout
+GHOST (at death site, death portal placed nearby)
+  ├─ invulnerable, invisible + soul-particle silhouette, flight, no interaction
+  ├─ cannot pass through walls (no noclip / no spectator)
+  └─ enters death portal
+CROSSING (toll checkpoint)
+  ├─ has Echo Shard → shard consumed, free passage
+  └─ no shard → Charon's Toll (see §5)
+IN CHARON'S ECHO (ghost, near own grave)
+  ├─ soul wisp particle trail leads to the grave
+  ├─ interact with headstone → items + XP restored (still ghost, items in inventory)
+  ├─ optional: write epitaph (anvil-input sgui, filtered)
+  └─ enters return portal (appears beside grave after reclaim)
+RETURNED
+  └─ alive at death site (safe-adjusted position), loop closed
+```
+
+Key decisions (locked):
+
+- **Ghosts cannot pass through walls.** No spectator mode, no noclip. Adventure-style
+  no-interaction + flight + invisibility.
+- **Return portal goes to the death site** — not spawn, not bed. Beds no longer set respawn
+  (they still skip night; decoration otherwise). Config toggle to restore vanilla bed behavior
+  for servers that want it.
+- **Death position is the anchor** for both the death portal and the return point, with a
+  nearest-safe-block scan (see §12).
+
+## 2. The Charon's Echo Dimension
+
+A single runtime-created dimension (same approach as FabricPlots plot worlds) shared by the
+whole server. Not per-player.
+
+- **Aesthetic:** flat, misty, perpetual dusk. Soul-fire lanterns, dead grass/podzol paths,
+  coarse dirt plots, fog via world effects where possible. Grayscale-adjacent palette using
+  vanilla blocks only (server-side — no custom textures).
+- **The Church:** generated at dimension origin on first creation. Gothic chapel — deepslate,
+  blackstone, dark oak, candles, tinted/stained panes. Contains:
+  - **Charon's Altar** — buy shards, pay ransom (§5), block-built hooded statue with skull
+  - **Book of the Dead** — lectern, opens the death-ledger sgui (§8)
+  - **Death of the Week plinth** — outside the entrance (§9)
+  - **Charon's Vault** — item-frame/display wall behind the altar showing tolled items (§5)
+- **The Graveyard:** infinite procedural rows radiating from the church. Plots allocated
+  sequentially; 3–4 headstone variants (cross, slab, obelisk, cairn) chosen per death.
+  Lych-gate, fences, dead trees scattered on a deterministic pattern.
+- **World rules:** no build, no break, no damage, no hunger, no mob spawns, no explosions.
+  Living players may visit via the spawn portal (buy shards, pay respects, flower-vote,
+  ransom items). Ghosts of other players are visible here — the social hub of the dead.
+
+## 3. Portals
+
+Three portal types, all server-faked visuals (particle curtain + sound + block frame), entry
+detected by position — same pattern as FabricPlots portals. No custom blocks needed.
+
+| Portal | Where | Appears | Leads to |
+|---|---|---|---|
+| **Death portal** | near death site (safe-adjusted) | on death, for that ghost only | Charon's Echo, near your grave |
+| **Return portal** | beside your grave | after you reclaim your items | your death site (safe-adjusted) |
+| **Spawn portal** | world spawn, small shrine structure | permanent, generated on first server start | church entrance in Charon's Echo (and back) |
+
+- Death/return portals are **private** — only the owning ghost may use them; they despawn
+  after use. Death portal persists (chunk-load safe) until the ghost crosses.
+- Spawn portal is public, two-way, usable by the living. Config: auto-generate shrine at
+  spawn on/off + `/charon shrine place` command for manual placement on existing servers.
+
+## 4. Echo Shards
+
+The obol — Charon's fare, prepared while alive.
+
+- **Soul-bound:** the only item that stays in your inventory through death (capped: 1 consumed
+  per death; extras also persist — they're soul-bound as a class).
+- **Crafting:** survival recipe, moderately cheap (working proposal: 1 amethyst shard +
+  2 copper ingots + 1 soul sand → 1 Echo Shard; tune in playtesting). Recipe can be disabled
+  in config for buy-only economy servers.
+- **Buying:** at Charon's Altar. Default price in vanilla currency (config: item + count,
+  default 4 gold ingots). API hook so economy mods/plugins can override the transaction.
+- **Donation:** while a body lies in state (death sgui open), any player may drop an Echo
+  Shard onto the body — it binds to the dead player and grants free passage. The kneel-and-pay
+  co-op ritual.
+- **Item identity:** a renamed/model-data vanilla item (server-side constraint). Working
+  choice: amethyst shard with custom name/lore + glint. Must survive Geyser translation.
+
+## 5. Charon's Toll (dying without a shard)
+
+Charon always ferries you — but he takes his due. On portal entry without a shard, a weighted
+roll decides the toll:
+
+- **XP toll:** lose a percentage of stored XP (default 50% — "you had 400, now you have 200").
+  Weighted more likely when the player has meaningful XP.
+- **Item toll:** Charon takes the **most valuable item** in the grave (valuation table:
+  netherite > enchanted diamond > diamond > ... ; enchantment count breaks ties; config-
+  overridable value list). Weighted more likely when XP is low ("40 XP but fully kitted —
+  it rolls, and he eyes the netherite").
+- **The Vault (mercy valve):** tolled items are **not destroyed**. They hang in Charon's
+  Vault behind the altar, visible to everyone — trophies of the unprepared. The owner may
+  **ransom** them back at steep cost (default: 2 Echo Shards or 30 levels or economy price;
+  config). Vault entries expire to permanent forfeiture after a config window (default 30 days,
+  0 = never).
+- **First-death grace:** a player's first death ever is free passage + explanatory flavor
+  text (config on/off). Nobody gets tolled before they've had a chance to learn the shard
+  exists.
+
+## 6. Ghost State
+
+- Invisible + **soul-particle silhouette**: a wispy column of SOUL/SMOKE particles broadcast
+  at the player's position so the living see a drifting ghost with a nametag. Particles are
+  plain server packets — crossplays cleanly.
+- Flight (mayfly), spectral speed boost toward portal travel, slow-fall drift, no hunger
+  drain, invulnerable, cannot attack / interact / pick up / drop / open containers.
+- Cannot use other dimension portals (nether/end) — only Charon's portals.
+- Ambient audio: occasional soul-sand-valley ambience + bell toll on state transitions.
+- **Persistence:** ghost state, grave records, vault contents, epitaphs, flower votes all
+  persist across logout/restart (flat-file JSON or NBT in world storage, FabricPlots-style).
+  Logging out as a ghost logs you back in as the same ghost.
+
+## 7. Graves & Headstones
+
+- One grave record per death — multiple unclaimed graves per player is fine; each gets its
+  own headstone and plot. The soul wisp leads to the **oldest unclaimed** grave first.
+- Headstone: block-built variant + wall sign (auto line: name / cause of death / in-game day)
+  + player head where Geyser renders it acceptably.
+- **Epitaphs:** after reclaiming, an anvil-input sgui (crossplay-safe) offers 1–2 lines,
+  \~40 chars each. Filter pipeline: lowercase → leet normalization (4→a, 3→e, 0→o, $→s, …) →
+  configurable blocklist match (default list shipped) → length cap. Server config:
+  `epitaphs: filtered | disabled | op-approval`. Blocked epitaph → plain headstone (auto
+  line always shows).
+- **Reclaimed graves persist as empty memorials** — the epitaph stays. This is the "echoes"
+  payoff: the graveyard only ever grows, and space is infinite in the dimension.
+- Grave protection: only the owner may reclaim. Others may inspect (sneak-click → epitaph +
+  death info chat/sgui) and leave flowers.
+
+## 8. Book of the Dead
+
+Sgui ledger at the church lectern (VVC Guide tech):
+
+- Every death ever: player, cause, day, epitaph, shard-or-toll, claimed/unclaimed.
+- Filter/browse pages: by player, by cause, most recent.
+- **Hall of Legends** page: past Death of the Week winners.
+- Server stats page: total deaths, most deaths, most flowers received, Charon's total takings.
+
+## 9. Death of the Week
+
+- **Flowers are votes.** Any player (living visitor or ghost—no, ghosts can't interact:
+  living visitors only) sneak-uses a grave with a flower in hand → flower consumed, +1 vote,
+  small particle burst. One vote per player per grave per week.
+- Weekly rollover (config: real-time weekly, default Monday 00:00 server time): most-flowered
+  grave of the week is enshrined on the plinth by the church door — gilded headstone copy,
+  candles, glow. Previous winner archived to Hall of Legends.
+- Zero moderation cost; funny deaths win because friends flower-bomb them.
+
+## 10. Config Surface (initial)
+
+```
+core:
+  enabled_worlds: [overworld, nether, end]   # where the mod intercepts deaths
+  pvp_deaths_vanilla: false                  # true = PvP kills drop loot vanilla-style
+  respect_keep_inventory: true               # gamerule keepInventory bypasses the mod
+  bed_respawn: false                         # true = restore vanilla bed respawn
+death:
+  respawn_timeout_seconds: 60
+  first_death_free: true
+ghost:
+  speed_multiplier: 2.0
+  particles: true
+shards:
+  crafting_enabled: true
+  buy_price: { item: gold_ingot, count: 4 }
+toll:
+  xp_percent: 50
+  item_valuation: <table>
+  roll_weighting: <curve vs stored XP>
+  vault_ransom: { shards: 2, levels: 30 }
+  vault_expiry_days: 30
+graveyard:
+  epitaphs: filtered            # filtered | disabled | op-approval
+  epitaph_blocklist: [...]
+  death_of_week: true
+  week_rollover: MON_0000
+structures:
+  spawn_shrine_auto: true
+```
+
+## 11. Crossplay Notes (Geyser/Bedrock)
+
+- All mechanics are server-side: portals are particles + detection volumes, ghosts are
+  effects + packets, UI is sgui (chest/anvil GUIs — proven crossplay in VVC Guide).
+- Soul particles, sounds, signs, block-built structures: all fine on Bedrock.
+- Player heads on headstones: Geyser rendering is inconsistent — headstone variants must
+  look complete *without* the head; head is garnish.
+- Invisibility + nametag ghosts render fine via Geyser; verify particle silhouette density
+  (Bedrock particle budget is lower — config for reduced density).
+- Anvil-input epitaph GUI: works via Geyser (it translates to a Bedrock form) — verify in
+  testing on 26.x Geyser.
+
+## 12. Edge Cases
+
+- **Unsafe death/return spots:** spiral safe-block scan (solid floor, 2 air, no
+  lava/fire/void) up to N blocks; fall back upward to surface. Brief resistance + slow-fall
+  on return. Void deaths anchor to nearest solid ground above the void at death x/z.
+- **Death inside Charon's Echo:** impossible (no damage) — but guard anyway: teleport to
+  church, no new grave.
+- **Death sgui + server stop:** timeout state persisted; on rejoin, player resumes as ghost.
+- **keepInventory on:** mod stands down (config).
+- **Totem of Undying:** fires before death — unaffected.
+- **Ender dragon / respawn-anchor explosions / /kill:** normal loop; `/kill` while ghost is
+  a no-op.
+- **Hardcore mode:** out of scope (vanilla spectator takes over); documented.
+- **Grave DB growth:** records are tiny (JSON); memorial rows are blocks in an anvil-cheap
+  flat dimension. No cap needed; admin command `/charon purge-claimed <days>` provided anyway.
+- **Admin commands:** `/charon` root — shrine place, grave tp/list, vault list/return,
+  epitaph remove, week rollover force, reload config.
+
+## 13. Tech Stack
+
+- Fabric, MC 26.2 (26.1.2 backport branch if time) — per the 26.x toolchain: unobf, no
+  mappings line, Loom 1.17+, Gradle 9.6, JDK 25.
+- Deps: **sgui** (death screen, Book of the Dead, epitaph input, altar shop). Runtime world
+  creation the FabricPlots way. No Dimensional Inventories needed (ghosts carry nothing;
+  shared inventory across the grave world is *required*).
+- Persistence: JSON under `world/charons_echo/` (graves.json, vault.json, ledger.json,
+  votes.json) with atomic writes.
+- License: same as other BeachFury mods. **No AI attribution anywhere** (repo, commits,
+  CurseForge page). Git identity: BeachFury <beachfury@spiltinkdesign.com>.
+
+## 14. Build Phases vs Jam Timeline
+
+**Phase 1 — Core loop (target: live on CurseForge by Aug 1, before Aug 4 mid-contest round)**
+1. Death interception + grave records + persistence
+2. Ghost state (effects, particles, restrictions, persistence)
+3. Dimension creation + church/graveyard generation + plot allocation
+4. Portals (death/return/spawn) + safe-placement scan
+5. Reclaim at headstone + XP restore
+6. Echo Shard item + crafting + soul-binding + toll (XP/item roll, no vault yet)
+7. Death sgui (respawn button + timeout + shard donation)
+8. README, CHANGELOG, GitHub repo, CurseForge page, jam submission form
+
+**Phase 2 — The soul of it (before Aug 18 round)**
+9. Epitaphs + filter pipeline
+10. Book of the Dead sgui
+11. Charon's Vault + ransom
+12. Soul wisp grave guidance
+13. Altar shard shop + first-death grace
+
+**Phase 3 — Polish (before Sept 1)**
+14. Death of the Week + flowers + plinth + Hall of Legends
+15. Economy API hook
+16. Bedrock/Geyser verification pass + particle budget tuning
+17. Trailer/screenshots for the CurseForge page (moonlit graveyard money shot)
+18. 26.1.2 backport branch (stretch)
+
+**Testing rule:** build + commit locally; nothing is pushed to GitHub or published to
+CurseForge until tested in-game and approved (per standing rule) — with the explicit
+exception that the jam *requires* the repo and CurseForge listing to go live for Phase 1;
+that publish happens only after in-game approval of the Phase 1 build.
+
+## 15. Open Questions
+
+1. Shard recipe ingredients/cost — placeholder above, tune in playtesting.
+2. Item valuation table defaults for the toll roll.
+3. Does the spawn shrine auto-build, or command-only by default? (Spec says auto, toggle off.)
+4. Exact death sgui copy/flavor text — write during Phase 1.
+5. Mod ID: `charons_echo`. CurseForge slug: `charons-echo`.
