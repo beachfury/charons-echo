@@ -8,7 +8,7 @@
       "features": false,
       "layers": [
         { "block": "minecraft:bedrock", "height": 1 },
-        { "block": "minecraft:deepslate", "height": 45 },
+        { "block": "minecraft:deepslate", "height": 124 },
         { "block": "minecraft:tuff", "height": 3 },
         { "block": "minecraft:pale_moss_block", "height": 1 }
       ],
