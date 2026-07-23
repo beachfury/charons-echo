@@ -30,10 +30,20 @@ public final class CharonObol {
         stack.set(DataComponents.ITEM_NAME, Component.literal("Charon's Obol")
                 .withStyle(ChatFormatting.DARK_AQUA));
         stack.set(DataComponents.LORE, new ItemLore(List.of(
-                Component.literal("The Ferryman's fare. The one thing")
+                Component.literal("In the old times the dead were buried")
+                        .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC),
+                Component.literal("with a coin beneath the tongue, so the")
+                        .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC),
+                Component.literal("Ferryman would carry them across.")
+                        .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC),
+                Component.literal("Soul-bound — the one thing")
                         .withStyle(ChatFormatting.DARK_PURPLE),
                 Component.literal("death cannot take from you.")
-                        .withStyle(ChatFormatting.DARK_PURPLE))));
+                        .withStyle(ChatFormatting.DARK_PURPLE),
+                Component.literal("Spend it at the soul-fire, or let a")
+                        .withStyle(ChatFormatting.GRAY),
+                Component.literal("friend lay one upon your body.")
+                        .withStyle(ChatFormatting.GRAY))));
         stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putBoolean(MARKER, true));
         return stack;
