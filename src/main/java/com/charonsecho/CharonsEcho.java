@@ -43,6 +43,7 @@ public final class CharonsEcho implements ModInitializer {
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveManager.load(server);
+            GraveyardPlots.load(server); // after graves: legacy-field migration reads them
             GhostState.load(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {

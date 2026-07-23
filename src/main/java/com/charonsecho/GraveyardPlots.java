@@ -41,38 +41,30 @@ public final class GraveyardPlots {
         return max + 1;
     }
 
+
     /**
-     * A plot may be buried in only if it stays dry and doesn't hang off a
-     * cliff: every column above water level, and no more than 3 blocks of
-     * height spread across the 5×5. Unsuitable plots are skipped forever —
-     * rivers and cliffs carve natural gaps into the fields.
+     * Field positions are FOUND, not computed: the square spiral suggests an
+     * anchor, then the field slides outward from it until its entire footprint
+     * fits on dry, workable ground (no river crossing, no cliff). Found
+     * positions are persisted — the terrain-scattered layout is the graveyard's
+     * character.
      */
-    public static boolean isSuitable(int plotIndex) {
-        BlockPos o = plotOrigin(plotIndex);
-        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
-        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
-            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
-                int h = GraveyardTerrain.groundHeight(x, z);
-                if (h < min) min = h;
-                if (h > max) max = h;
-            }
-        }
-        return min >= GraveyardTerrain.WATER_TOP && (max - min) <= 3;
-    }
+    private static final java.util.List<BlockPos> FIELD_CENTERS = new java.util.ArrayList<>();
+    private static java.nio.file.Path fieldsFile;
 
-    /** First suitable unused plot index, walking the spiral forward. */
-    private static int nextSuitablePlotIndex() {
-        int i = nextPlotIndex();
-        for (int n = 0; n < 5000; n++, i++) {
-            if (isSuitable(i)) return i;
-        }
-        return i;
-    }
-
-    /** Square-spiral coordinates for field n (n >= 0), skipping the church at origin. */
     static BlockPos fieldCenter(int fieldIndex) {
+        synchronized (FIELD_CENTERS) {
+            while (FIELD_CENTERS.size() <= fieldIndex) {
+                FIELD_CENTERS.add(findFieldSpot(FIELD_CENTERS.size()));
+                saveFields();
+            }
+            return FIELD_CENTERS.get(fieldIndex);
+        }
+    }
+
+    /** Square-spiral anchor suggestion for field n, skipping the church at origin. */
+    private static BlockPos spiralAnchor(int fieldIndex) {
         int n = fieldIndex + 1; // 0 would be the church
-        // Walk the square spiral: right, up, left, down with growing arm lengths.
         int x = 0, z = 0, dx = 1, dz = 0, arm = 1, steps = 0, turns = 0;
         for (int i = 0; i < n; i++) {
             x += dx; z += dz;
@@ -83,6 +75,101 @@ public final class GraveyardPlots {
             }
         }
         return new BlockPos(x * FIELD_PITCH, 0, z * FIELD_PITCH);
+    }
+
+    /** Ring-scan outward from the spiral anchor for the first spot that fits. */
+    private static BlockPos findFieldSpot(int fieldIndex) {
+        BlockPos ideal = spiralAnchor(fieldIndex);
+        for (int r = 0; r <= 480; r += 16) {
+            for (int dx = -r; dx <= r; dx += 16) {
+                for (int dz = -r; dz <= r; dz += 16) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    int cx = ideal.getX() + dx, cz = ideal.getZ() + dz;
+                    if (fieldFits(cx, cz) && farFromOtherFields(cx, cz)) {
+                        return new BlockPos(cx, 0, cz);
+                    }
+                }
+            }
+        }
+        return ideal; // last resort — should not happen in these hills
+    }
+
+    /** The whole footprint (incl. fence ring) dry and ≤10 blocks of relief. */
+    private static boolean fieldFits(int cx, int cz) {
+        int r = FIELD_HALF + 2;
+        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        for (int x = cx - r; x <= cx + r; x++) {
+            for (int z = cz - r; z <= cz + r; z++) {
+                int h = GraveyardTerrain.groundHeight(x, z);
+                if (h < GraveyardTerrain.WATER_TOP) return false;
+                if (h < min) min = h;
+                if (h > max) max = h;
+            }
+        }
+        // Keep clear of the church plateau too.
+        if (Math.max(Math.abs(cx), Math.abs(cz)) < 96) return false;
+        return (max - min) <= 10;
+    }
+
+    private static boolean farFromOtherFields(int cx, int cz) {
+        for (BlockPos c : FIELD_CENTERS) {
+            if (Math.max(Math.abs(c.getX() - cx), Math.abs(c.getZ() - cz)) < 60) return false;
+        }
+        return true;
+    }
+
+    // ---- field-position persistence (world/charons_echo/fields.dat) ----
+
+    public static void load(net.minecraft.server.MinecraftServer server) {
+        synchronized (FIELD_CENTERS) {
+            FIELD_CENTERS.clear();
+            fieldsFile = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                    .resolve("charons_echo").resolve("fields.dat");
+            try {
+                if (java.nio.file.Files.exists(fieldsFile)) {
+                    var root = net.minecraft.nbt.NbtIo.readCompressed(fieldsFile,
+                            net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+                    for (var t : root.getListOrEmpty("fields")) {
+                        if (t instanceof net.minecraft.nbt.CompoundTag c) {
+                            FIELD_CENTERS.add(new BlockPos(c.getIntOr("x", 0), 0, c.getIntOr("z", 0)));
+                        }
+                    }
+                }
+            } catch (java.io.IOException e) {
+                System.out.println("[CharonsEcho] failed to load fields.dat: " + e);
+            }
+            // Migration: worlds with graves placed before positions were stored
+            // used the raw spiral — seed those positions so old graves resolve.
+            if (FIELD_CENTERS.isEmpty()) {
+                int maxField = -1;
+                for (GraveManager.Grave g : GraveManager.all()) {
+                    if (g.plotIndex >= 0) maxField = Math.max(maxField, g.plotIndex / PER_FIELD);
+                }
+                for (int f = 0; f <= maxField; f++) {
+                    FIELD_CENTERS.add(spiralAnchor(f));
+                }
+                if (maxField >= 0) saveFields();
+            }
+        }
+    }
+
+    private static void saveFields() {
+        if (fieldsFile == null) return;
+        try {
+            java.nio.file.Files.createDirectories(fieldsFile.getParent());
+            var list = new net.minecraft.nbt.ListTag();
+            for (BlockPos c : FIELD_CENTERS) {
+                var t = new net.minecraft.nbt.CompoundTag();
+                t.putInt("x", c.getX());
+                t.putInt("z", c.getZ());
+                list.add(t);
+            }
+            var root = new net.minecraft.nbt.CompoundTag();
+            root.put("fields", list);
+            net.minecraft.nbt.NbtIo.writeCompressed(root, fieldsFile);
+        } catch (java.io.IOException e) {
+            System.out.println("[CharonsEcho] failed to save fields.dat: " + e);
+        }
     }
 
     /** NW corner of a plot (global index) in world coords. */
@@ -111,29 +198,15 @@ public final class GraveyardPlots {
      * raise the stone, and note on the gate sign when the field fills.
      */
     public static void allocate(ServerLevel graveyard, GraveManager.Grave grave) {
-        int idx = nextSuitablePlotIndex();
+        int idx = nextPlotIndex();
         grave.plotIndex = idx;
         ensureField(graveyard, idx / PER_FIELD);
         terracePlot(graveyard, idx);
         placeHeadstone(graveyard, grave);
-        if (!fieldHasOpenPlots(idx / PER_FIELD)) {
+        if (idx % PER_FIELD == PER_FIELD - 1) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
         GraveManager.save();
-    }
-
-    /** True while the field still holds at least one dry, unused plot. */
-    private static boolean fieldHasOpenPlots(int fieldIndex) {
-        boolean[] used = new boolean[PER_FIELD];
-        for (GraveManager.Grave g : GraveManager.all()) {
-            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) {
-                used[g.plotIndex % PER_FIELD] = true;
-            }
-        }
-        for (int w = 0; w < PER_FIELD; w++) {
-            if (!used[w] && isSuitable(fieldIndex * PER_FIELD + w)) return true;
-        }
-        return false;
     }
 
     /**
