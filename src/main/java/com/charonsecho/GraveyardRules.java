@@ -44,6 +44,7 @@ public final class GraveyardRules {
             keepers = sb.addPlayerTeam(KEEPERS_TEAM);
             keepers.setAllowFriendlyFire(false);
         }
+        var players = graveyard.players();
         for (Entity e : graveyard.getAllEntities()) {
             if (!(e instanceof Mob mob)) continue;
             if (mob.getType() == EntityTypes.WARDEN || mob.getType() == EntityTypes.CREAKING) {
@@ -55,7 +56,25 @@ public final class GraveyardRules {
                 if (mob.getTarget() != null) {
                     mob.setTarget(null);
                 }
+                // Wardens rebuild anger at players from vibrations — wipe it so
+                // they never escalate to hunting a visitor.
+                if (mob instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
+                    for (var p : players) {
+                        warden.clearAnger(p);
+                    }
+                }
                 mob.setPersistenceRequired();
+            }
+        }
+
+        // The Warden's darkness pulse is unconditional — strip it (and any
+        // blindness) from visitors so the gravekeepers never blind the living.
+        for (var p : players) {
+            if (p.hasEffect(net.minecraft.world.effect.MobEffects.DARKNESS)) {
+                p.removeEffect(net.minecraft.world.effect.MobEffects.DARKNESS);
+            }
+            if (p.hasEffect(net.minecraft.world.effect.MobEffects.BLINDNESS)) {
+                p.removeEffect(net.minecraft.world.effect.MobEffects.BLINDNESS);
             }
         }
     }
