@@ -47,10 +47,15 @@ public final class GraveyardRules {
             if (!(player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
-            if (player instanceof net.minecraft.server.level.ServerPlayer sp && Gravekeepers.canBuild(sp)) {
+            // Client side can't know who's a builder — always forward so the
+            // SERVER decides (a client-side FAIL would swallow everyone's
+            // placements, admins included).
+            if (!(player instanceof net.minecraft.server.level.ServerPlayer sp)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
-            return net.minecraft.world.InteractionResult.FAIL;
+            return Gravekeepers.canBuild(sp)
+                    ? net.minecraft.world.InteractionResult.PASS
+                    : net.minecraft.world.InteractionResult.FAIL;
         });
 
         // Pacify the Gravekeepers a few times a second.
