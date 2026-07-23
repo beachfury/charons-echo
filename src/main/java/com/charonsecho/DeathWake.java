@@ -88,13 +88,13 @@ public final class DeathWake {
                 .glow()
                 .setCallback((index, type, action, g) -> g.close())
                 .build());
-        gui.setSlot(15, new GuiElementBuilder(Items.AMETHYST_SHARD)
-                .setName(Component.literal("Charon's Fare").withStyle(ChatFormatting.LIGHT_PURPLE))
+        gui.setSlot(15, new GuiElementBuilder(Items.ECHO_SHARD)
+                .setName(Component.literal("Charon's Fare").withStyle(ChatFormatting.DARK_AQUA))
                 .addLoreLine(Component.literal("While your body lies here, anyone")
                         .withStyle(ChatFormatting.GRAY))
-                .addLoreLine(Component.literal("may drop an Echo Shard on it to")
+                .addLoreLine(Component.literal("may drop a Charon's Obol on it")
                         .withStyle(ChatFormatting.GRAY))
-                .addLoreLine(Component.literal("pay your passage.")
+                .addLoreLine(Component.literal("to pay your passage.")
                         .withStyle(ChatFormatting.GRAY))
                 .build());
         gui.open();
@@ -113,12 +113,12 @@ public final class DeathWake {
                         2, 0.3, 0.1, 0.3, 0.01);
             }
 
-            // Shard donation: any shard item dropped within 3 blocks pays the fare.
+            // Obol donation: one dropped within a few blocks pays the fare.
             GraveManager.byId(wake.graveId()).ifPresent(grave -> {
                 if (!grave.farePaid && player.level() instanceof ServerLevel level) {
                     AABB box = AABB.ofSize(player.position().add(0, 0.5, 0), 7, 5, 7);
                     for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, box)) {
-                        if (EchoShard.isShard(item.getItem())) {
+                        if (CharonObol.isObol(item.getItem())) {
                             item.getItem().shrink(1);
                             if (item.getItem().isEmpty()) item.discard();
                             grave.farePaid = true;
@@ -127,7 +127,7 @@ public final class DeathWake {
                                     player.getX(), player.getY() + 1, player.getZ(),
                                     20, 0.4, 0.6, 0.4, 0.02);
                             server.getPlayerList().broadcastSystemMessage(Component.literal(
-                                    "An Echo Shard settles over " + grave.ownerName
+                                    "An obol settles over " + grave.ownerName
                                     + "'s body — the Ferryman's fare is paid.")
                                     .withStyle(ChatFormatting.DARK_PURPLE), false);
                             break;

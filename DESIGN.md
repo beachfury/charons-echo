@@ -395,6 +395,11 @@ that publish happens only after in-game approval of the Phase 1 build.
 
 ## Decisions log
 
+- 2026-07-22: the fare item is **Charon's Obol** (vanilla already has an "Echo Shard" —
+  name collision), built on the vanilla echo shard item for its sculk-teal texture.
+  All spec references to "Echo Shard" as the fare item read as Charon's Obol.
+  Command: `/charon obol [count]`.
+
 - 2026-07-21: dimension is shaped terrain (hills/terraces), monochrome Pale Garden + Deep
   Dark palette, End skybox, gray-tinted custom biome. Landmark builds are hand-authored
   structure templates via Studio mode. Death/return portals are one-shot, place no blocks,

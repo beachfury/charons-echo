@@ -19,11 +19,11 @@ public final class CharonCommands {
 
     private CharonCommands() {}
 
-    private static int giveShards(ServerPlayer player, int count) {
-        player.getInventory().placeItemBackInInventory(EchoShard.create(count));
+    private static int giveObols(ServerPlayer player, int count) {
+        player.getInventory().placeItemBackInInventory(CharonObol.create(count));
         player.sendSystemMessage(Component.literal(
-                count == 1 ? "An Echo Shard settles into your palm — Charon's fare."
-                           : count + " Echo Shards settle into your palm — Charon's fare.")
+                count == 1 ? "An obol settles into your palm — the Ferryman's fare."
+                           : count + " obols settle into your palm — the Ferryman's fare.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
         return count;
     }
@@ -33,7 +33,7 @@ public final class CharonCommands {
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .executes(ctx -> {
                     ctx.getSource().sendSystemMessage(Component.literal(
-                            "Charon's Echo — /charon studio | export [name] | place <name> | visit | back | shard [n] | revive [player]")
+                            "Charon's Echo — /charon studio | export [name] | place <name> | visit | back | obol [n] | revive [player]")
                             .withStyle(ChatFormatting.GRAY));
                     return 1;
                 })
@@ -73,10 +73,10 @@ public final class CharonCommands {
                             .withStyle(ChatFormatting.DARK_PURPLE));
                     return 1;
                 }))
-                .then(Commands.literal("shard")
-                        .executes(ctx -> giveShards(ctx.getSource().getPlayerOrException(), 1))
+                .then(Commands.literal("obol")
+                        .executes(ctx -> giveObols(ctx.getSource().getPlayerOrException(), 1))
                         .then(Commands.argument("count", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 64))
-                                .executes(ctx -> giveShards(ctx.getSource().getPlayerOrException(),
+                                .executes(ctx -> giveObols(ctx.getSource().getPlayerOrException(),
                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "count")))))
                 .then(Commands.literal("revive")
                         .executes(ctx -> {

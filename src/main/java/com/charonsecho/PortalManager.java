@@ -112,7 +112,7 @@ public final class PortalManager {
         if (grave.farePaid) {
             player.sendSystemMessage(Component.literal("Your fare was paid at the wake. Charon nods.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
-        } else if (consumeShard(player)) {
+        } else if (consumeObol(player)) {
             player.sendSystemMessage(Component.literal("Charon accepts your fare.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
         } else if (grave.xpLevels > 0) {
@@ -142,11 +142,11 @@ public final class PortalManager {
                 .withStyle(ChatFormatting.GRAY));
     }
 
-    private static boolean consumeShard(ServerPlayer player) {
+    private static boolean consumeObol(ServerPlayer player) {
         var inv = player.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
             ItemStack stack = inv.getItem(i);
-            if (EchoShard.isShard(stack)) {
+            if (CharonObol.isObol(stack)) {
                 stack.shrink(1);
                 return true;
             }
