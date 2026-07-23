@@ -7,6 +7,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
 
 /**
  * World rules for Charon's Echo: no damage of any kind, and the Gravekeepers
@@ -30,13 +32,26 @@ public final class GraveyardRules {
         ServerTickEvents.END_SERVER_TICK.register(GraveyardRules::tick);
     }
 
+    private static final String KEEPERS_TEAM = "charon_keepers";
+
     private static void tick(MinecraftServer server) {
         if (server.getTickCount() % 5 != 0) return;
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
+        Scoreboard sb = server.getScoreboard();
+        PlayerTeam keepers = sb.getPlayerTeam(KEEPERS_TEAM);
+        if (keepers == null) {
+            keepers = sb.addPlayerTeam(KEEPERS_TEAM);
+            keepers.setAllowFriendlyFire(false);
+        }
         for (Entity e : graveyard.getAllEntities()) {
             if (!(e instanceof Mob mob)) continue;
             if (mob.getType() == EntityTypes.WARDEN || mob.getType() == EntityTypes.CREAKING) {
+                // Same team → isAlliedTo() → vanilla targeting (Warden included)
+                // skips them. Target-clearing stays as a cheap backstop.
+                if (mob.getTeam() == null) {
+                    sb.addPlayerToTeam(mob.getScoreboardName(), keepers);
+                }
                 if (mob.getTarget() != null) {
                     mob.setTarget(null);
                 }
