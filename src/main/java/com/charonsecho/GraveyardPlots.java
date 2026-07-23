@@ -67,71 +67,84 @@ public final class GraveyardPlots {
                 0, c.getZ() - FIELD_HALF + row * PLOT);
     }
 
-    /** Terrace height for the field a plot lives in. */
-    public static int fieldSurfaceY(int plotIndex) {
-        BlockPos c = fieldCenter(plotIndex / PER_FIELD);
-        return GraveyardTerrain.groundHeight(c.getX(), c.getZ());
+    /**
+     * Surface height of a plot's own little terrace: the terrain height at the
+     * plot center. Plots step down hillsides individually — a churchyard
+     * climbing the hill, not a bulldozed platform.
+     */
+    public static int plotSurfaceY(int plotIndex) {
+        BlockPos o = plotOrigin(plotIndex);
+        return GraveyardTerrain.groundHeight(o.getX() + 2, o.getZ() + 2);
     }
 
     /**
-     * Assign the next plot to a grave, terracing the field if this is its
-     * first burial, and raise the headstone.
+     * Assign the next plot to a grave: fence the field on first burial (the
+     * fence follows the terrain), cut the plot's own terrace, raise the stone.
      */
     public static void allocate(ServerLevel graveyard, GraveManager.Grave grave) {
         int idx = nextPlotIndex();
         grave.plotIndex = idx;
         if (idx % PER_FIELD == 0) {
-            terraceField(graveyard, idx / PER_FIELD);
+            fenceField(graveyard, idx / PER_FIELD);
         }
+        terracePlot(graveyard, idx);
         placeHeadstone(graveyard, grave);
         GraveManager.save();
     }
 
-    /** Flatten the 40×40 field (plus fence ring) into the hillside. */
-    private static void terraceField(ServerLevel level, int fieldIndex) {
+    /** Fence the field perimeter, following the terrain, gate at south center. */
+    private static void fenceField(ServerLevel level, int fieldIndex) {
         BlockPos c = fieldCenter(fieldIndex);
-        int h = GraveyardTerrain.groundHeight(c.getX(), c.getZ());
+        BlockState fence = Blocks.PALE_OAK_FENCE.defaultBlockState();
+        BlockState lantern = Blocks.SOUL_LANTERN.defaultBlockState();
+        int f = FIELD_HALF + 1;
+        for (int x = c.getX() - f; x <= c.getX() + f; x++) {
+            boolean southGate = Math.abs(x - c.getX()) <= 1;
+            fencePost(level, fence, x, c.getZ() - f);
+            if (!southGate) fencePost(level, fence, x, c.getZ() + f);
+        }
+        for (int z = c.getZ() - f; z <= c.getZ() + f; z++) {
+            fencePost(level, fence, c.getX() - f, z);
+            fencePost(level, fence, c.getX() + f, z);
+        }
+        for (int[] corner : new int[][]{{-f, -f}, {f, -f}, {-f, f}, {f, f}}) {
+            int x = c.getX() + corner[0], z = c.getZ() + corner[1];
+            int h = GraveyardTerrain.groundHeight(x, z);
+            level.setBlock(new BlockPos(x, h + 2, z), lantern, 2);
+        }
+    }
+
+    private static void fencePost(ServerLevel level, BlockState fence, int x, int z) {
+        level.getChunk(x >> 4, z >> 4);
+        int h = GraveyardTerrain.groundHeight(x, z);
+        level.setBlock(new BlockPos(x, h + 1, z), fence, 2);
+    }
+
+    /** Cut the 5×5 plot flat at its own height, with tuff fill below. */
+    private static void terracePlot(ServerLevel level, int plotIndex) {
+        BlockPos o = plotOrigin(plotIndex);
+        int h = plotSurfaceY(plotIndex);
         BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
         BlockState tuff = Blocks.TUFF.defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
-        BlockState fence = Blocks.PALE_OAK_FENCE.defaultBlockState();
-        int r = FIELD_HALF + 2; // fence ring sits on the +1 ring
-
-        for (int x = c.getX() - r; x <= c.getX() + r; x++) {
-            for (int z = c.getZ() - r; z <= c.getZ() + r; z++) {
+        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
+            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
                 level.getChunk(x >> 4, z >> 4);
-                for (int y = h + 1; y <= h + 24; y++) {
+                for (int y = h + 1; y <= h + 6; y++) {
                     level.setBlock(new BlockPos(x, y, z), air, 2);
                 }
                 level.setBlock(new BlockPos(x, h, z), moss, 2);
-                for (int y = h - 3; y < h; y++) {
+                for (int y = h - 2; y < h; y++) {
                     level.setBlock(new BlockPos(x, y, z), tuff, 2);
                 }
             }
         }
-        // Fence the perimeter, with a 3-wide gap at the south center (the gate).
-        int f = FIELD_HALF + 1;
-        for (int x = c.getX() - f; x <= c.getX() + f; x++) {
-            boolean southGate = Math.abs(x - c.getX()) <= 1;
-            level.setBlock(new BlockPos(x, h + 1, c.getZ() - f), fence, 2);
-            if (!southGate) level.setBlock(new BlockPos(x, h + 1, c.getZ() + f), fence, 2);
-        }
-        for (int z = c.getZ() - f; z <= c.getZ() + f; z++) {
-            level.setBlock(new BlockPos(c.getX() - f, h + 1, z), fence, 2);
-            level.setBlock(new BlockPos(c.getX() + f, h + 1, z), fence, 2);
-        }
-        // Soul lanterns on the corners.
-        BlockState lantern = Blocks.SOUL_LANTERN.defaultBlockState();
-        level.setBlock(new BlockPos(c.getX() - f, h + 2, c.getZ() - f), lantern, 2);
-        level.setBlock(new BlockPos(c.getX() + f, h + 2, c.getZ() - f), lantern, 2);
-        level.setBlock(new BlockPos(c.getX() - f, h + 2, c.getZ() + f), lantern, 2);
-        level.setBlock(new BlockPos(c.getX() + f, h + 2, c.getZ() + f), lantern, 2);
     }
 
     /** Placeholder headstone: mound, stone, and the epitaph sign. */
     private static void placeHeadstone(ServerLevel level, GraveManager.Grave grave) {
         BlockPos o = plotOrigin(grave.plotIndex);
-        int y = fieldSurfaceY(grave.plotIndex);
+        int y = plotSurfaceY(grave.plotIndex);
         int cx = o.getX() + 2, cz = o.getZ() + 1; // stone near plot's north edge
 
         level.getChunk(cx >> 4, cz >> 4);
@@ -147,28 +160,35 @@ public final class GraveyardPlots {
         level.setBlock(signPos, Blocks.PALE_OAK_WALL_SIGN.defaultBlockState()
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH), 2);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            long day = grave.gameTime / 24000L;
+            // "BeachFury hit the ground too hard" → name is line 1, so the
+            // cause reads "hit the ground too hard" wrapped over two lines.
             String cause = grave.causeLine;
-            String l1 = cause.length() > 15 ? cause.substring(0, 15) : cause;
-            String l2 = cause.length() > 15 ? cause.substring(15, Math.min(30, cause.length())) : "";
+            if (cause.startsWith(grave.ownerName)) {
+                cause = cause.substring(grave.ownerName.length()).trim();
+            }
+            String l3 = cause.length() > 15 ? cause.substring(0, 15) : cause;
+            String rest = cause.length() > 15 ? cause.substring(15).trim() : "";
+            String l4 = rest.length() > 15 ? rest.substring(0, 14) + "…" : rest;
+            String date = grave.epochMillis > 0
+                    ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
+                    : "Day " + (grave.gameTime / 24000L);
             SignText text = new SignText()
                     .setMessage(0, Component.literal(grave.ownerName))
-                    .setMessage(1, Component.literal(l1))
-                    .setMessage(2, Component.literal(l2))
-                    .setMessage(3, Component.literal("Day " + day));
+                    .setMessage(1, Component.literal(date))
+                    .setMessage(2, Component.literal(l3))
+                    .setMessage(3, Component.literal(l4));
             sign.setText(text, true);
             sign.setChanged();
         }
     }
 
-    /** Mark a reclaimed grave's sign. */
+    /** A reclaimed grave's sign glows softly — the soul is at rest. */
     public static void markAtRest(ServerLevel level, GraveManager.Grave grave) {
         BlockPos o = plotOrigin(grave.plotIndex);
-        int y = fieldSurfaceY(grave.plotIndex);
+        int y = plotSurfaceY(grave.plotIndex);
         BlockPos signPos = new BlockPos(o.getX() + 2, y + 1, o.getZ() + 2);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            sign.setText(sign.getFrontText().setMessage(3,
-                    Component.literal("— at rest —")), true);
+            sign.setText(sign.getFrontText().setHasGlowingText(true), true);
             sign.setChanged();
         }
     }
@@ -177,7 +197,7 @@ public final class GraveyardPlots {
     public static boolean isOnPlot(GraveManager.Grave grave, BlockPos pos) {
         if (grave.plotIndex < 0) return false;
         BlockPos o = plotOrigin(grave.plotIndex);
-        int y = fieldSurfaceY(grave.plotIndex);
+        int y = plotSurfaceY(grave.plotIndex);
         return pos.getX() >= o.getX() && pos.getX() < o.getX() + PLOT
                 && pos.getZ() >= o.getZ() && pos.getZ() < o.getZ() + PLOT
                 && Math.abs(pos.getY() - y) <= 4;
@@ -186,6 +206,6 @@ public final class GraveyardPlots {
     /** Where a ghost arrives / stands to mourn: south of the headstone. */
     public static BlockPos arrivalPos(int plotIndex) {
         BlockPos o = plotOrigin(plotIndex);
-        return new BlockPos(o.getX() + 2, fieldSurfaceY(plotIndex) + 1, o.getZ() + 4);
+        return new BlockPos(o.getX() + 2, plotSurfaceY(plotIndex) + 1, o.getZ() + 4);
     }
 }

@@ -71,26 +71,26 @@ public final class DeathHandler {
             player.setExperiencePoints(0);
 
             BlockPos deathPos = player.blockPosition();
-            GraveManager.add(new GraveManager.Grave(
+            GraveManager.Grave grave = new GraveManager.Grave(
                     UUID.randomUUID(), player.getUUID(), player.getName().getString(),
                     level.dimension().identifier().toString(), deathPos,
                     deathMessage.getString(),
                     level.getServer().overworld().getGameTime(),
-                    xpLevels, xpProgress, taken, false));
+                    xpLevels, xpProgress, taken, false);
+            grave.epochMillis = System.currentTimeMillis();
+            GraveManager.add(grave);
 
-            // Death is refused; the ghost rises where the body fell.
+            // Death is refused; the body lies in state (the wake), then the
+            // ghost rises where it fell.
             player.setHealth(player.getMaxHealth());
             player.setRemainingFireTicks(0);
             player.removeAllEffects();
-            GhostState.apply(player, deathPos);
+            DeathWake.begin(player, grave);
 
             level.playSound(null, deathPos, SoundEvents.BELL_RESONATE, SoundSource.AMBIENT, 1.0f, 0.6f);
             player.sendSystemMessage(Component.literal(
                     "Death is not the end. Charon has carried your possessions to the graveyard.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
-            player.sendSystemMessage(Component.literal(
-                    "Step into the soul-fire portal to follow them.")
-                    .withStyle(ChatFormatting.GRAY));
             return false;
         });
     }

@@ -54,8 +54,9 @@ public final class PortalManager {
 
             String dim = player.level().dimension().identifier().toString();
             if (dim.equals(data.dimension())) {
-                // Death portal beside the anchor.
-                BlockPos portal = data.anchor();
+                // Death portal, offset from where the body fell — walking in
+                // is a deliberate act, never an accident of standing still.
+                BlockPos portal = data.portal();
                 portalParticles((ServerLevel) player.level(), portal, player.tickCount);
                 if (player.tickCount % 2 == 0
                         && player.position().distanceTo(Vec3.atCenterOf(portal)) < 1.4) {
@@ -108,7 +109,10 @@ public final class PortalManager {
         GraveManager.Grave grave = graveOpt.get();
 
         // Charon's fare.
-        if (consumeShard(player)) {
+        if (grave.farePaid) {
+            player.sendSystemMessage(Component.literal("Your fare was paid at the wake. Charon nods.")
+                    .withStyle(ChatFormatting.DARK_PURPLE));
+        } else if (consumeShard(player)) {
             player.sendSystemMessage(Component.literal("Charon accepts your fare.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
         } else if (grave.xpLevels > 0) {

@@ -50,7 +50,9 @@ public final class GhostState {
     /** Leash radius around the death anchor in the living world. */
     private static final double TETHER_R = 24.0;
 
-    public record GhostData(String dimension, BlockPos anchor) {}
+    /** anchor = where the body fell; portal = the soul-fire portal, offset so
+     *  the risen ghost must deliberately walk into it. */
+    public record GhostData(String dimension, BlockPos anchor, BlockPos portal) {}
 
     public static GhostData get(UUID uuid) {
         return GHOSTS.get(uuid);
@@ -64,14 +66,15 @@ public final class GhostState {
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(GhostState::tick);
 
-        // Ghosts touch nothing — except their own headstone.
+        // Ghosts touch nothing — except their own headstone. On the client side
+        // (single-player) return SUCCESS so the click is FORWARDED to the
+        // server, where the real decision happens — a client-side FAIL would
+        // swallow the click before the server ever saw it.
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (!isGhost(player.getUUID())) return InteractionResult.PASS;
-            if (player instanceof ServerPlayer sp
-                    && PortalManager.tryReclaim(sp, hit.getBlockPos())) {
-                return InteractionResult.SUCCESS;
-            }
-            return InteractionResult.FAIL;
+            if (!(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
+            return PortalManager.tryReclaim(sp, hit.getBlockPos())
+                    ? InteractionResult.SUCCESS : InteractionResult.FAIL;
         });
         UseItemCallback.EVENT.register((player, world, hand) ->
                 isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
@@ -95,8 +98,10 @@ public final class GhostState {
     }
 
     public static void apply(ServerPlayer player, BlockPos anchor) {
+        ServerLevel level = (ServerLevel) player.level();
+        BlockPos portal = PortalManager.findSafe(level, anchor.offset(3, 0, 0));
         GHOSTS.put(player.getUUID(),
-                new GhostData(player.level().dimension().identifier().toString(), anchor));
+                new GhostData(level.dimension().identifier().toString(), anchor, portal));
         applyEffects(player);
         save();
     }
@@ -105,6 +110,8 @@ public final class GhostState {
         GHOSTS.remove(player.getUUID());
         player.removeTag(TAG);
         player.removeEffect(MobEffects.INVISIBILITY);
+        player.removeEffect(MobEffects.SLOW_FALLING);
+        player.removeEffect(MobEffects.DARKNESS);
         player.getAbilities().invulnerable = false;
         boolean creative = player.gameMode().isCreative();
         player.getAbilities().mayfly = creative;
@@ -121,6 +128,7 @@ public final class GhostState {
     private static void applyEffects(ServerPlayer player) {
         player.addTag(TAG);
         player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, -1, 0, true, false, false));
+        player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, -1, 0, true, false, false));
         player.getAbilities().mayfly = true;
         player.getAbilities().invulnerable = true;
         player.onUpdateAbilities();
@@ -148,6 +156,9 @@ public final class GhostState {
             if (!player.hasEffect(MobEffects.INVISIBILITY)) {
                 player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, -1, 0, true, false, false));
             }
+            if (!player.hasEffect(MobEffects.SLOW_FALLING)) {
+                player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, -1, 0, true, false, false));
+            }
             player.addTag(TAG); // Set-add: no-op when already present
 
             // Soul silhouette, a few times a second.
@@ -169,6 +180,8 @@ public final class GhostState {
                     Vec3 pull = anchor.subtract(player.position()).normalize().scale(0.35);
                     player.setDeltaMovement(player.getDeltaMovement().scale(0.4).add(pull));
                     player.hurtMarked = true;
+                    // The world darkens at the edge of the leash.
+                    player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 50, 0, true, false, false));
                     if (player.tickCount % 40 == 0) {
                         player.sendOverlayMessage(net.minecraft.network.chat.Component
                                 .literal("The dead may not wander.").withStyle(ChatFormatting.DARK_PURPLE));
@@ -189,9 +202,11 @@ public final class GhostState {
             CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
             for (Tag t : root.getListOrEmpty("ghosts")) {
                 if (!(t instanceof CompoundTag g)) continue;
+                BlockPos anchor = new BlockPos(g.getIntOr("x", 0), g.getIntOr("y", 64), g.getIntOr("z", 0));
+                BlockPos portal = new BlockPos(g.getIntOr("px", anchor.getX() + 3),
+                        g.getIntOr("py", anchor.getY()), g.getIntOr("pz", anchor.getZ()));
                 GHOSTS.put(UUID.fromString(g.getStringOr("uuid", new UUID(0, 0).toString())),
-                        new GhostData(g.getStringOr("dimension", "minecraft:overworld"),
-                                new BlockPos(g.getIntOr("x", 0), g.getIntOr("y", 64), g.getIntOr("z", 0))));
+                        new GhostData(g.getStringOr("dimension", "minecraft:overworld"), anchor, portal));
             }
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to load ghosts.dat: " + e);
@@ -211,6 +226,9 @@ public final class GhostState {
                 t.putInt("x", data.anchor().getX());
                 t.putInt("y", data.anchor().getY());
                 t.putInt("z", data.anchor().getZ());
+                t.putInt("px", data.portal().getX());
+                t.putInt("py", data.portal().getY());
+                t.putInt("pz", data.portal().getZ());
                 list.add(t);
             });
             CompoundTag root = new CompoundTag();

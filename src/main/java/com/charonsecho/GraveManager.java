@@ -45,6 +45,10 @@ public final class GraveManager {
         public boolean claimed;
         /** Global plot index in the graveyard; -1 until the ghost first crosses. */
         public int plotIndex = -1;
+        /** Real-world time of death (epoch millis) for the headstone date. */
+        public long epochMillis = 0L;
+        /** Fare already paid (shard dropped on the body during the wake). */
+        public boolean farePaid = false;
         /** XP levels may be halved by Charon's toll before reclaim. */
 
         public Grave(UUID id, UUID owner, String ownerName, String dimension, BlockPos pos,
@@ -96,6 +100,8 @@ public final class GraveManager {
                         items,
                         g.getBooleanOr("claimed", false));
                 grave.plotIndex = g.getIntOr("plotIndex", -1);
+                grave.epochMillis = g.getLongOr("epochMillis", 0L);
+                grave.farePaid = g.getBooleanOr("farePaid", false);
                 GRAVES.add(grave);
             }
         } catch (IOException e) {
@@ -125,6 +131,8 @@ public final class GraveManager {
                 t.putFloat("xpProgress", g.xpProgress);
                 t.putBoolean("claimed", g.claimed);
                 t.putInt("plotIndex", g.plotIndex);
+                t.putLong("epochMillis", g.epochMillis);
+                t.putBoolean("farePaid", g.farePaid);
                 ListTag items = new ListTag();
                 for (ItemStack stack : g.items) {
                     ItemStack.OPTIONAL_CODEC.encodeStart(ops, stack).result().ifPresent(items::add);
@@ -158,5 +166,9 @@ public final class GraveManager {
 
     public static List<Grave> all() {
         return List.copyOf(GRAVES);
+    }
+
+    public static Optional<Grave> byId(UUID id) {
+        return GRAVES.stream().filter(g -> g.id.equals(id)).findFirst();
     }
 }
