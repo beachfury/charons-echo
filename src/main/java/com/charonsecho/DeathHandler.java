@@ -46,19 +46,20 @@ public final class DeathHandler {
             Component deathMessage = source.getLocalizedDeathMessage(player);
             level.getServer().getPlayerList().broadcastSystemMessage(deathMessage, false);
 
-            // Charon takes the goods.
+            // Charon takes the goods — except Echo Shards, which are soul-bound
+            // and stay with the ghost to pay the Ferryman.
             List<ItemStack> taken = new ArrayList<>();
             var inv = player.getInventory();
             for (int i = 0; i < inv.getContainerSize(); i++) {
                 ItemStack stack = inv.getItem(i);
-                if (!stack.isEmpty()) {
+                if (!stack.isEmpty() && !EchoShard.isShard(stack)) {
                     taken.add(stack.copy());
+                    inv.setItem(i, ItemStack.EMPTY);
                 }
             }
-            inv.clearContent();
             for (EquipmentSlot slot : TAKEN_EQUIPMENT) {
                 ItemStack stack = player.getItemBySlot(slot);
-                if (!stack.isEmpty()) {
+                if (!stack.isEmpty() && !EchoShard.isShard(stack)) {
                     taken.add(stack.copy());
                     player.setItemSlot(slot, ItemStack.EMPTY);
                 }

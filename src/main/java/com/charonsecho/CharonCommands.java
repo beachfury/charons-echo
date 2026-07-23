@@ -19,12 +19,21 @@ public final class CharonCommands {
 
     private CharonCommands() {}
 
+    private static int giveShards(ServerPlayer player, int count) {
+        player.getInventory().placeItemBackInInventory(EchoShard.create(count));
+        player.sendSystemMessage(Component.literal(
+                count == 1 ? "An Echo Shard settles into your palm — Charon's fare."
+                           : count + " Echo Shards settle into your palm — Charon's fare.")
+                .withStyle(ChatFormatting.DARK_PURPLE));
+        return count;
+    }
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("charon")
                 .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .executes(ctx -> {
                     ctx.getSource().sendSystemMessage(Component.literal(
-                            "Charon's Echo — /charon studio | export [name] | place <name> | visit | back")
+                            "Charon's Echo — /charon studio | export [name] | place <name> | visit | back | shard [n] | revive [player]")
                             .withStyle(ChatFormatting.GRAY));
                     return 1;
                 })
@@ -64,6 +73,11 @@ public final class CharonCommands {
                             .withStyle(ChatFormatting.DARK_PURPLE));
                     return 1;
                 }))
+                .then(Commands.literal("shard")
+                        .executes(ctx -> giveShards(ctx.getSource().getPlayerOrException(), 1))
+                        .then(Commands.argument("count", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 64))
+                                .executes(ctx -> giveShards(ctx.getSource().getPlayerOrException(),
+                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "count")))))
                 .then(Commands.literal("revive")
                         .executes(ctx -> {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();

@@ -17,5 +17,7 @@
   re-asserted every tick against other mods
 - `/charon revive [player]` restores the oldest unclaimed grave (items + XP) and lifts
   the ghost state — interim testing path until portals land
+- Echo Shard item (marked amethyst shard with glint + lore, crossplay-safe): soul-bound —
+  the one item death cannot take; `/charon shard [count]` gives them (crafting/buying later)
 - Commands: `/charon studio`, `/charon export [name]`, `/charon place <name>`,
   `/charon visit`, `/charon back` (gamemaster-level)
