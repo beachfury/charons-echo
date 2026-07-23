@@ -2,6 +2,7 @@ package com.charonsecho;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -28,6 +29,19 @@ public final class CharonsEcho implements ModInitializer {
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
                 Identifier.fromNamespaceAndPath(MOD_ID, "graveyard"),
                 GraveyardChunkGenerator.CODEC);
+
+        // The death loop: Charon takes the goods, the player rises as a ghost.
+        DeathHandler.register();
+        GhostState.register();
+
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            GraveManager.load(server);
+            GhostState.load(server);
+        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            GraveManager.save();
+            GhostState.save();
+        });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) ->
                 CharonCommands.register(dispatcher));

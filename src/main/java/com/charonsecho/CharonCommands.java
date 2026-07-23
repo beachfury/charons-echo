@@ -64,6 +64,29 @@ public final class CharonCommands {
                             .withStyle(ChatFormatting.DARK_PURPLE));
                     return 1;
                 }))
+                .then(Commands.literal("revive")
+                        .executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            if (!DeathHandler.revive(player)) {
+                                ctx.getSource().sendSystemMessage(Component.literal(
+                                        "No ghost state or unclaimed grave.").withStyle(ChatFormatting.RED));
+                                return 0;
+                            }
+                            return 1;
+                        })
+                        .then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
+                                .executes(ctx -> {
+                                    ServerPlayer target = net.minecraft.commands.arguments.EntityArgument
+                                            .getPlayer(ctx, "player");
+                                    if (!DeathHandler.revive(target)) {
+                                        ctx.getSource().sendSystemMessage(Component.literal(
+                                                "No ghost state or unclaimed grave for "
+                                                + target.getName().getString() + ".")
+                                                .withStyle(ChatFormatting.RED));
+                                        return 0;
+                                    }
+                                    return 1;
+                                })))
                 .then(Commands.literal("back").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     StudioMode.restoreMode(player);
