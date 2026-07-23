@@ -74,7 +74,8 @@ public final class StudioMode {
             new Category("clutter", 3, 3, 3, false, 76),
             new Category("ruin", 12, 12, 9, true, 94),
             new Category("big_tree", 11, 11, 14, false, 116),
-            new Category("building", 16, 16, 12, true, 140));
+            new Category("gate", 5, 3, 5, false, 140),
+            new Category("building", 16, 16, 12, true, 152));
 
     private static final List<DynamicPlot> DYNAMIC = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static java.nio.file.Path dynamicFile;
@@ -224,38 +225,41 @@ public final class StudioMode {
      * The church keeps interior air (it overwrites terrain when pasted);
      * decorations ignore air so pastes don't punch holes in the hills.
      */
+    /**
+     * One row per category — graves in the graves row, gates in the gates row,
+     * trees with trees, tall trees with tall trees. Builder-created plots
+     * (/charon plot new) append to the end of the matching row.
+     */
     private static List<StudioPlot> buildLayout() {
         List<StudioPlot> plots = new ArrayList<>();
         int gap = 6;
 
-        // Row 1 (z = 0): the big builds — church, shrine, dock.
+        // Row 0 (z = 0): landmarks — one-off builds, not scatter categories.
         int x = 0, z = 0;
         x = addPlot(plots, "church", 32, 32, 24, true, x, z, gap);
         x = addPlot(plots, "spawn_shrine", 7, 7, 7, true, x, z, gap);
-        addPlot(plots, "styx_dock", 9, 5, 6, false, x, z, gap);
+        x = addPlot(plots, "styx_dock", 9, 5, 6, false, x, z, gap);
+        addPlot(plots, "plinth", 5, 5, 6, false, x, z, gap);
 
-        // Row 2 (z = 44): headstones + plinth + lych gate.
+        // Graves row (z = 44).
         x = 0; z = 44;
         for (int i = 1; i <= 6; i++) {
             x = addPlot(plots, "headstone_" + i, 3, 3, 4, false, x, z, gap);
         }
-        x = addPlot(plots, "plinth", 5, 5, 6, false, x, z, gap);
-        addPlot(plots, "lych_gate", 5, 3, 5, false, x, z, gap);
 
-        // Row 3 (z = 58): pale trees.
+        // Trees row (z = 58).
         x = 0; z = 58;
         for (int i = 1; i <= 6; i++) {
             x = addPlot(plots, "pale_tree_" + i, 7, 7, 10, false, x, z, gap);
         }
 
-        // Row 4 (z = 76): clutter (benches, urns, candle clusters, statues).
+        // Clutter row (z = 76): benches, urns, candle clusters, statues.
         x = 0; z = 76;
         for (int i = 1; i <= 8; i++) {
             x = addPlot(plots, "clutter_" + i, 3, 3, 3, false, x, z, gap);
         }
 
-        // Row 5 (z = 94): the ruins of the folk who came before — scattered
-        // through the hills as echoes of a dead civilization.
+        // Ruins row (z = 94): echoes of the folk who came before.
         x = 0; z = 94;
         x = addPlot(plots, "ruin_cottage", 12, 12, 9, true, x, z, gap);
         x = addPlot(plots, "ruin_tower", 7, 7, 12, true, x, z, gap);
@@ -264,10 +268,14 @@ public final class StudioMode {
         x = addPlot(plots, "ruin_well", 5, 5, 6, false, x, z, gap);
         addPlot(plots, "ruin_arch", 7, 3, 7, false, x, z, gap);
 
-        // Row 6 (z = 116): big pale trees for ridgelines.
+        // Tall trees row (z = 116): ridgeline pieces.
         x = 0; z = 116;
         x = addPlot(plots, "big_tree_1", 11, 11, 14, false, x, z, gap);
         addPlot(plots, "big_tree_2", 11, 11, 14, false, x, z, gap);
+
+        // Gates row (z = 140): field entrances — lych gate + variations.
+        x = 0; z = 140;
+        addPlot(plots, "gate_lych", 5, 3, 5, false, x, z, gap);
 
         return List.copyOf(plots);
     }
