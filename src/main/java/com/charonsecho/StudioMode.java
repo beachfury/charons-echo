@@ -100,6 +100,23 @@ public final class StudioMode {
                 .mapToInt(Category::depth).findFirst().orElse(0);
     }
 
+    public static int heightOfCategory(String category) {
+        return CATEGORIES.stream().filter(c -> c.name().equals(category))
+                .mapToInt(Category::h).findFirst().orElse(0);
+    }
+
+    /**
+     * How much below-grade content a template ACTUALLY carries: new exports
+     * capture h+depth tall, old ones just h. Anchoring by measured height
+     * means stale templates land flush instead of sunken.
+     */
+    public static int belowGradeOf(
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate template,
+            String category) {
+        int extra = template.getSize().getY() - heightOfCategory(category);
+        return Math.max(0, Math.min(extra, depthOfCategory(category)));
+    }
+
     private static final List<DynamicPlot> DYNAMIC = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static java.nio.file.Path dynamicFile;
 

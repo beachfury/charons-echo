@@ -162,7 +162,8 @@ public final class DecorScatter {
         var template = level.getServer().getStructureManager()
                 .get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
         if (template.isEmpty()) return;
-        int y = GraveyardTerrain.groundHeight(x, z) - StudioMode.depthOfCategory(category);
+        int y = GraveyardTerrain.groundHeight(x, z)
+                - StudioMode.belowGradeOf(template.get(), category);
         BlockPos at = new BlockPos(x, y + 1, z);
         template.get().placeInWorld(level, at, at, new StructurePlaceSettings(),
                 RandomSource.create(mix(x, z, 555L)), 2);
