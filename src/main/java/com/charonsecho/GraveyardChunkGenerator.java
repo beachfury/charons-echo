@@ -62,9 +62,8 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
         BlockState bedrock = Blocks.BEDROCK.defaultBlockState();
         BlockState deepslate = Blocks.DEEPSLATE.defaultBlockState();
         BlockState tuff = Blocks.TUFF.defaultBlockState();
-        BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
-        BlockState gravel = Blocks.GRAVEL.defaultBlockState();
         BlockState water = Blocks.WATER.defaultBlockState();
+        BlockState carpet = Blocks.PALE_MOSS_CARPET.defaultBlockState();
 
         Heightmap oceanFloor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
         Heightmap worldSurface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
@@ -74,22 +73,52 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
                 int x = baseX + dx, z = baseZ + dz;
                 int h = GraveyardTerrain.groundHeight(x, z);
                 boolean flooded = h < GraveyardTerrain.WATER_TOP;
+                BlockState surf = surfaceBlock(x, z, h, flooded);
 
                 for (int y = 0; y <= Math.max(h, flooded ? GraveyardTerrain.WATER_TOP : h); y++) {
                     BlockState state;
                     if (y == 0) state = bedrock;
                     else if (y < h - 3) state = deepslate;
                     else if (y < h) state = tuff;
-                    else if (y == h) state = flooded ? gravel : moss;
+                    else if (y == h) state = surf;
                     else state = water; // y > h only happens when flooded
                     pos.set(x, y, z);
                     chunk.setBlockState(pos, state);
                     oceanFloor.update(dx, y, dz, state);
                     worldSurface.update(dx, y, dz, state);
                 }
+
+                // Sparse pale-moss-carpet tufts on open moss ground.
+                if (!flooded && surf.is(Blocks.PALE_MOSS_BLOCK)
+                        && GraveyardTerrain.blockHash(x, z) < 0.10) {
+                    pos.set(x, h + 1, z);
+                    chunk.setBlockState(pos, carpet);
+                    worldSurface.update(dx, h + 1, dz, carpet);
+                }
             }
         }
         return CompletableFuture.completedFuture(chunk);
+    }
+
+    /**
+     * Surface material mix — Pale Garden above, Deep Dark seeping up from below:
+     * exposed deepslate on steep slopes, sculk pooling in the deep vales and on
+     * riverbeds (the Styx runs dark), rare tuff mottling, pale moss elsewhere.
+     */
+    private static BlockState surfaceBlock(int x, int z, int h, boolean flooded) {
+        double sn = GraveyardTerrain.surfaceNoise(x, z);
+        if (flooded) {
+            return sn > 0.05 ? Blocks.SCULK.defaultBlockState() : Blocks.GRAVEL.defaultBlockState();
+        }
+        int slope = Math.max(
+                Math.max(Math.abs(h - GraveyardTerrain.groundHeight(x + 1, z)),
+                         Math.abs(h - GraveyardTerrain.groundHeight(x - 1, z))),
+                Math.max(Math.abs(h - GraveyardTerrain.groundHeight(x, z + 1)),
+                         Math.abs(h - GraveyardTerrain.groundHeight(x, z - 1))));
+        if (slope >= 3) return Blocks.DEEPSLATE.defaultBlockState();
+        if (h <= 56 && sn > 0.10) return Blocks.SCULK.defaultBlockState();
+        if (sn < -0.72) return Blocks.TUFF.defaultBlockState();
+        return Blocks.PALE_MOSS_BLOCK.defaultBlockState();
     }
 
     @Override

@@ -62,6 +62,16 @@ public final class GraveyardTerrain {
         return a + (b - a) * sz;
     }
 
+    /** Patchy noise field for surface material mixing (sculk pools, tuff mottling). */
+    public static double surfaceNoise(int x, int z) {
+        return valueNoise(x / 18.0 + 300.0, z / 18.0 + 300.0);
+    }
+
+    /** Per-block hash in [0, 1) — used for scatter decoration like moss carpets. */
+    public static double blockHash(int x, int z) {
+        return (lattice(x * 7 + 13, z * 7 + 71) + 1.0) / 2.0;
+    }
+
     /** Hash of a lattice point to [-1, 1]. */
     private static double lattice(int xi, int zi) {
         long h = xi * 341873128712L + zi * 132897987541L + 0x9E3779B97F4A7C15L;
