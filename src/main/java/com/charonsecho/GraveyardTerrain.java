@@ -23,6 +23,13 @@ public final class GraveyardTerrain {
     /** Any column whose ground ends below this gets still water up to it. */
     public static final int WATER_TOP = 52;
 
+    /** World seed, mixed into the noise so every server's graveyard is unique. */
+    private static volatile long SEED = 0L;
+
+    public static void setSeed(long seed) {
+        SEED = seed;
+    }
+
     private GraveyardTerrain() {}
 
     /** Final ground height (y of the surface block) for a column. Pure function of (x, z). */
@@ -74,7 +81,8 @@ public final class GraveyardTerrain {
 
     /** Hash of a lattice point to [-1, 1]. */
     private static double lattice(int xi, int zi) {
-        long h = xi * 341873128712L + zi * 132897987541L + 0x9E3779B97F4A7C15L;
+        long h = xi * 341873128712L + zi * 132897987541L
+                + SEED * 0x9E3779B97F4A7C15L + 0x9E3779B97F4A7C15L;
         h = (h ^ (h >>> 33)) * 0xFF51AFD7ED558CCDL;
         h ^= h >>> 33;
         return ((h & 0xFFFFFF) / (double) 0x800000) - 1.0;

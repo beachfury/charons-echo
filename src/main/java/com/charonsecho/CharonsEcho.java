@@ -42,9 +42,12 @@ public final class CharonsEcho implements ModInitializer {
         PortalManager.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            GraveyardTerrain.setSeed(server.overworld().getSeed());
             GraveManager.load(server);
             GraveyardPlots.load(server); // after graves: legacy-field migration reads them
             GhostState.load(server);
+            Gravekeepers.load(server);
+            StudioMode.loadDynamic(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             GraveManager.save();

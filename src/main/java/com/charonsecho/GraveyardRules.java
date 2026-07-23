@@ -29,19 +29,25 @@ public final class GraveyardRules {
                 entity.level().dimension() != CharonsEcho.GRAVEYARD_DIM);
 
         // The living may visit, but not build or break — hallowed ground.
-        // Gamemasters are exempt (permissions() check works for the
-        // single-player host, unlike isOp()).
+        // Gamemasters and rostered gravekeepers are exempt (permissions()
+        // check works for the single-player host, unlike isOp()). The Studio
+        // is builder-only ground too.
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (world, player, pos, state, blockEntity) -> {
-                    if (world.dimension() != CharonsEcho.GRAVEYARD_DIM) return true;
-                    return player instanceof net.minecraft.server.level.ServerPlayer sp && isGamemaster(sp);
+                    if (world.dimension() != CharonsEcho.GRAVEYARD_DIM
+                            && world.dimension() != CharonsEcho.STUDIO_DIM) return true;
+                    return player instanceof net.minecraft.server.level.ServerPlayer sp
+                            && Gravekeepers.canBuild(sp);
                 });
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.dimension() != CharonsEcho.GRAVEYARD_DIM) return net.minecraft.world.InteractionResult.PASS;
+            if (world.dimension() != CharonsEcho.GRAVEYARD_DIM
+                    && world.dimension() != CharonsEcho.STUDIO_DIM) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
             if (!(player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
-            if (player instanceof net.minecraft.server.level.ServerPlayer sp && isGamemaster(sp)) {
+            if (player instanceof net.minecraft.server.level.ServerPlayer sp && Gravekeepers.canBuild(sp)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
             return net.minecraft.world.InteractionResult.FAIL;

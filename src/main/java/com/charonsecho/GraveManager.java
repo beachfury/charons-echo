@@ -47,6 +47,8 @@ public final class GraveManager {
         public int plotIndex = -1;
         /** Real-world time of death (epoch millis) for the headstone date. */
         public long epochMillis = 0L;
+        /** Headstone template variant chosen for this grave ("" = placeholder). */
+        public String stoneName = "";
         /** Fare already paid (shard dropped on the body during the wake). */
         public boolean farePaid = false;
         /** XP levels may be halved by Charon's toll before reclaim. */
@@ -102,6 +104,7 @@ public final class GraveManager {
                 grave.plotIndex = g.getIntOr("plotIndex", -1);
                 grave.epochMillis = g.getLongOr("epochMillis", 0L);
                 grave.farePaid = g.getBooleanOr("farePaid", false);
+                grave.stoneName = g.getStringOr("stoneName", "");
                 GRAVES.add(grave);
             }
         } catch (IOException e) {
@@ -133,6 +136,7 @@ public final class GraveManager {
                 t.putInt("plotIndex", g.plotIndex);
                 t.putLong("epochMillis", g.epochMillis);
                 t.putBoolean("farePaid", g.farePaid);
+                t.putString("stoneName", g.stoneName);
                 ListTag items = new ListTag();
                 for (ItemStack stack : g.items) {
                     ItemStack.OPTIONAL_CODEC.encodeStart(ops, stack).result().ifPresent(items::add);

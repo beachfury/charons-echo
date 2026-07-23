@@ -2,6 +2,20 @@
 
 ## 0.1.0 — in development
 
+- World seed now shapes the graveyard terrain — every server's Charon's Echo is unique
+  (regenerate the dimension after updating)
+- Gravekeeper builder roster: `/charon builder add|remove <player>` — rostered builders
+  may build in Charon's Echo and the Studio and use studio/export/place/plot commands
+  without op; both dimensions are otherwise build-protected
+- Studio content pipeline: `/charon plot new <category> <name>` stakes a new correctly-sized
+  plot at the end of its category row (headstone/tree/big_tree/clutter/ruin/building),
+  `/charon plot approve <name>` (admin) promotes an exported build into generation,
+  `/charon plot list` shows categories and pending/approved builds
+- Graves remember their headstone variant: approved headstone templates are pasted per
+  grave (stable choice per grave), placeholder otherwise; `/charon rebuild-graves`
+  re-terraces and re-pastes the whole yard from the records to upgrade old graves
+- Field gate signs glow and are written on both faces
+
 - The full death loop is live: a soul-fire death portal rises at the death site — walk in
   to pay Charon (consumes an Echo Shard, or he takes half the grave's XP) and cross to
   your grave in Charon's Echo; graves are allocated on a square spiral of 40×40 fenced,

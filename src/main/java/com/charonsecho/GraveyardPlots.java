@@ -262,14 +262,17 @@ public final class GraveyardPlots {
             level.setBlock(new BlockPos(x, h + 2, z), lantern, 2);
         }
 
-        // Gate sign: which field this is, and when it opened.
+        // Gate sign: which field this is, and when it opened — glowing, and
+        // written on BOTH faces so it reads from outside and inside the yard.
         BlockPos signPos = gateSignPos(fieldIndex);
         level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
             SignText text = new SignText()
                     .setMessage(0, Component.literal("Grave Field " + (fieldIndex + 1)))
-                    .setMessage(1, Component.literal("opened " + shortDate()));
+                    .setMessage(1, Component.literal("opened " + shortDate()))
+                    .setHasGlowingText(true);
             sign.setText(text, true);
+            sign.setText(text, false);
             sign.setChanged();
         }
     }
@@ -282,9 +285,12 @@ public final class GraveyardPlots {
         }
         BlockPos signPos = gateSignPos(fieldIndex);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            sign.setText(sign.getFrontText()
+            SignText updated = sign.getFrontText()
                     .setMessage(2, Component.literal("filled " + shortDate()))
-                    .setMessage(3, Component.literal(souls + " souls rest")), true);
+                    .setMessage(3, Component.literal(souls + " souls rest"))
+                    .setHasGlowingText(true);
+            sign.setText(updated, true);
+            sign.setText(updated, false);
             sign.setChanged();
         }
     }
@@ -317,10 +323,55 @@ public final class GraveyardPlots {
         }
     }
 
-    /** Placeholder headstone: mound, stone, and the epitaph sign. */
-    private static void placeHeadstone(ServerLevel level, GraveManager.Grave grave) {
+    /**
+     * The headstone: a hand-built approved template when one exists (variant
+     * chosen once per grave and remembered), else the generated placeholder.
+     */
+    static void placeHeadstone(ServerLevel level, GraveManager.Grave grave) {
         BlockPos o = plotOrigin(grave.plotIndex);
         int y = plotSurfaceY(grave.plotIndex);
+
+        var manager = level.getServer().getStructureManager();
+        if (grave.stoneName.isEmpty()) {
+            var variants = StudioMode.approvedTemplates("headstone", manager);
+            if (!variants.isEmpty()) {
+                grave.stoneName = variants.get(Math.floorMod(grave.id.hashCode(), variants.size()));
+            }
+        }
+        if (!grave.stoneName.isEmpty()) {
+            var template = manager.get(net.minecraft.resources.Identifier
+                    .fromNamespaceAndPath(CharonsEcho.MOD_ID, grave.stoneName));
+            if (template.isPresent()) {
+                BlockPos at = new BlockPos(o.getX(), y + 1, o.getZ());
+                level.getChunk(o.getX() >> 4, o.getZ() >> 4);
+                template.get().placeInWorld(level, at, at,
+                        new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
+                        net.minecraft.util.RandomSource.create(grave.id.hashCode()), 3);
+                writeEpitaphOnAnySign(level, grave, o, y);
+                return;
+            }
+        }
+        placePlaceholderStone(level, grave, o, y);
+    }
+
+    /** The template's sign (wherever the builder put it) gets the epitaph. */
+    private static void writeEpitaphOnAnySign(ServerLevel level, GraveManager.Grave grave, BlockPos o, int y) {
+        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
+            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
+                for (int dy = 1; dy <= 4; dy++) {
+                    BlockPos pos = new BlockPos(x, y + dy, z);
+                    if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
+                        sign.setText(epitaphText(grave), true);
+                        sign.setChanged();
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /** Generated fallback headstone: mound, stone, and the epitaph sign. */
+    private static void placePlaceholderStone(ServerLevel level, GraveManager.Grave grave, BlockPos o, int y) {
         int cx = o.getX() + 2, cz = o.getZ() + 1; // stone near plot's north edge
 
         level.getChunk(cx >> 4, cz >> 4);
@@ -336,26 +387,42 @@ public final class GraveyardPlots {
         level.setBlock(signPos, Blocks.PALE_OAK_WALL_SIGN.defaultBlockState()
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH), 2);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            // "BeachFury hit the ground too hard" → name is line 1, so the
-            // cause reads "hit the ground too hard" wrapped over two lines.
-            String cause = grave.causeLine;
-            if (cause.startsWith(grave.ownerName)) {
-                cause = cause.substring(grave.ownerName.length()).trim();
-            }
-            String l3 = cause.length() > 15 ? cause.substring(0, 15) : cause;
-            String rest = cause.length() > 15 ? cause.substring(15).trim() : "";
-            String l4 = rest.length() > 15 ? rest.substring(0, 14) + "…" : rest;
-            String date = grave.epochMillis > 0
-                    ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
-                    : "Day " + (grave.gameTime / 24000L);
-            SignText text = new SignText()
-                    .setMessage(0, Component.literal(grave.ownerName))
-                    .setMessage(1, Component.literal(date))
-                    .setMessage(2, Component.literal(l3))
-                    .setMessage(3, Component.literal(l4));
-            sign.setText(text, true);
+            sign.setText(epitaphText(grave), true);
             sign.setChanged();
         }
+    }
+
+    /** name / real date / cause wrapped over two lines (name prefix stripped). */
+    private static SignText epitaphText(GraveManager.Grave grave) {
+        String cause = grave.causeLine;
+        if (cause.startsWith(grave.ownerName)) {
+            cause = cause.substring(grave.ownerName.length()).trim();
+        }
+        String l3 = cause.length() > 15 ? cause.substring(0, 15) : cause;
+        String rest = cause.length() > 15 ? cause.substring(15).trim() : "";
+        String l4 = rest.length() > 15 ? rest.substring(0, 14) + "…" : rest;
+        String date = grave.epochMillis > 0
+                ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
+                : "Day " + (grave.gameTime / 24000L);
+        return new SignText()
+                .setMessage(0, Component.literal(grave.ownerName))
+                .setMessage(1, Component.literal(date))
+                .setMessage(2, Component.literal(l3))
+                .setMessage(3, Component.literal(l4));
+    }
+
+    /** Re-terrace and re-paste every grave's headstone from its record — run
+     *  after new stone variants are approved so the yard upgrades in place. */
+    public static int rebuildAll(ServerLevel graveyard) {
+        int count = 0;
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.plotIndex < 0) continue;
+            terracePlot(graveyard, g.plotIndex);
+            placeHeadstone(graveyard, g);
+            count++;
+        }
+        GraveManager.save();
+        return count;
     }
 
     /** A reclaimed grave's sign glows softly — the soul is at rest. */

@@ -45,7 +45,164 @@ public final class StudioMode {
         }
     }
 
-    public static final List<StudioPlot> PLOTS = buildLayout();
+    private static final List<StudioPlot> BASE_PLOTS = buildLayout();
+
+    /**
+     * Builder-created plots (via /charon plot new), persisted with an approved
+     * flag. Approved + exported templates join the generation pool.
+     */
+    public static final class DynamicPlot {
+        public final StudioPlot plot;
+        public final String category;
+        public final String author;
+        public boolean approved;
+
+        DynamicPlot(StudioPlot plot, String category, String author, boolean approved) {
+            this.plot = plot;
+            this.category = category;
+            this.author = author;
+            this.approved = approved;
+        }
+    }
+
+    /** Category presets — sizes are LOCKED to the established plot standards. */
+    public record Category(String name, int w, int d, int h, boolean keepAir, int rowZ) {}
+
+    public static final List<Category> CATEGORIES = List.of(
+            new Category("headstone", 3, 3, 4, false, 44),
+            new Category("tree", 7, 7, 10, false, 58),
+            new Category("clutter", 3, 3, 3, false, 76),
+            new Category("ruin", 12, 12, 9, true, 94),
+            new Category("big_tree", 11, 11, 14, false, 116),
+            new Category("building", 16, 16, 12, true, 140));
+
+    private static final List<DynamicPlot> DYNAMIC = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static java.nio.file.Path dynamicFile;
+
+    /** All plots: the hand-authored base layout plus builder-created ones. */
+    public static List<StudioPlot> allPlots() {
+        List<StudioPlot> all = new ArrayList<>(BASE_PLOTS);
+        for (DynamicPlot d : DYNAMIC) all.add(d.plot);
+        return all;
+    }
+
+    /** Base-plot category membership by name prefix (headstone_3 → headstone). */
+    private static String baseCategory(String plotName) {
+        for (Category c : CATEGORIES) {
+            if (plotName.startsWith(c.name() + "_") || plotName.startsWith("pale_" + c.name())) return c.name();
+        }
+        if (plotName.startsWith("pale_tree")) return "tree";
+        return "";
+    }
+
+    /**
+     * Templates eligible for generation in a category: base plots (auto-trusted)
+     * and APPROVED dynamic plots — in both cases only if actually exported.
+     */
+    public static List<String> approvedTemplates(String category,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager) {
+        List<String> out = new ArrayList<>();
+        for (StudioPlot p : BASE_PLOTS) {
+            if (baseCategory(p.name()).equals(category)
+                    && manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, p.name())).isPresent()) {
+                out.add(p.name());
+            }
+        }
+        for (DynamicPlot d : DYNAMIC) {
+            if (d.approved && d.category.equals(category)
+                    && manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, d.plot.name())).isPresent()) {
+                out.add(d.plot.name());
+            }
+        }
+        return out;
+    }
+
+    /** Create a new plot at the end of its category row; returns it (or null on bad input). */
+    public static StudioPlot createPlot(ServerLevel studio, String categoryName, String name, String author) {
+        Category cat = CATEGORIES.stream().filter(c -> c.name().equals(categoryName)).findFirst().orElse(null);
+        if (cat == null) return null;
+        boolean taken = allPlots().stream().anyMatch(p -> p.name().equals(name));
+        if (taken) return null;
+        int endX = 0;
+        for (StudioPlot p : allPlots()) {
+            if (p.z0() == cat.rowZ()) endX = Math.max(endX, p.x0() + p.w() + 6);
+        }
+        StudioPlot plot = new StudioPlot(name, cat.w(), cat.d(), cat.h(), cat.keepAir(), endX, cat.rowZ());
+        DYNAMIC.add(new DynamicPlot(plot, cat.name(), author, false));
+        saveDynamic();
+        stampPlot(studio, plot);
+        return plot;
+    }
+
+    public static DynamicPlot findDynamic(String name) {
+        for (DynamicPlot d : DYNAMIC) {
+            if (d.plot.name().equals(name)) return d;
+        }
+        return null;
+    }
+
+    public static List<DynamicPlot> dynamicPlots() {
+        return List.copyOf(DYNAMIC);
+    }
+
+    public static void markApproved(String name) {
+        DynamicPlot d = findDynamic(name);
+        if (d != null) {
+            d.approved = true;
+            saveDynamic();
+        }
+    }
+
+    // ---- dynamic-plot persistence (world/charons_echo/studio_plots.dat) ----
+
+    public static void loadDynamic(net.minecraft.server.MinecraftServer server) {
+        DYNAMIC.clear();
+        dynamicFile = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                .resolve("charons_echo").resolve("studio_plots.dat");
+        if (!java.nio.file.Files.exists(dynamicFile)) return;
+        try {
+            var root = net.minecraft.nbt.NbtIo.readCompressed(dynamicFile,
+                    net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+            for (var t : root.getListOrEmpty("plots")) {
+                if (!(t instanceof net.minecraft.nbt.CompoundTag c)) continue;
+                StudioPlot plot = new StudioPlot(
+                        c.getStringOr("name", "?"), c.getIntOr("w", 3), c.getIntOr("d", 3),
+                        c.getIntOr("h", 4), c.getBooleanOr("keepAir", false),
+                        c.getIntOr("x0", 0), c.getIntOr("z0", 0));
+                DYNAMIC.add(new DynamicPlot(plot, c.getStringOr("category", ""),
+                        c.getStringOr("author", "?"), c.getBooleanOr("approved", false)));
+            }
+        } catch (java.io.IOException e) {
+            System.out.println("[CharonsEcho] failed to load studio_plots.dat: " + e);
+        }
+    }
+
+    private static void saveDynamic() {
+        if (dynamicFile == null) return;
+        try {
+            java.nio.file.Files.createDirectories(dynamicFile.getParent());
+            var list = new net.minecraft.nbt.ListTag();
+            for (DynamicPlot d : DYNAMIC) {
+                var t = new net.minecraft.nbt.CompoundTag();
+                t.putString("name", d.plot.name());
+                t.putInt("w", d.plot.w());
+                t.putInt("d", d.plot.d());
+                t.putInt("h", d.plot.h());
+                t.putBoolean("keepAir", d.plot.keepAir());
+                t.putInt("x0", d.plot.x0());
+                t.putInt("z0", d.plot.z0());
+                t.putString("category", d.category);
+                t.putString("author", d.author);
+                t.putBoolean("approved", d.approved);
+                list.add(t);
+            }
+            var root = new net.minecraft.nbt.CompoundTag();
+            root.put("plots", list);
+            net.minecraft.nbt.NbtIo.writeCompressed(root, dynamicFile);
+        } catch (java.io.IOException e) {
+            System.out.println("[CharonsEcho] failed to save studio_plots.dat: " + e);
+        }
+    }
 
     /** Game mode each player had before entering the Studio, restored on /charon back. */
     private static final java.util.Map<java.util.UUID, GameType> MODE_BEFORE_STUDIO =
@@ -145,37 +302,41 @@ public final class StudioMode {
 
     /** Idempotent: outlines + markers + signs are simply re-stamped each time. */
     private static void stampLayout(ServerLevel level) {
+        for (StudioPlot p : allPlots()) {
+            stampPlot(level, p);
+        }
+    }
+
+    static void stampPlot(ServerLevel level, StudioPlot p) {
         BlockState glass = Blocks.STAINED_GLASS.white().defaultBlockState();
         BlockState lime = Blocks.CONCRETE.lime().defaultBlockState();
         BlockState orange = Blocks.CONCRETE.orange().defaultBlockState();
 
-        for (StudioPlot p : PLOTS) {
-            int y = surfaceY(level, p.x0(), p.z0());
-            // Perimeter outline in the ground layer.
-            for (int x = p.x0() - 1; x <= p.x0() + p.w(); x++) {
-                setGround(level, glass, x, y, p.z0() - 1);
-                setGround(level, glass, x, y, p.z0() + p.d());
-            }
-            for (int z = p.z0() - 1; z <= p.z0() + p.d(); z++) {
-                setGround(level, glass, p.x0() - 1, y, z);
-                setGround(level, glass, p.x0() + p.w(), y, z);
-            }
-            // NW anchor + south-entrance marker.
-            setGround(level, lime, p.x0() - 1, y, p.z0() - 1);
-            setGround(level, orange, p.x0() + p.w() / 2, y, p.z0() + p.d());
+        int y = surfaceY(level, p.x0(), p.z0());
+        // Perimeter outline in the ground layer.
+        for (int x = p.x0() - 1; x <= p.x0() + p.w(); x++) {
+            setGround(level, glass, x, y, p.z0() - 1);
+            setGround(level, glass, x, y, p.z0() + p.d());
+        }
+        for (int z = p.z0() - 1; z <= p.z0() + p.d(); z++) {
+            setGround(level, glass, p.x0() - 1, y, z);
+            setGround(level, glass, p.x0() + p.w(), y, z);
+        }
+        // NW anchor + south-entrance marker.
+        setGround(level, lime, p.x0() - 1, y, p.z0() - 1);
+        setGround(level, orange, p.x0() + p.w() / 2, y, p.z0() + p.d());
 
-            // Label sign just north-west of the plot.
-            BlockPos signPos = new BlockPos(p.x0(), y + 1, p.z0() - 3);
-            level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
-            if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-                SignText text = new SignText()
-                        .setMessage(0, Component.literal(p.name()))
-                        .setMessage(1, Component.literal(p.w() + "x" + p.d() + ", max h " + p.h()))
-                        .setMessage(2, Component.literal("lime = NW anchor"))
-                        .setMessage(3, Component.literal("orange = south"));
-                sign.setText(text, true);
-                sign.setChanged();
-            }
+        // Label sign just north-west of the plot.
+        BlockPos signPos = new BlockPos(p.x0(), y + 1, p.z0() - 3);
+        level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            SignText text = new SignText()
+                    .setMessage(0, Component.literal(p.name()))
+                    .setMessage(1, Component.literal(p.w() + "x" + p.d() + ", max h " + p.h()))
+                    .setMessage(2, Component.literal("lime = NW anchor"))
+                    .setMessage(3, Component.literal("orange = south"));
+            sign.setText(text, true);
+            sign.setChanged();
         }
     }
 
@@ -198,20 +359,21 @@ public final class StudioMode {
                     .withStyle(ChatFormatting.RED));
             return;
         }
+        List<StudioPlot> plots = allPlots();
         StudioPlot plot = null;
         if (nameOrEmpty.isEmpty()) {
             int px = player.getBlockX(), pz = player.getBlockZ();
-            for (StudioPlot p : PLOTS) {
+            for (StudioPlot p : plots) {
                 if (p.contains(px, pz)) { plot = p; break; }
             }
         } else {
-            for (StudioPlot p : PLOTS) {
+            for (StudioPlot p : plots) {
                 if (p.name().equals(nameOrEmpty)) { plot = p; break; }
             }
         }
         if (plot == null) {
             player.sendSystemMessage(Component.literal("Stand inside a plot (or name one): " +
-                    String.join(", ", PLOTS.stream().map(StudioPlot::name).toList()))
+                    String.join(", ", plots.stream().map(StudioPlot::name).toList()))
                     .withStyle(ChatFormatting.RED));
             return;
         }
