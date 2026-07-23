@@ -195,13 +195,19 @@ public final class GraveyardPlots {
     }
 
     /**
-     * Surface height of a plot's own little terrace: the terrain height at the
-     * plot center. Plots step down hillsides individually — a churchyard
-     * climbing the hill, not a bulldozed platform.
+     * Surface height of a plot's own terrace: the HIGHEST natural column under
+     * it. Plots build UP into raised beds on slopes (retaining edge below),
+     * never cut down into pits — stones always sit proud of the hillside.
      */
     public static int plotSurfaceY(int plotIndex) {
         BlockPos o = plotOrigin(plotIndex);
-        return GraveyardTerrain.groundHeight(o.getX() + 2, o.getZ() + 2);
+        int max = Integer.MIN_VALUE;
+        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
+            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
+                max = Math.max(max, GraveyardTerrain.groundHeight(x, z));
+            }
+        }
+        return max;
     }
 
     /**
@@ -314,7 +320,8 @@ public final class GraveyardPlots {
         level.setBlock(new BlockPos(x, h + 1, z), fence, 2);
     }
 
-    /** Cut the 5×5 plot flat at its own height, with tuff fill below. */
+    /** Raise the plot to its terrace height: fill from the natural ground up
+     *  (a retaining bed on slopes), moss on top, clear air above. */
     private static void terracePlot(ServerLevel level, int plotIndex) {
         BlockPos o = plotOrigin(plotIndex);
         int h = plotSurfaceY(plotIndex);
@@ -327,10 +334,11 @@ public final class GraveyardPlots {
                 for (int y = h + 1; y <= h + 6; y++) {
                     level.setBlock(new BlockPos(x, y, z), air, 2);
                 }
-                level.setBlock(new BlockPos(x, h, z), moss, 2);
-                for (int y = h - 2; y < h; y++) {
+                int ground = GraveyardTerrain.groundHeight(x, z);
+                for (int y = Math.min(ground, h - 2); y < h; y++) {
                     level.setBlock(new BlockPos(x, y, z), tuff, 2);
                 }
+                level.setBlock(new BlockPos(x, h, z), moss, 2);
             }
         }
     }
