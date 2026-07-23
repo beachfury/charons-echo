@@ -25,10 +25,10 @@ public final class GraveyardPlots {
 
     private static final int FIELD_PITCH = 96;  // field center-to-center
     private static final int FIELD_HALF = 20;   // 40×40 interior
-    private static final int PLOT = 5;
-    private static final int COLS = 8;          // plots per row (x)
+    private static final int PLOT = 6;          // 6×6 plots: 4×4 stones + 2-block aisles
+    private static final int COLS = 6;          // plots per row (x)
     private static final int ROWS = 6;          // rows per field (z)
-    private static final int PER_FIELD = COLS * ROWS;
+    private static final int PER_FIELD = COLS * ROWS; // 36 graves per field
 
     private GraveyardPlots() {}
 
