@@ -71,6 +71,23 @@ public final class GraveyardRules {
 
     private static void tick(MinecraftServer server) {
         if (server.getTickCount() % 5 != 0) return;
+
+        // The Studio is builders-only ground: anyone else who slips in (other
+        // mods' teleports, stale logouts) is shown the door.
+        ServerLevel studio = server.getLevel(CharonsEcho.STUDIO_DIM);
+        if (studio != null) {
+            for (net.minecraft.server.level.ServerPlayer p : studio.players()) {
+                if (!Gravekeepers.canBuild(p)) {
+                    ServerLevel overworld = server.overworld();
+                    var spawn = overworld.getRespawnData().pos();
+                    p.teleportTo(overworld, spawn.getX() + 0.5, spawn.getY() + 1, spawn.getZ() + 0.5,
+                            java.util.Set.<net.minecraft.world.entity.Relative>of(), p.getYRot(), 0f, false);
+                    p.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                            "The Studio is for gravekeepers only.")
+                            .withStyle(net.minecraft.ChatFormatting.RED));
+                }
+            }
+        }
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
         Scoreboard sb = server.getScoreboard();
