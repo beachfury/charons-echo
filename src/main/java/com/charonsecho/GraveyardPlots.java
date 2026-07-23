@@ -111,6 +111,18 @@ public final class GraveyardPlots {
         return (max - min) <= 10;
     }
 
+    /** True if (x,z) is within margin of any established field footprint. */
+    public static boolean nearAnyField(int x, int z, int margin) {
+        synchronized (FIELD_CENTERS) {
+            for (BlockPos c : FIELD_CENTERS) {
+                if (Math.max(Math.abs(c.getX() - x), Math.abs(c.getZ() - z)) < FIELD_HALF + margin) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean farFromOtherFields(int cx, int cz) {
         for (BlockPos c : FIELD_CENTERS) {
             if (Math.max(Math.abs(c.getX() - cx), Math.abs(c.getZ() - cz)) < 60) return false;

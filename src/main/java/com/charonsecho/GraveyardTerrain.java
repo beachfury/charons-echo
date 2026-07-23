@@ -30,6 +30,10 @@ public final class GraveyardTerrain {
         SEED = seed;
     }
 
+    public static long seed() {
+        return SEED;
+    }
+
     private GraveyardTerrain() {}
 
     /** Final ground height (y of the surface block) for a column. Pure function of (x, z). */

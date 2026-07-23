@@ -40,6 +40,8 @@ public final class CharonsEcho implements ModInitializer {
         ObolRecipe.register();
         // Death + return portals (particles + proximity, no blocks).
         PortalManager.register();
+        // Seed-deterministic decoration scatter (trees, clutter, ruins).
+        DecorScatter.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
@@ -48,10 +50,12 @@ public final class CharonsEcho implements ModInitializer {
             GhostState.load(server);
             Gravekeepers.load(server);
             StudioMode.loadDynamic(server);
+            DecorScatter.load(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             GraveManager.save();
             GhostState.save();
+            DecorScatter.save();
         });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) ->

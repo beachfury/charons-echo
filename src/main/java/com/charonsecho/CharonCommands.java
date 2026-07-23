@@ -189,6 +189,17 @@ public final class CharonCommands {
                                             : "Not a gravekeeper.").withStyle(ChatFormatting.GRAY));
                                     return removed ? 1 : 0;
                                 }))))
+                .then(Commands.literal("rebuild-decor").executes(ctx -> {
+                    ServerPlayer player = admin(ctx);
+                    if (player == null) return 0;
+                    ServerLevel graveyard = player.level().getServer().getLevel(CharonsEcho.GRAVEYARD_DIM);
+                    if (graveyard == null) return 0;
+                    int changed = DecorScatter.rebuild(graveyard);
+                    player.sendSystemMessage(Component.literal(
+                            "Decor reloaded — " + changed + " slots took new pieces; everything else kept its place.")
+                            .withStyle(ChatFormatting.GREEN));
+                    return 1;
+                }))
                 .then(Commands.literal("rebuild-graves").executes(ctx -> {
                     ServerPlayer player = admin(ctx);
                     if (player == null) return 0;
