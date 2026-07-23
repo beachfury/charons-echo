@@ -345,7 +345,8 @@ public final class GraveyardPlots {
 
         var manager = level.getServer().getStructureManager();
         if (grave.stoneName.isEmpty()) {
-            var variants = StudioMode.approvedTemplates("headstone", manager);
+            var variants = StudioMode.approvedTemplates("headstone", manager,
+                    StudioSets.setForRegion(o.getX(), o.getZ()));
             if (!variants.isEmpty()) {
                 grave.stoneName = variants.get(Math.floorMod(grave.id.hashCode(), variants.size()));
             }

@@ -152,7 +152,7 @@ public final class DecorScatter {
      */
     private static String choosePiece(ServerLevel level, String category, int x, int z) {
         List<String> options = StudioMode.approvedTemplates(category,
-                level.getServer().getStructureManager());
+                level.getServer().getStructureManager(), StudioSets.setForRegion(x, z));
         if (options.isEmpty()) return "";
         int idx = (int) Math.floorMod(mix(x, z, 991L), options.size());
         return options.get(idx);

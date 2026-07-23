@@ -34,10 +34,15 @@ public final class GraveyardRules {
         // is builder-only ground too.
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (world, player, pos, state, blockEntity) -> {
-                    if (world.dimension() != CharonsEcho.GRAVEYARD_DIM
-                            && world.dimension() != CharonsEcho.STUDIO_DIM) return true;
-                    return player instanceof net.minecraft.server.level.ServerPlayer sp
-                            && Gravekeepers.canBuild(sp);
+                    if (world.dimension() == CharonsEcho.GRAVEYARD_DIM) {
+                        return player instanceof net.minecraft.server.level.ServerPlayer sp
+                                && Gravekeepers.canBuild(sp);
+                    }
+                    if (world.dimension() == CharonsEcho.STUDIO_DIM) {
+                        return player instanceof net.minecraft.server.level.ServerPlayer sp
+                                && StudioSets.canBuildAt(sp, pos.getX(), pos.getZ());
+                    }
+                    return true;
                 });
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.dimension() != CharonsEcho.GRAVEYARD_DIM
@@ -53,9 +58,11 @@ public final class GraveyardRules {
             if (!(player instanceof net.minecraft.server.level.ServerPlayer sp)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
-            return Gravekeepers.canBuild(sp)
-                    ? net.minecraft.world.InteractionResult.PASS
-                    : net.minecraft.world.InteractionResult.FAIL;
+            boolean allowed = world.dimension() == CharonsEcho.STUDIO_DIM
+                    ? StudioSets.canBuildAt(sp, hit.getBlockPos().getX(), hit.getBlockPos().getZ())
+                    : Gravekeepers.canBuild(sp);
+            return allowed ? net.minecraft.world.InteractionResult.PASS
+                           : net.minecraft.world.InteractionResult.FAIL;
         });
 
         // Pacify the Gravekeepers a few times a second.

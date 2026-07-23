@@ -34,6 +34,15 @@ public final class CharonCommands {
     private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> PLOT_SUGGESTIONS =
             (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
                     StudioMode.allPlots().stream().map(StudioMode.StudioPlot::name), b);
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> SET_SUGGESTIONS =
+            (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                    StudioSets.all().stream().map(s -> s.name), b);
+
+    private static int err(ServerPlayer p, String msg) {
+        p.sendSystemMessage(Component.literal(msg).withStyle(ChatFormatting.RED));
+        return 0;
+    }
+
     private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> PENDING_SUGGESTIONS =
             (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
                     StudioMode.dynamicPlots().stream().filter(d -> !d.approved)
@@ -145,6 +154,111 @@ public final class CharonCommands {
                                         + d.category + "] by " + d.author
                                         + (d.approved ? " — APPROVED" : " — pending"))
                                         .withStyle(d.approved ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+                            }
+                            return 1;
+                        })))
+
+                .then(Commands.literal("set")
+                        .then(Commands.literal("new")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            ServerPlayer p = builder(ctx);
+                                            return p == null ? 0 : setNew(p,
+                                                    StringArgumentType.getString(ctx, "name"),
+                                                    StudioSets.DEFAULT_SIZE);
+                                        })
+                                        .then(Commands.argument("size", IntegerArgumentType.integer(32, StudioSets.MAX_SIZE))
+                                                .executes(ctx -> {
+                                                    ServerPlayer p = builder(ctx);
+                                                    return p == null ? 0 : setNew(p,
+                                                            StringArgumentType.getString(ctx, "name"),
+                                                            IntegerArgumentType.getInteger(ctx, "size"));
+                                                }))))
+                        .then(Commands.literal("trust")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .suggests(SET_SUGGESTIONS)
+                                        .executes(ctx -> {
+                                            ServerPlayer p = admin(ctx);
+                                            if (p == null) return 0;
+                                            StudioSets.SetInfo s = StudioSets.get(StringArgumentType.getString(ctx, "name"));
+                                            if (s == null) return err(p, "No such set.");
+                                            s.trusted = true;
+                                            StudioSets.save();
+                                            p.sendSystemMessage(Component.literal("Set '" + s.name
+                                                    + "' is now trusted — only " + s.stewardName
+                                                    + " and their invitees may build there.")
+                                                    .withStyle(ChatFormatting.GREEN));
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("invite")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .suggests(SET_SUGGESTIONS)
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(ctx -> {
+                                                    ServerPlayer p = builder(ctx);
+                                                    if (p == null) return 0;
+                                                    StudioSets.SetInfo s = StudioSets.get(StringArgumentType.getString(ctx, "name"));
+                                                    if (s == null) return err(p, "No such set.");
+                                                    if (!p.getUUID().equals(s.steward) && !GraveyardRules.isGamemaster(p)) {
+                                                        return err(p, "Only the steward may invite.");
+                                                    }
+                                                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                                    s.invited.add(target.getUUID());
+                                                    StudioSets.save();
+                                                    p.sendSystemMessage(Component.literal(target.getName().getString()
+                                                            + " may now build in set '" + s.name + "'.")
+                                                            .withStyle(ChatFormatting.GREEN));
+                                                    return 1;
+                                                }))))
+                        .then(Commands.literal("approve")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .suggests(SET_SUGGESTIONS)
+                                        .executes(ctx -> {
+                                            ServerPlayer p = admin(ctx);
+                                            if (p == null) return 0;
+                                            StudioSets.SetInfo s = StudioSets.get(StringArgumentType.getString(ctx, "name"));
+                                            if (s == null) return err(p, "No such set.");
+                                            int stamped = StudioMode.approveSetPieces(s.name,
+                                                    p.level().getServer().getStructureManager());
+                                            s.approved = true;
+                                            s.trusted = true; // approval implies the lock
+                                            s.dirty = false;
+                                            StudioSets.save();
+                                            p.sendSystemMessage(Component.literal("Set '" + s.name
+                                                    + "' approved — " + stamped
+                                                    + " new pieces enter generation. The set is locked to its trusted builders.")
+                                                    .withStyle(ChatFormatting.GREEN));
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("reopen")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .suggests(SET_SUGGESTIONS)
+                                        .executes(ctx -> {
+                                            ServerPlayer p = builder(ctx);
+                                            if (p == null) return 0;
+                                            StudioSets.SetInfo s = StudioSets.get(StringArgumentType.getString(ctx, "name"));
+                                            if (s == null) return err(p, "No such set.");
+                                            if (!s.isMember(p) && !GraveyardRules.isGamemaster(p)) {
+                                                return err(p, "Only trusted builders may reopen this set.");
+                                            }
+                                            s.dirty = true;
+                                            StudioSets.save();
+                                            p.sendSystemMessage(Component.literal("Set '" + s.name
+                                                    + "' reopened for additions — new pieces ship after the next approval.")
+                                                    .withStyle(ChatFormatting.YELLOW));
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("list").executes(ctx -> {
+                            ServerPlayer p = builder(ctx);
+                            if (p == null) return 0;
+                            p.sendSystemMessage(Component.literal("default — the shipped baseline (always generates)")
+                                    .withStyle(ChatFormatting.GREEN));
+                            for (StudioSets.SetInfo s : StudioSets.all()) {
+                                String state = s.approved ? (s.dirty ? "APPROVED, changes pending" : "APPROVED")
+                                        : s.trusted ? "trusted, building" : "open, building";
+                                p.sendSystemMessage(Component.literal("  " + s.name + " (" + s.size + "x" + s.size
+                                        + ") steward " + s.stewardName + " — " + state)
+                                        .withStyle(s.approved ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
                             }
                             return 1;
                         })))
@@ -265,12 +379,24 @@ public final class CharonCommands {
         if (!name.startsWith(category + "_")) {
             name = category + "_" + name;
         }
+        // Inside a custom set, the plot stakes out where the builder stands —
+        // and only where they're allowed to build.
+        StudioSets.SetInfo set = null;
+        if (player.level().dimension() == CharonsEcho.STUDIO_DIM) {
+            set = StudioSets.at(player.getBlockX(), player.getBlockZ());
+            if (set != null && !StudioSets.canBuildAt(player, player.getBlockX(), player.getBlockZ())) {
+                player.sendSystemMessage(Component.literal("This set is not yours to build in.")
+                        .withStyle(ChatFormatting.RED));
+                return 0;
+            }
+        }
         StudioMode.StudioPlot plot = StudioMode.createPlot(studio, category, name,
-                player.getName().getString());
+                player.getName().getString(), set, player.blockPosition());
         if (plot == null) {
             player.sendSystemMessage(Component.literal(
-                    "Bad category or name taken. Categories: " + StudioMode.CATEGORIES.stream()
-                            .map(StudioMode.Category::name).collect(Collectors.joining(", ")))
+                    "Bad category, name taken, or plot doesn't fit here (overlap/border). Categories: "
+                    + StudioMode.CATEGORIES.stream().map(StudioMode.Category::name)
+                            .collect(Collectors.joining(", ")))
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
@@ -278,7 +404,27 @@ public final class CharonCommands {
         player.teleportTo(studio, plot.x0() - 1.5, y, plot.z0() - 1.5, Set.<Relative>of(), 45f, 0f, false);
         player.sendSystemMessage(Component.literal(
                 "Plot '" + name + "' staked out (" + plot.w() + "x" + plot.d() + ", max h " + plot.h()
-                + "). Build, then /charon export — an admin approves it with /charon plot approve " + name + ".")
+                + (set == null ? ") in the default grid." : ") in set '" + set.name + "'.")
+                + " Build, then /charon export.")
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    private static int setNew(ServerPlayer player, String name, int size) {
+        ServerLevel studio = player.level().getServer().getLevel(CharonsEcho.STUDIO_DIM);
+        if (studio == null) return 0;
+        StudioSets.SetInfo set = StudioSets.create(studio, name, size, player);
+        if (set == null) {
+            player.sendSystemMessage(Component.literal("Set name taken or invalid.")
+                    .withStyle(ChatFormatting.RED));
+            return 0;
+        }
+        int y = studio.getHeight(Heightmap.Types.MOTION_BLOCKING, set.originX + 2, 2);
+        player.teleportTo(studio, set.originX + 2.5, y, 2.5, Set.<Relative>of(), 45f, 0f, false);
+        player.sendSystemMessage(Component.literal(
+                "Set '" + name + "' staked out (" + set.size + "x" + set.size + "), you are its steward. "
+                + "It is OPEN — any gravekeeper may build here until an admin trusts or approves it. "
+                + "Stake plots with /charon plot new <category> <name> wherever you stand.")
                 .withStyle(ChatFormatting.GREEN));
         return 1;
     }

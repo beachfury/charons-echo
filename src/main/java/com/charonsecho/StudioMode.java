@@ -55,14 +55,23 @@ public final class StudioMode {
         public final StudioPlot plot;
         public final String category;
         public final String author;
+        /** The set this plot belongs to ("default" = the shipped baseline). */
+        public final String set;
+        /** Piece ships in generation (stamped by set approval / plot approve). */
         public boolean approved;
 
-        DynamicPlot(StudioPlot plot, String category, String author, boolean approved) {
+        DynamicPlot(StudioPlot plot, String category, String author, String set, boolean approved) {
             this.plot = plot;
             this.category = category;
             this.author = author;
+            this.set = set;
             this.approved = approved;
         }
+    }
+
+    /** Template id for a plot in a set — default keeps bare names (back-compat). */
+    public static String templateId(String set, String plotName) {
+        return set.equals("default") ? plotName : set + "/" + plotName;
     }
 
     /** Category presets — sizes are LOCKED to the established plot standards. */
@@ -97,39 +106,99 @@ public final class StudioMode {
     }
 
     /**
-     * Templates eligible for generation in a category: base plots (auto-trusted)
-     * and APPROVED dynamic plots — in both cases only if actually exported.
+     * Templates eligible for generation in a category WITHIN ONE SET — only
+     * exported pieces count. A set that hasn't covered a category falls back
+     * to the default set, so young sets never leave bald regions. Returned
+     * names are full template ids (set-prefixed for custom sets).
      */
     public static List<String> approvedTemplates(String category,
-            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager) {
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
+            String set) {
+        List<String> out = collectApproved(category, manager, set);
+        if (out.isEmpty() && !set.equals("default")) {
+            out = collectApproved(category, manager, "default");
+        }
+        return out;
+    }
+
+    private static List<String> collectApproved(String category,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
+            String set) {
         List<String> out = new ArrayList<>();
-        for (StudioPlot p : BASE_PLOTS) {
-            if (baseCategory(p.name()).equals(category)
-                    && manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, p.name())).isPresent()) {
-                out.add(p.name());
+        if (set.equals("default")) {
+            for (StudioPlot p : BASE_PLOTS) {
+                if (baseCategory(p.name()).equals(category)
+                        && manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, p.name())).isPresent()) {
+                    out.add(p.name());
+                }
             }
         }
         for (DynamicPlot d : DYNAMIC) {
+            if (!d.set.equals(set)) continue;
+            String id = templateId(set, d.plot.name());
             if (d.approved && d.category.equals(category)
-                    && manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, d.plot.name())).isPresent()) {
-                out.add(d.plot.name());
+                    && manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, id)).isPresent()) {
+                out.add(id);
             }
         }
         return out;
     }
 
-    /** Create a new plot at the end of its category row; returns it (or null on bad input). */
-    public static StudioPlot createPlot(ServerLevel studio, String categoryName, String name, String author) {
+    /** Set approval: stamp every exported piece in the set as shipping. */
+    public static int approveSetPieces(String set,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager) {
+        int stamped = 0;
+        for (DynamicPlot d : DYNAMIC) {
+            if (d.set.equals(set) && manager.get(Identifier.fromNamespaceAndPath(
+                    CharonsEcho.MOD_ID, templateId(set, d.plot.name()))).isPresent()) {
+                if (!d.approved) stamped++;
+                d.approved = true;
+            }
+        }
+        saveDynamic();
+        return stamped;
+    }
+
+    /**
+     * Create a new plot. In the default grid it appends to its category row;
+     * inside a custom SET it stakes out right where the builder stands —
+     * free-form, the builder's own organization. Returns null on bad input,
+     * overlap, or out-of-bounds.
+     */
+    public static StudioPlot createPlot(ServerLevel studio, String categoryName, String name,
+                                        String author, StudioSets.SetInfo set, BlockPos standing) {
         Category cat = CATEGORIES.stream().filter(c -> c.name().equals(categoryName)).findFirst().orElse(null);
         if (cat == null) return null;
-        boolean taken = allPlots().stream().anyMatch(p -> p.name().equals(name));
+        String setName = set == null ? "default" : set.name;
+        boolean taken = DYNAMIC.stream().anyMatch(d -> d.set.equals(setName) && d.plot.name().equals(name))
+                || (setName.equals("default") && BASE_PLOTS.stream().anyMatch(p -> p.name().equals(name)));
         if (taken) return null;
-        int endX = 0;
-        for (StudioPlot p : allPlots()) {
-            if (p.z0() == cat.rowZ()) endX = Math.max(endX, p.x0() + p.w() + 6);
+
+        StudioPlot plot;
+        if (set == null) {
+            // Default grid: append to the category row.
+            int endX = 0;
+            for (StudioPlot p : allPlots()) {
+                if (p.z0() == cat.rowZ()) endX = Math.max(endX, p.x0() + p.w() + 6);
+            }
+            plot = new StudioPlot(name, cat.w(), cat.d(), cat.h(), cat.keepAir(), endX, cat.rowZ());
+        } else {
+            // Custom set: stake where the builder stands (NW corner), inside the border.
+            int x0 = standing.getX(), z0 = standing.getZ();
+            if (x0 < set.originX + 1 || x0 + cat.w() > set.originX + set.size - 1
+                    || z0 < 1 || z0 + cat.d() > set.size - 1) {
+                return null;
+            }
+            for (DynamicPlot d : DYNAMIC) {
+                if (!d.set.equals(setName)) continue;
+                StudioPlot p = d.plot;
+                boolean overlap = x0 - 1 < p.x0() + p.w() + 1 && x0 + cat.w() + 1 > p.x0() - 1
+                        && z0 - 1 < p.z0() + p.d() + 1 && z0 + cat.d() + 1 > p.z0() - 1;
+                if (overlap) return null;
+            }
+            plot = new StudioPlot(name, cat.w(), cat.d(), cat.h(), cat.keepAir(), x0, z0);
         }
-        StudioPlot plot = new StudioPlot(name, cat.w(), cat.d(), cat.h(), cat.keepAir(), endX, cat.rowZ());
-        DYNAMIC.add(new DynamicPlot(plot, cat.name(), author, false));
+        DYNAMIC.add(new DynamicPlot(plot, cat.name(), author, setName, false));
         saveDynamic();
         stampPlot(studio, plot);
         return plot;
@@ -178,6 +247,7 @@ public final class StudioMode {
                         .resolve("dimensions").resolve(CharonsEcho.MOD_ID).resolve("studio"));
         if (stampedHash != current || dimensionFresh) {
             stampLayout(studio);
+            StudioSets.stampAllBorders(studio);
             stampedHash = current;
             saveDynamic();
         }
@@ -201,7 +271,8 @@ public final class StudioMode {
                         c.getIntOr("h", 4), c.getBooleanOr("keepAir", false),
                         c.getIntOr("x0", 0), c.getIntOr("z0", 0));
                 DYNAMIC.add(new DynamicPlot(plot, c.getStringOr("category", ""),
-                        c.getStringOr("author", "?"), c.getBooleanOr("approved", false)));
+                        c.getStringOr("author", "?"), c.getStringOr("set", "default"),
+                        c.getBooleanOr("approved", false)));
             }
             stampedHash = root.getIntOr("stampedHash", 0);
         } catch (java.io.IOException e) {
@@ -225,6 +296,7 @@ public final class StudioMode {
                 t.putInt("z0", d.plot.z0());
                 t.putString("category", d.category);
                 t.putString("author", d.author);
+                t.putString("set", d.set);
                 t.putBoolean("approved", d.approved);
                 list.add(t);
             }
@@ -422,8 +494,14 @@ public final class StudioMode {
         BlockPos start = new BlockPos(plot.x0(), y + 1, plot.z0());
         Vec3i size = new Vec3i(plot.w(), plot.h(), plot.d());
 
+        // The plot's set determines the template id (set-prefixed for customs).
+        final StudioPlot fplot = plot;
+        String set = DYNAMIC.stream()
+                .filter(d -> d.plot.name().equals(fplot.name()) && d.plot.x0() == fplot.x0()
+                        && d.plot.z0() == fplot.z0())
+                .map(d -> d.set).findFirst().orElse("default");
         StructureTemplateManager manager = level.getServer().getStructureManager();
-        Identifier id = Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, plot.name());
+        Identifier id = Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, templateId(set, plot.name()));
         StructureTemplate template = manager.getOrCreate(id);
         template.fillFromWorld(level, start, size, false,
                 plot.keepAir() ? List.of() : List.of(Blocks.AIR));

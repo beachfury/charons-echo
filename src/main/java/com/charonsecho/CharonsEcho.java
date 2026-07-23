@@ -49,6 +49,7 @@ public final class CharonsEcho implements ModInitializer {
             GraveyardPlots.load(server); // after graves: legacy-field migration reads them
             GhostState.load(server);
             Gravekeepers.load(server);
+            StudioSets.load(server);
             StudioMode.loadDynamic(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid

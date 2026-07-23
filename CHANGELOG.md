@@ -2,6 +2,15 @@
 
 ## 0.1.0 — in development
 
+- SETS — style families: `/charon set new <name> [size]` stakes a gold-bordered, owner-sized
+  (32–256) area in the Studio; plots stake free-form wherever the builder stands
+  (`/charon plot new` inside a set). Lifecycle: open (any gravekeeper builds) → `set trust`
+  (steward + `set invite`d builders only) → `set approve` (locked; every exported piece
+  enters generation at once) → `set reopen` (additions ship after next approval). Each
+  region of Charon's Echo draws from ONE approved set (seed-deterministic), falling back to
+  the default set for uncovered categories — styles never mix mid-field. No minimum
+  content: a trees-only set is welcome. Set templates are namespaced (`<set>/<piece>`).
+
 - World seed now shapes the graveyard terrain — every server's Charon's Echo is unique
   (regenerate the dimension after updating)
 - Gravekeeper builder roster: `/charon builder add|remove <player>` — rostered builders
