@@ -152,7 +152,7 @@ dev-only authoring mode so builds happen in parallel with coding:
 |---|---|---|---|
 | `church` | 32×32×24h | 1 | altar (barrier/lodestone anchor block), lectern spot, vault wall behind altar — marker blocks define interaction points |
 | `spawn_shrine` | 7×7×7h | 1 | overworld portal shrine; must look at home in any biome |
-| `headstone_1..6` | 3×3×4h | 6 | cross, slab, obelisk, cairn, broken column, statue — each with a sign position marker |
+| `headstone_1..6` | 4×4×4h | 6 | cross, slab, obelisk, cairn, broken column, statue — each with a sign position marker |
 | `plinth` | 5×5×6h | 1 | Death of the Week display, space for gilded headstone copy + candles |
 | `lych_gate` | 5×3×5h | 1 | graveyard field entrances |
 | `pale_tree_1..6` | 7×7×10h | 6 | dead/pale tree variants scattered on hills |

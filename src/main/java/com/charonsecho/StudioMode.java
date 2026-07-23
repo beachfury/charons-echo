@@ -78,7 +78,7 @@ public final class StudioMode {
     public record Category(String name, int w, int d, int h, boolean keepAir, int rowZ) {}
 
     public static final List<Category> CATEGORIES = List.of(
-            new Category("headstone", 3, 3, 4, false, 44),
+            new Category("headstone", 4, 4, 4, false, 44),
             new Category("tree", 7, 7, 10, false, 58),
             new Category("clutter", 3, 3, 3, false, 76),
             new Category("ruin", 12, 12, 9, true, 94),
@@ -348,7 +348,7 @@ public final class StudioMode {
         // Graves row (z = 44).
         x = 0; z = 44;
         for (int i = 1; i <= 6; i++) {
-            x = addPlot(plots, "headstone_" + i, 3, 3, 4, false, x, z, gap);
+            x = addPlot(plots, "headstone_" + i, 4, 4, 4, false, x, z, gap);
         }
 
         // Trees row (z = 58).
