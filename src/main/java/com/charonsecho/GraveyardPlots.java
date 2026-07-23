@@ -32,13 +32,41 @@ public final class GraveyardPlots {
 
     private GraveyardPlots() {}
 
-    /** Next unused global plot index. */
+    /** Next unused global plot index (ignoring suitability). */
     public static int nextPlotIndex() {
         int max = -1;
         for (GraveManager.Grave g : GraveManager.all()) {
             if (g.plotIndex > max) max = g.plotIndex;
         }
         return max + 1;
+    }
+
+    /**
+     * A plot may be buried in only if it stays dry and doesn't hang off a
+     * cliff: every column above water level, and no more than 3 blocks of
+     * height spread across the 5×5. Unsuitable plots are skipped forever —
+     * rivers and cliffs carve natural gaps into the fields.
+     */
+    public static boolean isSuitable(int plotIndex) {
+        BlockPos o = plotOrigin(plotIndex);
+        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
+            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
+                int h = GraveyardTerrain.groundHeight(x, z);
+                if (h < min) min = h;
+                if (h > max) max = h;
+            }
+        }
+        return min >= GraveyardTerrain.WATER_TOP && (max - min) <= 3;
+    }
+
+    /** First suitable unused plot index, walking the spiral forward. */
+    private static int nextSuitablePlotIndex() {
+        int i = nextPlotIndex();
+        for (int n = 0; n < 5000; n++, i++) {
+            if (isSuitable(i)) return i;
+        }
+        return i;
     }
 
     /** Square-spiral coordinates for field n (n >= 0), skipping the church at origin. */
@@ -83,22 +111,46 @@ public final class GraveyardPlots {
      * raise the stone, and note on the gate sign when the field fills.
      */
     public static void allocate(ServerLevel graveyard, GraveManager.Grave grave) {
-        int idx = nextPlotIndex();
+        int idx = nextSuitablePlotIndex();
         grave.plotIndex = idx;
         ensureField(graveyard, idx / PER_FIELD);
         terracePlot(graveyard, idx);
         placeHeadstone(graveyard, grave);
-        if (idx % PER_FIELD == PER_FIELD - 1) {
+        if (!fieldHasOpenPlots(idx / PER_FIELD)) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
         GraveManager.save();
     }
 
-    /** Gate sign position for a field (west side of the south gate). */
+    /** True while the field still holds at least one dry, unused plot. */
+    private static boolean fieldHasOpenPlots(int fieldIndex) {
+        boolean[] used = new boolean[PER_FIELD];
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) {
+                used[g.plotIndex % PER_FIELD] = true;
+            }
+        }
+        for (int w = 0; w < PER_FIELD; w++) {
+            if (!used[w] && isSuitable(fieldIndex * PER_FIELD + w)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Gate sign position: first dry spot on the south fence line, starting
+     * beside the gate. Deterministic, so re-fence checks find the same spot.
+     */
     private static BlockPos gateSignPos(int fieldIndex) {
         BlockPos c = fieldCenter(fieldIndex);
-        int f = FIELD_HALF + 1;
-        int x = c.getX() - 2, z = c.getZ() + f;
+        int f = FIELD_HALF + 1, z = c.getZ() + f;
+        for (int dx = -2; dx <= FIELD_HALF; dx++) {
+            int x = c.getX() + dx;
+            int h = GraveyardTerrain.groundHeight(x, z);
+            if (h >= GraveyardTerrain.WATER_TOP && Math.abs(dx) > 1) { // not in the gate gap
+                return new BlockPos(x, h + 2, z);
+            }
+        }
+        int x = c.getX() - 2;
         return new BlockPos(x, GraveyardTerrain.groundHeight(x, z) + 2, z);
     }
 
@@ -133,6 +185,7 @@ public final class GraveyardPlots {
         for (int[] corner : new int[][]{{-f, -f}, {f, -f}, {-f, f}, {f, f}}) {
             int x = c.getX() + corner[0], z = c.getZ() + corner[1];
             int h = GraveyardTerrain.groundHeight(x, z);
+            if (h < GraveyardTerrain.WATER_TOP) continue; // no drowned lanterns
             level.setBlock(new BlockPos(x, h + 2, z), lantern, 2);
         }
 
@@ -148,20 +201,25 @@ public final class GraveyardPlots {
         }
     }
 
-    /** The 48th burial closes the field's ledger on the gate sign. */
+    /** The last dry plot closes the field's ledger on the gate sign. */
     private static void markFieldFull(ServerLevel level, int fieldIndex) {
+        int souls = 0;
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) souls++;
+        }
         BlockPos signPos = gateSignPos(fieldIndex);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
             sign.setText(sign.getFrontText()
                     .setMessage(2, Component.literal("filled " + shortDate()))
-                    .setMessage(3, Component.literal("48 souls rest")), true);
+                    .setMessage(3, Component.literal(souls + " souls rest")), true);
             sign.setChanged();
         }
     }
 
     private static void fencePost(ServerLevel level, BlockState fence, int x, int z) {
-        level.getChunk(x >> 4, z >> 4);
         int h = GraveyardTerrain.groundHeight(x, z);
+        if (h < GraveyardTerrain.WATER_TOP) return; // the fence breaks at the water
+        level.getChunk(x >> 4, z >> 4);
         level.setBlock(new BlockPos(x, h + 1, z), fence, 2);
     }
 
