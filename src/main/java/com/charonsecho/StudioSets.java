@@ -41,8 +41,9 @@ import net.minecraft.world.level.storage.LevelResource;
  */
 public final class StudioSets {
 
-    public static final int DEFAULT_SIZE = 96;
-    public static final int MAX_SIZE = 256;
+    public static int defaultSize() {
+        return CharonConfig.setDefaultSize;
+    }
     /** One style region is ~this many blocks across in Charon's Echo. */
     private static final int REGION = 512;
     /** Custom set areas start east of the default grid. */
@@ -99,7 +100,7 @@ public final class StudioSets {
 
     public static SetInfo create(ServerLevel studio, String name, int size, ServerPlayer steward) {
         if (get(name) != null || name.equals("default")) return null;
-        size = Math.max(32, Math.min(size, MAX_SIZE));
+        size = Math.max(32, Math.min(size, CharonConfig.setMaxSize));
         int origin = FIRST_ORIGIN_X;
         for (SetInfo s : SETS) {
             origin = Math.max(origin, s.originX + s.size + 64);
@@ -201,7 +202,7 @@ public final class StudioSets {
                 SetInfo s = new SetInfo(
                         c.getStringOr("name", "?"),
                         c.getIntOr("originX", FIRST_ORIGIN_X),
-                        c.getIntOr("size", DEFAULT_SIZE),
+                        c.getIntOr("size", defaultSize()),
                         UUID.fromString(c.getStringOr("steward", new UUID(0, 0).toString())),
                         c.getStringOr("stewardName", "?"));
                 s.trusted = c.getBooleanOr("trusted", false);

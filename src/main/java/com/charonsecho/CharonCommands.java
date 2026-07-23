@@ -165,9 +165,9 @@ public final class CharonCommands {
                                             ServerPlayer p = builder(ctx);
                                             return p == null ? 0 : setNew(p,
                                                     StringArgumentType.getString(ctx, "name"),
-                                                    StudioSets.DEFAULT_SIZE);
+                                                    StudioSets.defaultSize());
                                         })
-                                        .then(Commands.argument("size", IntegerArgumentType.integer(32, StudioSets.MAX_SIZE))
+                                        .then(Commands.argument("size", IntegerArgumentType.integer(32, 1024))
                                                 .executes(ctx -> {
                                                     ServerPlayer p = builder(ctx);
                                                     return p == null ? 0 : setNew(p,

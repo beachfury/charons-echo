@@ -123,12 +123,12 @@ public final class PortalManager {
         } else if (consumeObol(player)) {
             player.sendSystemMessage(Component.literal("Charon accepts your fare.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
-        } else if (grave.xpLevels > 0) {
+        } else if (grave.xpLevels > 0 && CharonConfig.tollXpPercent > 0) {
             int before = grave.xpLevels;
-            grave.xpLevels = grave.xpLevels / 2;
+            grave.xpLevels = before * (100 - CharonConfig.tollXpPercent) / 100;
             GraveManager.save();
             player.sendSystemMessage(Component.literal(
-                    "No coin for the Ferryman. Charon takes half the memory of your deeds ("
+                    "No coin for the Ferryman. Charon takes his share of the memory of your deeds ("
                     + before + " → " + grave.xpLevels + " levels).")
                     .withStyle(ChatFormatting.DARK_PURPLE));
         } else {

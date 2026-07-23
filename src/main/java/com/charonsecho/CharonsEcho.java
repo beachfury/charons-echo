@@ -24,6 +24,9 @@ public final class CharonsEcho implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // Live settings (config/charons-echo.properties).
+        CharonConfig.load();
+
         // Real chunk generator — terrain is built at the noise stage so vanilla
         // computes lighting/heightmaps normally (see GraveyardChunkGenerator).
         Registry.register(BuiltInRegistries.CHUNK_GENERATOR,

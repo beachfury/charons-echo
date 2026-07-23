@@ -30,7 +30,9 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class DeathWake {
 
-    private static final int WAKE_TICKS = 20 * 60;
+    private static int wakeTicks() {
+        return CharonConfig.wakeTimeoutSeconds * 20;
+    }
 
     private record Wake(UUID graveId, int startedTick) {}
 
@@ -136,7 +138,7 @@ public final class DeathWake {
                 }
             });
 
-            if (player.tickCount - wake.startedTick() >= WAKE_TICKS) {
+            if (player.tickCount - wake.startedTick() >= wakeTicks()) {
                 rise(player);
             }
         }

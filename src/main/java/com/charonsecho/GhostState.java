@@ -47,8 +47,10 @@ public final class GhostState {
 
     public static final String TAG = "charon.ghost";
     private static final String TEAM_NAME = "charon_dead";
-    /** Leash radius around the death anchor in the living world. */
-    private static final double TETHER_R = 24.0;
+    /** Leash radius around the death anchor in the living world (config). */
+    private static double tetherR() {
+        return CharonConfig.ghostTetherRadius;
+    }
 
     /** anchor = where the body fell; portal = the soul-fire portal, offset so
      *  the risen ghost must deliberately walk into it. */
@@ -173,10 +175,10 @@ public final class GhostState {
             if (dim.equals(data.dimension())) {
                 Vec3 anchor = Vec3.atCenterOf(data.anchor());
                 double dist = player.position().distanceTo(anchor);
-                if (dist > TETHER_R * 2) {
+                if (dist > tetherR() * 2) {
                     player.teleportTo((ServerLevel) player.level(),
                             anchor.x, anchor.y, anchor.z, java.util.Set.of(), player.getYRot(), player.getXRot(), false);
-                } else if (dist > TETHER_R) {
+                } else if (dist > tetherR()) {
                     Vec3 pull = anchor.subtract(player.position()).normalize().scale(0.35);
                     player.setDeltaMovement(player.getDeltaMovement().scale(0.4).add(pull));
                     player.hurtMarked = true;
