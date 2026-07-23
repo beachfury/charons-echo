@@ -28,8 +28,32 @@ public final class GraveyardRules {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
                 entity.level().dimension() != CharonsEcho.GRAVEYARD_DIM);
 
+        // The living may visit, but not build or break — hallowed ground.
+        // Gamemasters are exempt (permissions() check works for the
+        // single-player host, unlike isOp()).
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
+                (world, player, pos, state, blockEntity) -> {
+                    if (world.dimension() != CharonsEcho.GRAVEYARD_DIM) return true;
+                    return player instanceof net.minecraft.server.level.ServerPlayer sp && isGamemaster(sp);
+                });
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (world.dimension() != CharonsEcho.GRAVEYARD_DIM) return net.minecraft.world.InteractionResult.PASS;
+            if (!(player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (player instanceof net.minecraft.server.level.ServerPlayer sp && isGamemaster(sp)) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            return net.minecraft.world.InteractionResult.FAIL;
+        });
+
         // Pacify the Gravekeepers a few times a second.
         ServerTickEvents.END_SERVER_TICK.register(GraveyardRules::tick);
+    }
+
+    static boolean isGamemaster(net.minecraft.server.level.ServerPlayer player) {
+        return player.permissions().hasPermission(
+                net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER);
     }
 
     private static final String KEEPERS_TEAM = "charon_keepers";

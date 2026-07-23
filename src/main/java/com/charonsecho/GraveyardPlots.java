@@ -78,18 +78,41 @@ public final class GraveyardPlots {
     }
 
     /**
-     * Assign the next plot to a grave: fence the field on first burial (the
-     * fence follows the terrain), cut the plot's own terrace, raise the stone.
+     * Assign the next plot to a grave: fence the field if its fence is missing
+     * (first burial, or regenerated terrain), cut the plot's own terrace,
+     * raise the stone, and note on the gate sign when the field fills.
      */
     public static void allocate(ServerLevel graveyard, GraveManager.Grave grave) {
         int idx = nextPlotIndex();
         grave.plotIndex = idx;
-        if (idx % PER_FIELD == 0) {
-            fenceField(graveyard, idx / PER_FIELD);
-        }
+        ensureField(graveyard, idx / PER_FIELD);
         terracePlot(graveyard, idx);
         placeHeadstone(graveyard, grave);
+        if (idx % PER_FIELD == PER_FIELD - 1) {
+            markFieldFull(graveyard, idx / PER_FIELD);
+        }
         GraveManager.save();
+    }
+
+    /** Gate sign position for a field (west side of the south gate). */
+    private static BlockPos gateSignPos(int fieldIndex) {
+        BlockPos c = fieldCenter(fieldIndex);
+        int f = FIELD_HALF + 1;
+        int x = c.getX() - 2, z = c.getZ() + f;
+        return new BlockPos(x, GraveyardTerrain.groundHeight(x, z) + 2, z);
+    }
+
+    /** Re-fence if the fence is missing (fresh field OR wiped/regenerated terrain). */
+    private static void ensureField(ServerLevel level, int fieldIndex) {
+        BlockPos signPos = gateSignPos(fieldIndex);
+        level.getChunk(signPos.getX() >> 4, signPos.getZ() >> 4);
+        if (!(level.getBlockEntity(signPos) instanceof SignBlockEntity)) {
+            fenceField(level, fieldIndex);
+        }
+    }
+
+    private static String shortDate() {
+        return new java.text.SimpleDateFormat("M/d/yy").format(new java.util.Date());
     }
 
     /** Fence the field perimeter, following the terrain, gate at south center. */
@@ -111,6 +134,28 @@ public final class GraveyardPlots {
             int x = c.getX() + corner[0], z = c.getZ() + corner[1];
             int h = GraveyardTerrain.groundHeight(x, z);
             level.setBlock(new BlockPos(x, h + 2, z), lantern, 2);
+        }
+
+        // Gate sign: which field this is, and when it opened.
+        BlockPos signPos = gateSignPos(fieldIndex);
+        level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            SignText text = new SignText()
+                    .setMessage(0, Component.literal("Grave Field " + (fieldIndex + 1)))
+                    .setMessage(1, Component.literal("opened " + shortDate()));
+            sign.setText(text, true);
+            sign.setChanged();
+        }
+    }
+
+    /** The 48th burial closes the field's ledger on the gate sign. */
+    private static void markFieldFull(ServerLevel level, int fieldIndex) {
+        BlockPos signPos = gateSignPos(fieldIndex);
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            sign.setText(sign.getFrontText()
+                    .setMessage(2, Component.literal("filled " + shortDate()))
+                    .setMessage(3, Component.literal("48 souls rest")), true);
+            sign.setChanged();
         }
     }
 

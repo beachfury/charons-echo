@@ -37,8 +37,11 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class PortalManager {
 
-    /** Ghosts who reclaimed and have a return portal waiting (portal pos). */
-    private static final Map<UUID, BlockPos> RETURN_PORTALS = new ConcurrentHashMap<>();
+    /** A waiting way home: where the portal stands, and where it leads. */
+    record ReturnPortal(BlockPos portalPos, String targetDim, BlockPos target) {}
+
+    /** Players (living, post-reclaim) with a return portal waiting. */
+    private static final Map<UUID, ReturnPortal> RETURN_PORTALS = new ConcurrentHashMap<>();
 
     private PortalManager() {}
 
@@ -48,38 +51,43 @@ public final class PortalManager {
 
     private static void tick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!GhostState.isGhost(player.getUUID())) continue;
+            // Ghosts: the death portal in the living world.
             GhostState.GhostData data = GhostState.get(player.getUUID());
-            if (data == null) continue;
-
-            String dim = player.level().dimension().identifier().toString();
-            if (dim.equals(data.dimension())) {
-                // Death portal, offset from where the body fell — walking in
-                // is a deliberate act, never an accident of standing still.
-                BlockPos portal = data.portal();
-                portalParticles((ServerLevel) player.level(), portal, player.tickCount);
-                if (player.tickCount % 2 == 0
-                        && player.position().distanceTo(Vec3.atCenterOf(portal)) < 1.4) {
-                    crossToGraveyard(server, player);
-                }
-            } else if (player.level().dimension() == CharonsEcho.GRAVEYARD_DIM) {
-                BlockPos ret = RETURN_PORTALS.get(player.getUUID());
-                if (ret == null && GraveManager.oldestUnclaimed(player.getUUID()).isEmpty()) {
-                    // Reclaimed then relogged: rebuild the return portal from the
-                    // latest claimed grave so nobody is ever stranded among the dead.
-                    ret = GraveManager.all().stream()
-                            .filter(g -> g.owner.equals(player.getUUID()) && g.claimed && g.plotIndex >= 0)
-                            .reduce((a, b) -> b)
-                            .map(g -> GraveyardPlots.arrivalPos(g.plotIndex).offset(2, 0, 0))
-                            .orElse(null);
-                    if (ret != null) RETURN_PORTALS.put(player.getUUID(), ret);
-                }
-                if (ret != null) {
-                    portalParticles((ServerLevel) player.level(), ret, player.tickCount);
+            if (data != null) {
+                String dim = player.level().dimension().identifier().toString();
+                if (dim.equals(data.dimension())) {
+                    // Offset from where the body fell — walking in is a
+                    // deliberate act, never an accident of standing still.
+                    BlockPos portal = data.portal();
+                    portalParticles((ServerLevel) player.level(), portal, player.tickCount);
                     if (player.tickCount % 2 == 0
-                            && player.position().distanceTo(Vec3.atCenterOf(ret)) < 1.4) {
-                        returnToLife(server, player, data);
+                            && player.position().distanceTo(Vec3.atCenterOf(portal)) < 1.4) {
+                        crossToGraveyard(server, player);
                     }
+                    continue;
+                }
+            }
+
+            // The living (post-reclaim): the return portal in the graveyard.
+            if (player.level().dimension() != CharonsEcho.GRAVEYARD_DIM) continue;
+            ReturnPortal ret = RETURN_PORTALS.get(player.getUUID());
+            if (ret == null && data == null) {
+                // Relogged (or wandered in) after reclaiming: rebuild the way
+                // home from the latest claimed grave — nobody is ever stranded.
+                ret = GraveManager.all().stream()
+                        .filter(g -> g.owner.equals(player.getUUID()) && g.claimed && g.plotIndex >= 0)
+                        .reduce((a, b) -> b)
+                        .map(g -> new ReturnPortal(
+                                GraveyardPlots.arrivalPos(g.plotIndex).offset(2, 0, 0),
+                                g.dimension, g.pos))
+                        .orElse(null);
+                if (ret != null) RETURN_PORTALS.put(player.getUUID(), ret);
+            }
+            if (ret != null) {
+                portalParticles((ServerLevel) player.level(), ret.portalPos(), player.tickCount);
+                if (player.tickCount % 2 == 0
+                        && player.position().distanceTo(Vec3.atCenterOf(ret.portalPos())) < 1.4) {
+                    returnHome(server, player, ret);
                 }
             }
         }
@@ -172,27 +180,35 @@ public final class PortalManager {
         GraveManager.save();
         GraveyardPlots.markAtRest(graveyard, grave);
 
-        BlockPos ret = GraveyardPlots.arrivalPos(grave.plotIndex).offset(2, 0, 0);
-        RETURN_PORTALS.put(player.getUUID(), ret);
+        // Touching the stone IS the resurrection: the ghost ends here, alive
+        // among the graves. The portal is just the way home.
+        RETURN_PORTALS.put(player.getUUID(), new ReturnPortal(
+                GraveyardPlots.arrivalPos(grave.plotIndex).offset(2, 0, 0),
+                grave.dimension, grave.pos));
+        GhostState.remove(player);
+        graveyard.sendParticles(ParticleTypes.SOUL,
+                player.getX(), player.getY() + 1, player.getZ(), 30, 0.4, 0.8, 0.4, 0.03);
         graveyard.playSound(null, clicked, SoundEvents.BELL_RESONATE, SoundSource.AMBIENT, 1.0f, 0.8f);
         player.sendSystemMessage(Component.literal(
-                "What was yours is yours again. The portal beside your grave leads back to the living.")
+                "What was yours is yours again — your echo rejoins the living. The portal beside your grave leads home.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
         return true;
     }
 
-    private static void returnToLife(MinecraftServer server, ServerPlayer player, GhostState.GhostData data) {
+    private static void returnHome(MinecraftServer server, ServerPlayer player, ReturnPortal ret) {
         RETURN_PORTALS.remove(player.getUUID());
         ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
-                Identifier.parse(data.dimension()));
+                Identifier.parse(ret.targetDim()));
         ServerLevel target = server.getLevel(dimKey);
         if (target == null) target = server.overworld();
-        BlockPos safe = findSafe(target, data.anchor());
+        BlockPos safe = findSafe(target, ret.target());
         player.teleportTo(target, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5,
                 Set.<Relative>of(), player.getYRot(), 0f, false);
-        GhostState.remove(player);
+        if (GhostState.isGhost(player.getUUID())) {
+            GhostState.remove(player); // safety net — normally ended at the stone
+        }
         target.playSound(null, safe, SoundEvents.BELL_RESONATE, SoundSource.AMBIENT, 1.0f, 1.2f);
-        player.sendSystemMessage(Component.literal("Your echo rejoins the living.")
+        player.sendSystemMessage(Component.literal("The mists part; the living world takes you back.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
     }
 
