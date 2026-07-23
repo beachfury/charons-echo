@@ -194,9 +194,10 @@ public final class CharonCommands {
                     if (player == null) return 0;
                     ServerLevel graveyard = player.level().getServer().getLevel(CharonsEcho.GRAVEYARD_DIM);
                     if (graveyard == null) return 0;
-                    int changed = DecorScatter.rebuild(graveyard);
+                    int placed = DecorScatter.rebuild(graveyard);
                     player.sendSystemMessage(Component.literal(
-                            "Decor reloaded — " + changed + " slots took new pieces; everything else kept its place.")
+                            "The world rebuilds as it first did — " + placed
+                            + " pieces re-scattered from the seed.")
                             .withStyle(ChatFormatting.GREEN));
                     return 1;
                 }))

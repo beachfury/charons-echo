@@ -114,7 +114,7 @@ public final class DecorScatter {
         if (!suitable(level, x, z, category)) return;
 
         long slotKey = (((long) x) << 32) | (z & 0xFFFFFFFFL);
-        String piece = rendezvous(level, category, x, z);
+        String piece = choosePiece(level, category, x, z);
         PLACEMENTS.put(slotKey, new Placement(x, z, category, piece));
         if (!piece.isEmpty()) {
             paste(level, x, z, piece);
@@ -145,20 +145,17 @@ public final class DecorScatter {
         return min >= GraveyardTerrain.WATER_TOP && (max - min) <= 3;
     }
 
-    /** Rendezvous hashing: the piece with the highest hash for this slot wins. */
-    private static String rendezvous(ServerLevel level, String category, int x, int z) {
+    /**
+     * Deterministic piece choice: hash the slot, index into the approved set.
+     * Exactly what first-time generation would do with this set — so a rebuild
+     * with a grown set re-rolls the whole scatter, same as generating fresh.
+     */
+    private static String choosePiece(ServerLevel level, String category, int x, int z) {
         List<String> options = StudioMode.approvedTemplates(category,
                 level.getServer().getStructureManager());
-        String best = "";
-        long bestScore = Long.MIN_VALUE;
-        for (String option : options) {
-            long score = mix(x * 31 + option.hashCode(), z * 17 - option.hashCode(), 991L);
-            if (score > bestScore) {
-                bestScore = score;
-                best = option;
-            }
-        }
-        return best;
+        if (options.isEmpty()) return "";
+        int idx = (int) Math.floorMod(mix(x, z, 991L), options.size());
+        return options.get(idx);
     }
 
     private static void paste(ServerLevel level, int x, int z, String piece) {
@@ -188,25 +185,24 @@ public final class DecorScatter {
     }
 
     /**
-     * Re-evaluate every recorded slot against the current approved set: slots
-     * whose winner changed are cleared and re-pasted; everything else stays.
+     * The full reload: every recorded slot is cleared and re-placed from the
+     * seed with the CURRENT approved set — the world rebuilds just like the
+     * first time, with all items re-scattered. Terrain and graves untouched.
      */
     public static int rebuild(ServerLevel level) {
-        int changed = 0;
+        int placed = 0;
         for (Map.Entry<Long, Placement> entry : PLACEMENTS.entrySet()) {
             Placement p = entry.getValue();
-            String winner = rendezvous(level, p.category(), p.x(), p.z());
-            if (!winner.equals(p.piece())) {
-                clearSlot(level, p);
-                if (!winner.isEmpty()) {
-                    paste(level, p.x(), p.z(), winner);
-                }
-                entry.setValue(new Placement(p.x(), p.z(), p.category(), winner));
-                changed++;
+            clearSlot(level, p);
+            String piece = choosePiece(level, p.category(), p.x(), p.z());
+            if (!piece.isEmpty()) {
+                paste(level, p.x(), p.z(), piece);
+                placed++;
             }
+            entry.setValue(new Placement(p.x(), p.z(), p.category(), piece));
         }
         save();
-        return changed;
+        return placed;
     }
 
     // ---- persistence (world/charons_echo/decor.dat) ----
