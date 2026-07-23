@@ -28,6 +28,17 @@ public final class CharonCommands {
 
     private CharonCommands() {}
 
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> CATEGORY_SUGGESTIONS =
+            (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                    StudioMode.CATEGORIES.stream().map(StudioMode.Category::name), b);
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> PLOT_SUGGESTIONS =
+            (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                    StudioMode.allPlots().stream().map(StudioMode.StudioPlot::name), b);
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> PENDING_SUGGESTIONS =
+            (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                    StudioMode.dynamicPlots().stream().filter(d -> !d.approved)
+                            .map(d -> d.plot.name()), b);
+
     /** Gamemaster only; sends an error and returns null otherwise. */
     private static ServerPlayer admin(CommandContext<CommandSourceStack> ctx)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -85,14 +96,18 @@ public final class CharonCommands {
                             StudioMode.export(player, "");
                             return 1;
                         })
-                        .then(Commands.argument("name", StringArgumentType.word()).executes(ctx -> {
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .suggests(PLOT_SUGGESTIONS)
+                                .executes(ctx -> {
                             ServerPlayer player = builder(ctx);
                             if (player == null) return 0;
                             StudioMode.export(player, StringArgumentType.getString(ctx, "name"));
                             return 1;
                         })))
                 .then(Commands.literal("place")
-                        .then(Commands.argument("name", StringArgumentType.word()).executes(ctx -> {
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .suggests(PLOT_SUGGESTIONS)
+                                .executes(ctx -> {
                             ServerPlayer player = builder(ctx);
                             if (player == null) return 0;
                             StudioMode.place(player, StringArgumentType.getString(ctx, "name"));
@@ -101,6 +116,7 @@ public final class CharonCommands {
                 .then(Commands.literal("plot")
                         .then(Commands.literal("new")
                                 .then(Commands.argument("category", StringArgumentType.word())
+                                        .suggests(CATEGORY_SUGGESTIONS)
                                         .then(Commands.argument("name", StringArgumentType.word()).executes(ctx -> {
                                             ServerPlayer player = builder(ctx);
                                             if (player == null) return 0;
@@ -109,7 +125,9 @@ public final class CharonCommands {
                                                     StringArgumentType.getString(ctx, "name"));
                                         }))))
                         .then(Commands.literal("approve")
-                                .then(Commands.argument("name", StringArgumentType.word()).executes(ctx -> {
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .suggests(PENDING_SUGGESTIONS)
+                                        .executes(ctx -> {
                                     ServerPlayer player = admin(ctx);
                                     if (player == null) return 0;
                                     return plotApprove(player, StringArgumentType.getString(ctx, "name"));
@@ -243,6 +261,10 @@ public final class CharonCommands {
     private static int plotNew(ServerPlayer player, String category, String name) {
         ServerLevel studio = player.level().getServer().getLevel(CharonsEcho.STUDIO_DIM);
         if (studio == null) return 0;
+        // Names carry their category prefix — applied automatically if omitted.
+        if (!name.startsWith(category + "_")) {
+            name = category + "_" + name;
+        }
         StudioMode.StudioPlot plot = StudioMode.createPlot(studio, category, name,
                 player.getName().getString());
         if (plot == null) {
