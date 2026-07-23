@@ -155,9 +155,15 @@ dev-only authoring mode so builds happen in parallel with coding:
 | `headstone_1..6` | 3×3×4h | 6 | cross, slab, obelisk, cairn, broken column, statue — each with a sign position marker |
 | `plinth` | 5×5×6h | 1 | Death of the Week display, space for gilded headstone copy + candles |
 | `lych_gate` | 5×3×5h | 1 | graveyard field entrances |
-| `pale_tree_1..4` | 7×7×10h | 4 | dead/pale tree variants scattered on hills |
+| `pale_tree_1..6` | 7×7×10h | 6 | dead/pale tree variants scattered on hills |
+| `big_tree_1..2` | 11×11×14h | 2 | large pale trees for ridgelines |
 | `styx_dock` | 9×5×6h | 1 | optional: Charon's ferry dock + boat on the river |
-| `clutter_1..N` | 3×3×3h | ~6 | benches, urns, candle clusters, statues — sprinkled deterministically |
+| `clutter_1..8` | 3×3×3h | ~8 | benches, urns, candle clusters, statues — sprinkled deterministically |
+| `ruin_cottage` | 12×12×9h | 1 | decayed cottage — echoes of the folk who came before |
+| `ruin_tower` | 7×7×12h | 1 | crumbling watchtower |
+| `ruin_wall_a/b` | 7×3×4h | 2 | collapsed wall segments |
+| `ruin_well` | 5×5×6h | 1 | abandoned village well |
+| `ruin_arch` | 7×3×7h | 1 | free-standing broken archway |
 
 Marker-block convention inside templates: structure voids / barrier blocks with agreed
 positions mark sign placement, altar interaction point, plinth center, etc. The paste code
