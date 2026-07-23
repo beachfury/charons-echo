@@ -355,7 +355,10 @@ public final class GraveyardPlots {
             var template = manager.get(net.minecraft.resources.Identifier
                     .fromNamespaceAndPath(CharonsEcho.MOD_ID, grave.stoneName));
             if (template.isPresent()) {
-                BlockPos at = new BlockPos(o.getX(), y + 1, o.getZ());
+                // Templates carry below-grade content (buried coffins) — anchor
+                // the paste depth-first so the coffin sinks into the terrace.
+                int depth = StudioMode.depthOfCategory("headstone");
+                BlockPos at = new BlockPos(o.getX(), y + 1 - depth, o.getZ());
                 level.getChunk(o.getX() >> 4, o.getZ() >> 4);
                 template.get().placeInWorld(level, at, at,
                         new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),

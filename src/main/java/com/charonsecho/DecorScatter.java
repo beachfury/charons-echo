@@ -117,7 +117,7 @@ public final class DecorScatter {
         String piece = choosePiece(level, category, x, z);
         PLACEMENTS.put(slotKey, new Placement(x, z, category, piece));
         if (!piece.isEmpty()) {
-            paste(level, x, z, piece);
+            paste(level, x, z, piece, category);
         }
     }
 
@@ -158,11 +158,11 @@ public final class DecorScatter {
         return options.get(idx);
     }
 
-    private static void paste(ServerLevel level, int x, int z, String piece) {
+    private static void paste(ServerLevel level, int x, int z, String piece, String category) {
         var template = level.getServer().getStructureManager()
                 .get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
         if (template.isEmpty()) return;
-        int y = GraveyardTerrain.groundHeight(x, z);
+        int y = GraveyardTerrain.groundHeight(x, z) - StudioMode.depthOfCategory(category);
         BlockPos at = new BlockPos(x, y + 1, z);
         template.get().placeInWorld(level, at, at, new StructurePlaceSettings(),
                 RandomSource.create(mix(x, z, 555L)), 2);
@@ -196,7 +196,7 @@ public final class DecorScatter {
             clearSlot(level, p);
             String piece = choosePiece(level, p.category(), p.x(), p.z());
             if (!piece.isEmpty()) {
-                paste(level, p.x(), p.z(), piece);
+                paste(level, p.x(), p.z(), piece, p.category());
                 placed++;
             }
             entry.setValue(new Placement(p.x(), p.z(), p.category(), piece));

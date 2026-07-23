@@ -74,17 +74,31 @@ public final class StudioMode {
         return set.equals("default") ? plotName : set + "/" + plotName;
     }
 
-    /** Category presets — sizes are LOCKED to the established plot standards. */
-    public record Category(String name, int w, int d, int h, boolean keepAir, int rowZ) {}
+    /**
+     * Category presets — sizes are LOCKED to the established plot standards.
+     * depth = blocks BELOW grade captured and pasted (buried coffins, roots,
+     * foundations — dig into your plot and it ships).
+     */
+    public record Category(String name, int w, int d, int h, int depth, boolean keepAir, int rowZ) {}
 
     public static final List<Category> CATEGORIES = List.of(
-            new Category("headstone", 4, 4, 4, false, 44),
-            new Category("tree", 7, 7, 10, false, 58),
-            new Category("clutter", 3, 3, 3, false, 76),
-            new Category("ruin", 12, 12, 9, true, 94),
-            new Category("big_tree", 11, 11, 14, false, 116),
-            new Category("gate", 5, 3, 5, false, 140),
-            new Category("building", 16, 16, 12, true, 152));
+            new Category("headstone", 4, 4, 4, 3, false, 44),
+            new Category("tree", 7, 7, 10, 1, false, 58),
+            new Category("clutter", 3, 3, 3, 1, false, 76),
+            new Category("ruin", 12, 12, 9, 3, true, 94),
+            new Category("big_tree", 11, 11, 14, 1, false, 116),
+            new Category("gate", 5, 3, 5, 1, false, 140),
+            new Category("building", 16, 16, 12, 3, true, 152));
+
+    /** Below-grade capture depth for a plot, by its category (0 if unknown). */
+    public static int depthFor(String plotName, String dynamicCategory) {
+        return depthOfCategory(dynamicCategory != null ? dynamicCategory : baseCategory(plotName));
+    }
+
+    public static int depthOfCategory(String category) {
+        return CATEGORIES.stream().filter(c -> c.name().equals(category))
+                .mapToInt(Category::depth).findFirst().orElse(0);
+    }
 
     private static final List<DynamicPlot> DYNAMIC = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static java.nio.file.Path dynamicFile;
@@ -490,16 +504,19 @@ public final class StudioMode {
             return;
         }
 
-        int y = surfaceY(level, plot.x0(), plot.z0());
-        BlockPos start = new BlockPos(plot.x0(), y + 1, plot.z0());
-        Vec3i size = new Vec3i(plot.w(), plot.h(), plot.d());
-
-        // The plot's set determines the template id (set-prefixed for customs).
+        // The plot's set determines the template id (set-prefixed for customs);
+        // its category determines how deep below grade the capture reaches.
         final StudioPlot fplot = plot;
-        String set = DYNAMIC.stream()
+        DynamicPlot dyn = DYNAMIC.stream()
                 .filter(d -> d.plot.name().equals(fplot.name()) && d.plot.x0() == fplot.x0()
                         && d.plot.z0() == fplot.z0())
-                .map(d -> d.set).findFirst().orElse("default");
+                .findFirst().orElse(null);
+        String set = dyn != null ? dyn.set : "default";
+        int depth = depthFor(plot.name(), dyn != null ? dyn.category : null);
+
+        int y = surfaceY(level, plot.x0(), plot.z0());
+        BlockPos start = new BlockPos(plot.x0(), y + 1 - depth, plot.z0());
+        Vec3i size = new Vec3i(plot.w(), plot.h() + depth, plot.d());
         StructureTemplateManager manager = level.getServer().getStructureManager();
         Identifier id = Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, templateId(set, plot.name()));
         StructureTemplate template = manager.getOrCreate(id);
