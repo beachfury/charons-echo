@@ -195,15 +195,19 @@ public final class GraveyardPlots {
     }
 
     /**
-     * Surface height of a plot's own terrace: the HIGHEST natural column under
-     * it. Plots build UP into raised beds on slopes (retaining edge below),
-     * never cut down into pits — stones always sit proud of the hillside.
+     * ROW terracing: every east–west row of graves levels to the row's highest
+     * natural column, filling UP (never digging pits). Rows become uniform
+     * stepped terraces down the hillside — every stone in a row stands on the
+     * same bed, and the only vertical faces are the risers between rows.
      */
     public static int plotSurfaceY(int plotIndex) {
-        BlockPos o = plotOrigin(plotIndex);
+        int field = plotIndex / PER_FIELD;
+        int row = (plotIndex % PER_FIELD) / COLS;
+        BlockPos c = fieldCenter(field);
+        int zStart = c.getZ() - FIELD_HALF + row * PLOT;
         int max = Integer.MIN_VALUE;
-        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
-            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
+        for (int x = c.getX() - FIELD_HALF; x < c.getX() - FIELD_HALF + COLS * PLOT; x++) {
+            for (int z = zStart; z < zStart + PLOT; z++) {
                 max = Math.max(max, GraveyardTerrain.groundHeight(x, z));
             }
         }
