@@ -451,10 +451,21 @@ public final class GraveyardPlots {
     public static void markAtRest(ServerLevel level, GraveManager.Grave grave) {
         BlockPos o = plotOrigin(grave.plotIndex);
         int y = plotSurfaceY(grave.plotIndex);
-        BlockPos signPos = new BlockPos(o.getX() + 2, y + 1, o.getZ() + 2);
-        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            sign.setText(sign.getFrontText().setHasGlowingText(true), true);
-            sign.setChanged();
+        int depth = StudioMode.depthOfCategory("headstone");
+        // The sign lives wherever the builder put it — scan the whole stone.
+        for (int x = o.getX(); x < o.getX() + PLOT; x++) {
+            for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
+                for (int dy = 1 - depth; dy <= 5; dy++) {
+                    BlockPos pos = new BlockPos(x, y + dy, z);
+                    if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
+                        sign.setText(sign.getFrontText().setHasGlowingText(true), true);
+                        sign.setChanged();
+                        var state = level.getBlockState(pos);
+                        level.sendBlockUpdated(pos, state, state, 3);
+                        return;
+                    }
+                }
+            }
         }
     }
 

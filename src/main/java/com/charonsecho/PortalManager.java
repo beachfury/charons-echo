@@ -43,6 +43,43 @@ public final class PortalManager {
     /** Players (living, post-reclaim) with a return portal waiting. */
     private static final Map<UUID, ReturnPortal> RETURN_PORTALS = new ConcurrentHashMap<>();
 
+    /**
+     * Portals spawn DISARMED and only activate once the player has been more
+     * than ~2 blocks away — you can never be teleported by a portal you
+     * didn't deliberately walk into.
+     */
+    private static final Set<UUID> DEATH_ARMED = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> RETURN_ARMED = ConcurrentHashMap.newKeySet();
+
+    /** Called when a ghost rises: their death portal starts disarmed. */
+    public static void resetArming(UUID uuid) {
+        DEATH_ARMED.remove(uuid);
+        RETURN_ARMED.remove(uuid);
+    }
+
+    /**
+     * Pick the death-portal spot: a safe column near the anchor but NEVER
+     * within 2.5 blocks of it (the ghost rises at the anchor — the portal
+     * must be a deliberate walk away).
+     */
+    public static BlockPos findPortalSpot(ServerLevel level, BlockPos anchor) {
+        level.getChunk(anchor.getX() >> 4, anchor.getZ() >> 4);
+        for (int r = 3; r <= 8; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    if (dx * dx + dz * dz < 7) continue; // < ~2.6 blocks from anchor
+                    BlockPos col = new BlockPos(anchor.getX() + dx, anchor.getY(), anchor.getZ() + dz);
+                    BlockPos safe = safeInColumn(level, col);
+                    if (safe != null) return safe;
+                }
+            }
+        }
+        int x = anchor.getX() + 3, z = anchor.getZ();
+        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+        return new BlockPos(x, Math.max(y, level.getMinY() + 1), z);
+    }
+
     private PortalManager() {}
 
     public static void register() {
@@ -60,8 +97,13 @@ public final class PortalManager {
                     // deliberate act, never an accident of standing still.
                     BlockPos portal = data.portal();
                     portalParticles((ServerLevel) player.level(), portal, player.tickCount);
-                    if (player.tickCount % 2 == 0
-                            && player.position().distanceTo(Vec3.atCenterOf(portal)) < 1.4) {
+                    double dist = player.position().distanceTo(Vec3.atCenterOf(portal));
+                    if (dist > 2.2) {
+                        DEATH_ARMED.add(player.getUUID());
+                    }
+                    if (DEATH_ARMED.contains(player.getUUID())
+                            && player.tickCount % 2 == 0 && dist < 1.4) {
+                        DEATH_ARMED.remove(player.getUUID());
                         crossToGraveyard(server, player);
                     }
                     continue;
@@ -85,8 +127,13 @@ public final class PortalManager {
             }
             if (ret != null) {
                 portalParticles((ServerLevel) player.level(), ret.portalPos(), player.tickCount);
-                if (player.tickCount % 2 == 0
-                        && player.position().distanceTo(Vec3.atCenterOf(ret.portalPos())) < 1.4) {
+                double dist = player.position().distanceTo(Vec3.atCenterOf(ret.portalPos()));
+                if (dist > 2.2) {
+                    RETURN_ARMED.add(player.getUUID());
+                }
+                if (RETURN_ARMED.contains(player.getUUID())
+                        && player.tickCount % 2 == 0 && dist < 1.4) {
+                    RETURN_ARMED.remove(player.getUUID());
                     returnHome(server, player, ret);
                 }
             }

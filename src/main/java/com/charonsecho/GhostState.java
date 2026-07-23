@@ -101,7 +101,8 @@ public final class GhostState {
 
     public static void apply(ServerPlayer player, BlockPos anchor) {
         ServerLevel level = (ServerLevel) player.level();
-        BlockPos portal = PortalManager.findSafe(level, anchor.offset(3, 0, 0));
+        BlockPos portal = PortalManager.findPortalSpot(level, anchor);
+        PortalManager.resetArming(player.getUUID());
         GHOSTS.put(player.getUUID(),
                 new GhostData(level.dimension().identifier().toString(), anchor, portal));
         applyEffects(player);
