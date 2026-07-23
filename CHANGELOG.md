@@ -26,6 +26,8 @@
   re-asserted every tick against other mods
 - `/charon revive [player]` restores the oldest unclaimed grave (items + XP) and lifts
   the ghost state — interim testing path until portals land
+- Obol crafting (runtime-injected so the result keeps its components): 1 echo shard +
+  1 gold ingot + 1 soul sand → 1 Charon's Obol
 - Charon's Obol item (marked vanilla echo shard with glint + lore, crossplay-safe):
   soul-bound — the one item death cannot take; `/charon obol [count]` gives them
   (crafting/buying later). Renamed from "Echo Shard" — vanilla already has one.
