@@ -51,6 +51,7 @@ public final class CharonsEcho implements ModInitializer {
             Gravekeepers.load(server);
             StudioMode.loadDynamic(server);
             DecorScatter.load(server);
+            StudioMode.ensureStamped(server); // the studio always has its grid
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             GraveManager.save();
