@@ -372,18 +372,24 @@ public final class GraveyardPlots {
 
     /** The template's sign (wherever the builder put it) gets the epitaph. */
     private static void writeEpitaphOnAnySign(ServerLevel level, GraveManager.Grave grave, BlockPos o, int y) {
+        int depth = StudioMode.depthOfCategory("headstone");
         for (int x = o.getX(); x < o.getX() + PLOT; x++) {
             for (int z = o.getZ(); z < o.getZ() + PLOT; z++) {
-                for (int dy = 1; dy <= 4; dy++) {
+                // Full template span: below-grade coffin depth up to build height.
+                for (int dy = 1 - depth; dy <= 5; dy++) {
                     BlockPos pos = new BlockPos(x, y + dy, z);
                     if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
                         sign.setText(epitaphText(grave), true);
                         sign.setChanged();
+                        var state = level.getBlockState(pos);
+                        level.sendBlockUpdated(pos, state, state, 3);
                         return;
                     }
                 }
             }
         }
+        System.out.println("[CharonsEcho] no sign found in headstone '" + grave.stoneName
+                + "' at plot " + grave.plotIndex + " — epitaph not written");
     }
 
     /** Generated fallback headstone: mound, stone, and the epitaph sign. */
