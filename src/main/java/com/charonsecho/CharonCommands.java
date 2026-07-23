@@ -321,6 +321,22 @@ public final class CharonCommands {
                                             : "Not a gravekeeper.").withStyle(ChatFormatting.GRAY));
                                     return removed ? 1 : 0;
                                 }))))
+                .then(Commands.literal("testmode").executes(ctx -> {
+                    ServerPlayer player = admin(ctx);
+                    if (player == null) return 0;
+                    boolean on;
+                    if (Gravekeepers.TEST_MODE.remove(player.getUUID())) {
+                        on = false;
+                    } else {
+                        Gravekeepers.TEST_MODE.add(player.getUUID());
+                        on = true;
+                    }
+                    player.sendSystemMessage(Component.literal(on
+                            ? "Test mode ON — protection now treats you as a regular player (the Studio will evict you!). Toggle again to restore."
+                            : "Test mode OFF — your builder privileges are back.")
+                            .withStyle(on ? ChatFormatting.YELLOW : ChatFormatting.GREEN));
+                    return 1;
+                }))
                 .then(Commands.literal("rebuild-decor").executes(ctx -> {
                     ServerPlayer player = admin(ctx);
                     if (player == null) return 0;

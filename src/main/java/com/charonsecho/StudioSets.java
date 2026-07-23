@@ -119,6 +119,7 @@ public final class StudioSets {
      * any gravekeeper.
      */
     public static boolean canBuildAt(ServerPlayer player, int x, int z) {
+        if (Gravekeepers.TEST_MODE.contains(player.getUUID())) return false;
         if (GraveyardRules.isGamemaster(player)) return true;
         if (!Gravekeepers.isKeeper(player.getUUID())) return false;
         SetInfo set = at(x, z);

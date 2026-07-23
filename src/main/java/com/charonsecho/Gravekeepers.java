@@ -32,8 +32,12 @@ public final class Gravekeepers {
         return KEEPERS.contains(uuid);
     }
 
+    /** Admins pretending to be regular players (/charon testmode). */
+    public static final Set<UUID> TEST_MODE = ConcurrentHashMap.newKeySet();
+
     /** Build rights + Studio access: gamemaster or roster member. */
     public static boolean canBuild(ServerPlayer player) {
+        if (TEST_MODE.contains(player.getUUID())) return false;
         return GraveyardRules.isGamemaster(player) || isKeeper(player.getUUID());
     }
 
