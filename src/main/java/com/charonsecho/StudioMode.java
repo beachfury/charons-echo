@@ -87,15 +87,31 @@ public final class StudioMode {
 
         // Row 3 (z = 58): pale trees.
         x = 0; z = 58;
-        for (int i = 1; i <= 4; i++) {
+        for (int i = 1; i <= 6; i++) {
             x = addPlot(plots, "pale_tree_" + i, 7, 7, 10, false, x, z, gap);
         }
 
         // Row 4 (z = 76): clutter (benches, urns, candle clusters, statues).
         x = 0; z = 76;
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 8; i++) {
             x = addPlot(plots, "clutter_" + i, 3, 3, 3, false, x, z, gap);
         }
+
+        // Row 5 (z = 94): the ruins of the folk who came before — scattered
+        // through the hills as echoes of a dead civilization.
+        x = 0; z = 94;
+        x = addPlot(plots, "ruin_cottage", 12, 12, 9, true, x, z, gap);
+        x = addPlot(plots, "ruin_tower", 7, 7, 12, true, x, z, gap);
+        x = addPlot(plots, "ruin_wall_a", 7, 3, 4, false, x, z, gap);
+        x = addPlot(plots, "ruin_wall_b", 7, 3, 4, false, x, z, gap);
+        x = addPlot(plots, "ruin_well", 5, 5, 6, false, x, z, gap);
+        addPlot(plots, "ruin_arch", 7, 3, 7, false, x, z, gap);
+
+        // Row 6 (z = 116): big pale trees for ridgelines.
+        x = 0; z = 116;
+        x = addPlot(plots, "big_tree_1", 11, 11, 14, false, x, z, gap);
+        addPlot(plots, "big_tree_2", 11, 11, 14, false, x, z, gap);
+
         return List.copyOf(plots);
     }
 
@@ -154,9 +170,9 @@ public final class StudioMode {
             if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
                 SignText text = new SignText()
                         .setMessage(0, Component.literal(p.name()))
-                        .setMessage(1, Component.literal(p.w() + "x" + p.d() + " h" + p.h()))
-                        .setMessage(2, Component.literal("build inside"))
-                        .setMessage(3, Component.literal("face south"));
+                        .setMessage(1, Component.literal(p.w() + "x" + p.d() + ", max h " + p.h()))
+                        .setMessage(2, Component.literal("lime = NW anchor"))
+                        .setMessage(3, Component.literal("orange = south"));
                 sign.setText(text, true);
                 sign.setChanged();
             }

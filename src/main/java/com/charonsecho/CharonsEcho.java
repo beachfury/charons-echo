@@ -33,6 +33,8 @@ public final class CharonsEcho implements ModInitializer {
         // The death loop: Charon takes the goods, the player rises as a ghost.
         DeathHandler.register();
         GhostState.register();
+        // No damage in the world of the dead; Gravekeepers stay passive.
+        GraveyardRules.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveManager.load(server);
