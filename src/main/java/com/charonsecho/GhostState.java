@@ -50,7 +50,11 @@ public final class GhostState {
     /** Leash radius around the death anchor in the living world. */
     private static final double TETHER_R = 24.0;
 
-    record GhostData(String dimension, BlockPos anchor) {}
+    public record GhostData(String dimension, BlockPos anchor) {}
+
+    public static GhostData get(UUID uuid) {
+        return GHOSTS.get(uuid);
+    }
 
     private static final Map<UUID, GhostData> GHOSTS = new ConcurrentHashMap<>();
     private static MinecraftServer server;
@@ -60,9 +64,15 @@ public final class GhostState {
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(GhostState::tick);
 
-        // Ghosts touch nothing.
-        UseBlockCallback.EVENT.register((player, world, hand, hit) ->
-                isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
+        // Ghosts touch nothing — except their own headstone.
+        UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
+            if (!isGhost(player.getUUID())) return InteractionResult.PASS;
+            if (player instanceof ServerPlayer sp
+                    && PortalManager.tryReclaim(sp, hit.getBlockPos())) {
+                return InteractionResult.SUCCESS;
+            }
+            return InteractionResult.FAIL;
+        });
         UseItemCallback.EVENT.register((player, world, hand) ->
                 isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
         AttackBlockCallback.EVENT.register((player, world, hand, pos, dir) ->

@@ -39,10 +39,13 @@ public final class GraveManager {
         public final BlockPos pos;       // death position
         public final String causeLine;   // localized death message ("BeachFury was blown up by Creeper")
         public final long gameTime;      // overworld game time at death
-        public final int xpLevels;
+        public int xpLevels;
         public final float xpProgress;
         public final List<ItemStack> items;
         public boolean claimed;
+        /** Global plot index in the graveyard; -1 until the ghost first crosses. */
+        public int plotIndex = -1;
+        /** XP levels may be halved by Charon's toll before reclaim. */
 
         public Grave(UUID id, UUID owner, String ownerName, String dimension, BlockPos pos,
                      String causeLine, long gameTime, int xpLevels, float xpProgress,
@@ -80,7 +83,7 @@ public final class GraveManager {
                 for (Tag it : g.getListOrEmpty("items")) {
                     ItemStack.OPTIONAL_CODEC.parse(ops, it).result().ifPresent(items::add);
                 }
-                GRAVES.add(new Grave(
+                Grave grave = new Grave(
                         UUID.fromString(g.getStringOr("id", UUID.randomUUID().toString())),
                         UUID.fromString(g.getStringOr("owner", new UUID(0, 0).toString())),
                         g.getStringOr("ownerName", "?"),
@@ -91,7 +94,9 @@ public final class GraveManager {
                         g.getIntOr("xpLevels", 0),
                         g.getFloatOr("xpProgress", 0f),
                         items,
-                        g.getBooleanOr("claimed", false)));
+                        g.getBooleanOr("claimed", false));
+                grave.plotIndex = g.getIntOr("plotIndex", -1);
+                GRAVES.add(grave);
             }
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to load graves.dat: " + e);
@@ -119,6 +124,7 @@ public final class GraveManager {
                 t.putInt("xpLevels", g.xpLevels);
                 t.putFloat("xpProgress", g.xpProgress);
                 t.putBoolean("claimed", g.claimed);
+                t.putInt("plotIndex", g.plotIndex);
                 ListTag items = new ListTag();
                 for (ItemStack stack : g.items) {
                     ItemStack.OPTIONAL_CODEC.encodeStart(ops, stack).result().ifPresent(items::add);

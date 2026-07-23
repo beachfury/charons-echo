@@ -89,8 +89,8 @@ public final class DeathHandler {
                     "Death is not the end. Charon has carried your possessions to the graveyard.")
                     .withStyle(ChatFormatting.DARK_PURPLE));
             player.sendSystemMessage(Component.literal(
-                    "(Portals are still under construction — an admin can /charon revive you.)")
-                    .withStyle(ChatFormatting.DARK_GRAY));
+                    "Step into the soul-fire portal to follow them.")
+                    .withStyle(ChatFormatting.GRAY));
             return false;
         });
     }

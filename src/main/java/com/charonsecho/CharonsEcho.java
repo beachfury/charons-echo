@@ -35,6 +35,8 @@ public final class CharonsEcho implements ModInitializer {
         GhostState.register();
         // No damage in the world of the dead; Gravekeepers stay passive.
         GraveyardRules.register();
+        // Death + return portals (particles + proximity, no blocks).
+        PortalManager.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveManager.load(server);
