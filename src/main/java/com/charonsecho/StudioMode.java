@@ -239,7 +239,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 7;
+        int h = 11; // salt bumped: label signs moved south of plots
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -452,8 +452,9 @@ public final class StudioMode {
         setGround(level, lime, p.x0() - 1, y, p.z0() - 1);
         setGround(level, orange, p.x0() + p.w() / 2, y, p.z0() + p.d());
 
-        // Label sign just north-west of the plot.
-        BlockPos signPos = new BlockPos(p.x0(), y + 1, p.z0() - 3);
+        // Label sign on the SOUTH side, by the orange marker — builds face
+        // their label ("the front looks at its own name").
+        BlockPos signPos = new BlockPos(p.x0(), y + 1, p.z0() + p.d() + 2);
         level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
             SignText text = new SignText()
