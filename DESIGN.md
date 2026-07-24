@@ -403,6 +403,26 @@ its footprint, then it is removed completely (blocks + decor record, so rebuilds
 never resurrect it). Result: young fields are half-wild groves, full fields are
 manicured stone gardens — the yard visibly ages.
 
+## Groundcover & mob spawn rules (decided 2026-07-23, not yet built)
+
+The world builds in FOUR LAYERS, each yielding to the next: (1) groundcover
+(generator-time, seed-deterministic per-species patch noise), (2) decor slots
+(built templates: trees/clutter/ruins), (3) fields/graves (runtime, clears only
+what burials claim), (4) civic church/crypt (absolute). Species: short dry grass
+(moss, common) · dead bush (tuff/gravel, sparse) · glow lichen (exposed
+deepslate) · sculk-vein fields (skirting vale pools) · twisting vines (vale
+floors/gorges) · open eyeblossoms (moss flats — frozen dusk keeps them staring)
+· firefly bush (WATER-ADJACENT only, riverbanks) · wither-rose fields (rare
+"something happened here" patches) · torchflower (very rare, only near
+ruin/clutter slots — the old folk's plantings). Color exceptions are rare and
+meaningful; everything else in-palette.
+
+Mobs: NO natural spawning ever. Creakings belong to trees (1 per few decor
+trees, spawned at their tree); Wardens belong to fields (1 per ~2 fields,
+patrol from the gates). Hard caps, persistent, teamed+pacified (existing),
+periodic census re-seeds vanished keepers (self-healing vs warden burrowing),
+spawn only in loaded chunks and never within ~24 blocks of a player.
+
 ## The Church & Crypt Standard (decided 2026-07-23, not yet built)
 
 - **Anchor:** the owner sets the graveyard's spawn/anchor point in-world (command);
