@@ -393,6 +393,16 @@ that publish happens only after in-game approval of the Phase 1 build.
 6. Include the River Styx + ferry dock, or cut for scope? (Pure flourish — costs one
    template and a river carve in the generator.)
 
+## Trees in graveyards (decided 2026-07-23)
+
+Trees are ALLOWED in grave fields — churchyard yews are the aesthetic. Rules:
+field placement additionally refuses footprints containing ruin/building decor
+(shifts instead, like water/slopes); trees and clutter never block placement; a
+tree inside a field survives until a specific plot or fence line carves through
+its footprint, then it is removed completely (blocks + decor record, so rebuilds
+never resurrect it). Result: young fields are half-wild groves, full fields are
+manicured stone gardens — the yard visibly ages.
+
 ## The Church & Crypt Standard (decided 2026-07-23, not yet built)
 
 - **Anchor:** the owner sets the graveyard's spawn/anchor point in-world (command);
