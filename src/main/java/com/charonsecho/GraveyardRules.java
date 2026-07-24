@@ -49,6 +49,24 @@ public final class GraveyardRules {
                     && world.dimension() != CharonsEcho.STUDIO_DIM) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
+            // Grave stones speak: the owner inters a book, everyone else reads it.
+            if (world.dimension() == CharonsEcho.GRAVEYARD_DIM
+                    && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                var graveOpt = GraveManager.graveAt(hit.getBlockPos());
+                if (graveOpt.isPresent()) {
+                    GraveManager.Grave grave = graveOpt.get();
+                    var held = sp.getItemInHand(hand);
+                    if (grave.owner.equals(sp.getUUID()) && GraveBooks.isBook(held)) {
+                        return GraveBooks.intern(sp, grave, held)
+                                ? net.minecraft.world.InteractionResult.SUCCESS
+                                : net.minecraft.world.InteractionResult.PASS;
+                    }
+                    if (grave.book != null && !GhostState.isGhost(sp.getUUID())) {
+                        GraveBooks.open(sp, grave);
+                        return net.minecraft.world.InteractionResult.SUCCESS;
+                    }
+                }
+            }
             if (!(player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }

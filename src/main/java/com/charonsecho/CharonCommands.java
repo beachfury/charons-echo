@@ -72,6 +72,48 @@ public final class CharonCommands {
         return player;
     }
 
+    /** The Book of the Dead: every death, newest first; entries with interred
+     *  books open them read-only. Open to ALL players. */
+    private static void openLedger(ServerPlayer player) {
+        var gui = new eu.pb4.sgui.api.gui.SimpleGui(
+                net.minecraft.world.inventory.MenuType.GENERIC_9x6, player, false);
+        gui.setTitle(Component.literal("The Book of the Dead"));
+        var graves = new java.util.ArrayList<>(GraveManager.all());
+        graves.removeIf(g -> g.plotIndex < 0);
+        graves.sort((a, b) -> Long.compare(b.gameTime, a.gameTime));
+        int slot = 0;
+        for (GraveManager.Grave grave : graves) {
+            if (slot >= 54) break;
+            String date = grave.epochMillis > 0
+                    ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
+                    : "Day " + (grave.gameTime / 24000L);
+            var builder = new eu.pb4.sgui.api.elements.GuiElementBuilder(
+                    grave.book != null ? net.minecraft.world.item.Items.WRITTEN_BOOK
+                                       : net.minecraft.world.item.Items.SKELETON_SKULL)
+                    .setName(Component.literal(grave.ownerName)
+                            .withStyle(grave.claimed ? ChatFormatting.GRAY : ChatFormatting.WHITE))
+                    .addLoreLine(Component.literal(date).withStyle(ChatFormatting.DARK_GRAY))
+                    .addLoreLine(Component.literal(grave.causeLine).withStyle(ChatFormatting.GRAY));
+            if (grave.book != null) {
+                builder.addLoreLine(Component.literal("Click to read their last words")
+                        .withStyle(ChatFormatting.DARK_PURPLE));
+                builder.glow();
+                builder.setCallback((i, t, a, g) -> {
+                    g.close();
+                    GraveBooks.open(player, grave);
+                });
+            }
+            gui.setSlot(slot++, builder.build());
+        }
+        if (slot == 0) {
+            gui.setSlot(22, new eu.pb4.sgui.api.elements.GuiElementBuilder(
+                    net.minecraft.world.item.Items.BONE)
+                    .setName(Component.literal("No one has died yet.").withStyle(ChatFormatting.GRAY))
+                    .build());
+        }
+        gui.open();
+    }
+
     private static int giveObols(ServerPlayer player, int count) {
         player.getInventory().placeItemBackInInventory(CharonObol.create(count));
         player.sendSystemMessage(Component.literal(
@@ -90,6 +132,13 @@ public final class CharonCommands {
                             .withStyle(ChatFormatting.GRAY));
                     return 1;
                 })
+
+                // ---- everyone ----
+                .then(Commands.literal("ledger").executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    openLedger(player);
+                    return 1;
+                }))
 
                 // ---- builder tier ----
                 .then(Commands.literal("studio").executes(ctx -> {

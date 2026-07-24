@@ -49,6 +49,8 @@ public final class GraveManager {
         public long epochMillis = 0L;
         /** Headstone template variant chosen for this grave ("" = placeholder). */
         public String stoneName = "";
+        /** The dead's own words, interred at the stone (null = none yet). */
+        public net.minecraft.world.item.component.WrittenBookContent book = null;
         /** Fare already paid (shard dropped on the body during the wake). */
         public boolean farePaid = false;
         /** XP levels may be halved by Charon's toll before reclaim. */
@@ -105,6 +107,11 @@ public final class GraveManager {
                 grave.epochMillis = g.getLongOr("epochMillis", 0L);
                 grave.farePaid = g.getBooleanOr("farePaid", false);
                 grave.stoneName = g.getStringOr("stoneName", "");
+                if (g.contains("book")) {
+                    net.minecraft.world.item.component.WrittenBookContent.CODEC
+                            .parse(ops, g.get("book")).result()
+                            .ifPresent(b -> grave.book = b);
+                }
                 GRAVES.add(grave);
             }
         } catch (IOException e) {
@@ -137,6 +144,11 @@ public final class GraveManager {
                 t.putLong("epochMillis", g.epochMillis);
                 t.putBoolean("farePaid", g.farePaid);
                 t.putString("stoneName", g.stoneName);
+                if (g.book != null) {
+                    net.minecraft.world.item.component.WrittenBookContent.CODEC
+                            .encodeStart(ops, g.book).result()
+                            .ifPresent(b -> t.put("book", b));
+                }
                 ListTag items = new ListTag();
                 for (ItemStack stack : g.items) {
                     ItemStack.OPTIONAL_CODEC.encodeStart(ops, stack).result().ifPresent(items::add);
@@ -174,5 +186,12 @@ public final class GraveManager {
 
     public static Optional<Grave> byId(UUID id) {
         return GRAVES.stream().filter(g -> g.id.equals(id)).findFirst();
+    }
+
+    /** The grave whose plot contains this graveyard position, if any. */
+    public static Optional<Grave> graveAt(net.minecraft.core.BlockPos pos) {
+        return GRAVES.stream()
+                .filter(g -> g.plotIndex >= 0 && GraveyardPlots.isOnPlot(g, pos))
+                .findFirst();
     }
 }
