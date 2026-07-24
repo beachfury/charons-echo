@@ -272,7 +272,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 19; // salt bumped: headstone size-class rows
+        int h = 23; // salt bumped: church height 48
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -387,7 +387,7 @@ public final class StudioMode {
 
         // Row 0 (z = 0): landmarks — one-off builds, not scatter categories.
         int x = 0, z = 0;
-        x = addPlot(plots, "church", 32, 32, 24, true, x, z, gap);
+        x = addPlot(plots, "church", 32, 32, 48, true, x, z, gap);
         x = addPlot(plots, "spawn_shrine", 7, 7, 7, true, x, z, gap);
         x = addPlot(plots, "styx_dock", 9, 5, 6, false, x, z, gap);
         addPlot(plots, "plinth", 5, 5, 6, false, x, z, gap);
