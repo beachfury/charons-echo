@@ -419,6 +419,13 @@ that publish happens only after in-game approval of the Phase 1 build.
   panel: arches stay sealed until the neighboring month-room is carved — the crypt
   visibly digs itself as months pass. Room variants allowed via the category/set
   system (hash-picked per room).
+- **Years stay together — year halls on a spine:** a year is a 3×4 BLOCK of month
+  rooms ("year hall") claimed as a unit at the year's first death; months carve in
+  reading order (Jan → Dec) breaking through seals; unarrived months are solid rock.
+  A central corridor (the SPINE) runs north from the main room; year halls attach
+  alternately east/west along it — walking the spine is walking the server's history,
+  each archway labeled ("2026 — N souls"). Crypt build kit: main week-room, month
+  room, corridor segment, door seal (4 standardized pieces, one style).
 - **The MAIN crypt room** (bottom of the church stairwell) is the WEEK room: its 7
   required shelf columns are the rolling current week, one per day, re-targeted daily
   with no rebuilding. Month archive rooms branch off it through the sealed arches.
