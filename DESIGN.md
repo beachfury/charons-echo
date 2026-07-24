@@ -400,8 +400,13 @@ that publish happens only after in-game approval of the Phase 1 build.
   generates ~48 blocks NORTH of the anchor (32×32×24 footprint, faces south); the
   walk between anchor and doors is the approach. Anchor locks once the church exists
   (explicit regen command to move it).
-- **One church, ever:** singleton chosen by config (`church-template=default/church`);
-  server owners may point it at their own build or a set's church. No variants.
+- **One church, ever:** the church is a CATEGORY any set may contain (church-only sets
+  are legal); config (`church-template=default/church`) selects exactly one as THE
+  church. No variants, no mixing.
+- **Crypt style follows the church's set** by default (`crypt-template-set` overrides).
+  NO random mixing between rooms — each room LOCKS the style current at carve time and
+  never retro-changes, so style switches create historical strata (old wings keep
+  their look, new months continue in the new style).
 - **Marker vocabulary** (code replaces markers with function at paste; decoration free):
   lodestone → crypt stairwell down; lectern → Book of the Dead (opens ledger);
   gilded blackstone + attached sign naming the vendor (`obols`, later `ransom`,
