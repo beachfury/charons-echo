@@ -256,7 +256,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 11; // salt bumped: label signs moved south of plots
+        int h = 13; // salt bumped: fixed-ground stamping (y=64) + drift cleanup
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -454,16 +454,22 @@ public final class StudioMode {
         BlockState glass = Blocks.STAINED_GLASS.white().defaultBlockState();
         BlockState lime = Blocks.CONCRETE.lime().defaultBlockState();
         BlockState orange = Blocks.CONCRETE.orange().defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
 
         int y = surfaceY(level, p.x0(), p.z0());
-        // Perimeter outline in the ground layer.
+        // Perimeter outline in the ground layer — clearing above it removes
+        // any drifted rings from older stamps.
         for (int x = p.x0() - 1; x <= p.x0() + p.w(); x++) {
             setGround(level, glass, x, y, p.z0() - 1);
             setGround(level, glass, x, y, p.z0() + p.d());
+            level.setBlock(new BlockPos(x, y + 1, p.z0() - 1), air, 2);
+            level.setBlock(new BlockPos(x, y + 1, p.z0() + p.d()), air, 2);
         }
         for (int z = p.z0() - 1; z <= p.z0() + p.d(); z++) {
             setGround(level, glass, p.x0() - 1, y, z);
             setGround(level, glass, p.x0() + p.w(), y, z);
+            level.setBlock(new BlockPos(p.x0() - 1, y + 1, z), air, 2);
+            level.setBlock(new BlockPos(p.x0() + p.w(), y + 1, z), air, 2);
         }
         // NW anchor + south-entrance marker.
         setGround(level, lime, p.x0() - 1, y, p.z0() - 1);
@@ -488,10 +494,13 @@ public final class StudioMode {
         level.setBlock(new BlockPos(x, y, z), state, 3);
     }
 
+    /** The Studio is superflat with a KNOWN ground level — never trust the
+     *  heightmap (stamps, builds, and clutter fool it and stamps drift up). */
+    public static final int STUDIO_GROUND_Y = 64;
+
     private static int surfaceY(ServerLevel level, int x, int z) {
-        // Force the chunk so the heightmap exists, then take the top solid block.
         level.getChunk(x >> 4, z >> 4);
-        return level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+        return STUDIO_GROUND_Y;
     }
 
     // ---- /charon export ----

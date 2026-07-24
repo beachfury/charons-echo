@@ -416,7 +416,7 @@ public final class CharonCommands {
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        int y = studio.getHeight(Heightmap.Types.MOTION_BLOCKING, plot.x0(), plot.z0());
+        int y = StudioMode.STUDIO_GROUND_Y + 1;
         player.teleportTo(studio, plot.x0() - 1.5, y, plot.z0() - 1.5, Set.<Relative>of(), 45f, 0f, false);
         player.sendSystemMessage(Component.literal(
                 "Plot '" + name + "' staked out (" + plot.w() + "x" + plot.d() + ", max h " + plot.h()
@@ -435,7 +435,7 @@ public final class CharonCommands {
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        int y = studio.getHeight(Heightmap.Types.MOTION_BLOCKING, set.originX + 2, 2);
+        int y = StudioMode.STUDIO_GROUND_Y + 1;
         player.teleportTo(studio, set.originX + 2.5, y, 2.5, Set.<Relative>of(), 45f, 0f, false);
         player.sendSystemMessage(Component.literal(
                 "Set '" + name + "' staked out (" + set.size + "x" + set.size + "), you are its steward. "

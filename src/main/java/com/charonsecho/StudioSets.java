@@ -187,7 +187,7 @@ public final class StudioSets {
 
     private static int surfaceY(ServerLevel level, int x, int z) {
         level.getChunk(x >> 4, z >> 4);
-        return level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+        return StudioMode.STUDIO_GROUND_Y;
     }
 
     // ---- persistence (world/charons_echo/sets.dat) ----
