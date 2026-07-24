@@ -426,6 +426,15 @@ that publish happens only after in-game approval of the Phase 1 build.
   alternately east/west along it — walking the spine is walking the server's history,
   each archway labeled ("2026 — N souls"). Crypt build kit: main week-room, month
   room, corridor segment, door seal (4 standardized pieces, one style).
+- **Month-room variants, calendar-mapped:** the crypt style may ship 1–12 month-room
+  variants; rooms pick by MONTH INDEX cycling through what exists (12 variants = each
+  calendar month has its own dedicated design, recurring yearly). Corridor variants
+  allowed under the same rules. No randomness.
+- **Year lecterns — Hall of Legends:** a lectern at each year hall's entrance opens an
+  sgui of PLAYER HEADS: that year's Death of the Week winners (≤52); click a head →
+  their interred grave book opens read-only (no book → tooltip shows name/date/cause/
+  flowers). Lectern context decides function: church lectern = full Book of the Dead,
+  year-hall lectern = that year's winners. Ships together with Death of the Week.
 - **The MAIN crypt room** (bottom of the church stairwell) is the WEEK room: its 7
   required shelf columns are the rolling current week, one per day, re-targeted daily
   with no rebuilding. Month archive rooms branch off it through the sealed arches.
