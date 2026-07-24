@@ -223,23 +223,75 @@ public final class PortalManager {
         }
         player.setExperienceLevels(grave.xpLevels);
         player.experienceProgress = grave.xpProgress;
+        // Resurrection restores the body whole — nobody rejoins the living starving.
+        player.getFoodData().setFoodLevel(20);
+        player.getFoodData().setSaturation(5.0f);
         grave.claimed = true;
         GraveManager.save();
         GraveyardPlots.markAtRest(graveyard, grave);
 
         // Touching the stone IS the resurrection: the ghost ends here, alive
-        // among the graves. The portal is just the way home.
-        RETURN_PORTALS.put(player.getUUID(), new ReturnPortal(
-                GraveyardPlots.arrivalPos(grave.plotIndex).offset(2, 0, 0),
-                grave.dimension, grave.pos));
+        // among the graves.
         GhostState.remove(player);
         graveyard.sendParticles(ParticleTypes.SOUL,
                 player.getX(), player.getY() + 1, player.getZ(), 30, 0.4, 0.8, 0.4, 0.03);
         graveyard.playSound(null, clicked, SoundEvents.BELL_RESONATE, SoundSource.AMBIENT, 1.0f, 0.8f);
         player.sendSystemMessage(Component.literal(
-                "What was yours is yours again — your echo rejoins the living. The portal beside your grave leads home.")
+                "What was yours is yours again — your echo rejoins the living.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
+        openWhereToGui(player, grave);
         return true;
+    }
+
+    /** After resurrection: choose where the portal home opens. */
+    private static void openWhereToGui(ServerPlayer player, GraveManager.Grave grave) {
+        BlockPos gravePortal = GraveyardPlots.arrivalPos(grave.plotIndex).offset(2, 0, 0);
+        ReturnPortal atGrave = new ReturnPortal(gravePortal, grave.dimension, grave.pos);
+
+        var gui = new eu.pb4.sgui.api.gui.SimpleGui(
+                net.minecraft.world.inventory.MenuType.GENERIC_9x3, player, false) {
+            @Override
+            public void onManualClose() {
+                RETURN_PORTALS.putIfAbsent(player.getUUID(), atGrave);
+            }
+
+            @Override
+            public void onPlayerClose(boolean screenIsClosing) {
+                RETURN_PORTALS.putIfAbsent(player.getUUID(), atGrave);
+            }
+        };
+        gui.setTitle(Component.literal("Your echo is free"));
+        gui.setSlot(12, new eu.pb4.sgui.api.elements.GuiElementBuilder(
+                net.minecraft.world.item.Items.SOUL_LANTERN)
+                .setName(Component.literal("Open the portal home").withStyle(ChatFormatting.AQUA))
+                .addLoreLine(Component.literal("It rises beside your grave and")
+                        .withStyle(ChatFormatting.GRAY))
+                .addLoreLine(Component.literal("returns you to where you fell.")
+                        .withStyle(ChatFormatting.GRAY))
+                .glow()
+                .setCallback((i, t, a, g) -> {
+                    RETURN_PORTALS.put(player.getUUID(), atGrave);
+                    g.close();
+                })
+                .build());
+        gui.setSlot(14, new eu.pb4.sgui.api.elements.GuiElementBuilder(
+                net.minecraft.world.item.Items.BELL)
+                .setName(Component.literal("Walk to the church").withStyle(ChatFormatting.GOLD))
+                .addLoreLine(Component.literal("Pay your respects on the plateau —")
+                        .withStyle(ChatFormatting.GRAY))
+                .addLoreLine(Component.literal("the portal home will wait there.")
+                        .withStyle(ChatFormatting.GRAY))
+                .setCallback((i, t, a, g) -> {
+                    ServerLevel gy = (ServerLevel) player.level();
+                    gy.getChunk(0, 0);
+                    int y = gy.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, 8, 8);
+                    player.teleportTo(gy, 8.5, y, 8.5, Set.<Relative>of(), 180f, 0f, false);
+                    RETURN_PORTALS.put(player.getUUID(),
+                            new ReturnPortal(new BlockPos(4, y, 8), grave.dimension, grave.pos));
+                    g.close();
+                })
+                .build());
+        gui.open();
     }
 
     private static void returnHome(MinecraftServer server, ServerPlayer player, ReturnPortal ret) {

@@ -105,6 +105,8 @@ public final class DeathHandler {
             }
             player.setExperienceLevels(g.xpLevels);
             player.experienceProgress = g.xpProgress;
+            player.getFoodData().setFoodLevel(20);
+            player.getFoodData().setSaturation(5.0f);
             g.claimed = true;
             GraveManager.save();
         });
