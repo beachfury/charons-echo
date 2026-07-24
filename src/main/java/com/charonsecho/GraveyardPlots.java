@@ -108,7 +108,7 @@ public final class GraveyardPlots {
         }
         // Keep clear of the church plateau too.
         if (Math.max(Math.abs(cx), Math.abs(cz)) < 96) return false;
-        return (max - min) <= 10;
+        return (max - min) <= 6; // gentle ground only — steep fields caused pits AND towers
     }
 
     /** True if (x,z) is within margin of any established field footprint. */
@@ -195,19 +195,16 @@ public final class GraveyardPlots {
     }
 
     /**
-     * ROW terracing: every east–west row of graves levels to the row's highest
-     * natural column, filling UP (never digging pits). Rows become uniform
-     * stepped terraces down the hillside — every stone in a row stands on the
-     * same bed, and the only vertical faces are the risers between rows.
+     * Plot terrace height: the highest natural column within the plot PLUS a
+     * 2-block margin ring. High enough that no adjacent ground can pit the
+     * stone; local enough that a slope across the field can't stack the plot
+     * into a tower. Fill-up only — pits are never dug.
      */
     public static int plotSurfaceY(int plotIndex) {
-        int field = plotIndex / PER_FIELD;
-        int row = (plotIndex % PER_FIELD) / COLS;
-        BlockPos c = fieldCenter(field);
-        int zStart = c.getZ() - FIELD_HALF + row * PLOT;
+        BlockPos o = plotOrigin(plotIndex);
         int max = Integer.MIN_VALUE;
-        for (int x = c.getX() - FIELD_HALF; x < c.getX() - FIELD_HALF + COLS * PLOT; x++) {
-            for (int z = zStart; z < zStart + PLOT; z++) {
+        for (int x = o.getX() - 2; x < o.getX() + PLOT + 2; x++) {
+            for (int z = o.getZ() - 2; z < o.getZ() + PLOT + 2; z++) {
                 max = Math.max(max, GraveyardTerrain.groundHeight(x, z));
             }
         }
