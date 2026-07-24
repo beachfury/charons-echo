@@ -256,7 +256,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 13; // salt bumped: fixed-ground stamping (y=64) + drift cleanup
+        int h = 17; // salt bumped: default-set gold border
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -447,6 +447,42 @@ public final class StudioMode {
     private static void stampLayout(ServerLevel level) {
         for (StudioPlot p : allPlots()) {
             stampPlot(level, p);
+        }
+        stampDefaultBorder(level);
+    }
+
+    /** Gold border + name sign around the default set's grid, like custom sets. */
+    private static void stampDefaultBorder(ServerLevel level) {
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (StudioPlot p : BASE_PLOTS) {
+            minX = Math.min(minX, p.x0());
+            maxX = Math.max(maxX, p.x0() + p.w());
+            minZ = Math.min(minZ, p.z0());
+            maxZ = Math.max(maxZ, p.z0() + p.d());
+        }
+        int x0 = minX - 4, x1 = maxX + 4, z0 = minZ - 4, z1 = maxZ + 6;
+        BlockState gold = Blocks.CONCRETE.yellow().defaultBlockState();
+        int y = STUDIO_GROUND_Y;
+        for (int x = x0; x <= x1; x++) {
+            setGround(level, gold, x, y, z0);
+            setGround(level, gold, x, y, z1);
+        }
+        for (int z = z0; z <= z1; z++) {
+            setGround(level, gold, x0, y, z);
+            setGround(level, gold, x1, y, z);
+        }
+        BlockPos signPos = new BlockPos(x0 + 2, y + 1, z1);
+        level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            SignText text = new SignText()
+                    .setMessage(0, Component.literal("Set: default"))
+                    .setMessage(1, Component.literal("the shipped"))
+                    .setMessage(2, Component.literal("baseline"))
+                    .setHasGlowingText(true);
+            sign.setText(text, true);
+            sign.setText(text, false);
+            sign.setChanged();
         }
     }
 
