@@ -425,7 +425,12 @@ that publish happens only after in-game approval of the Phase 1 build.
   A central corridor (the SPINE) runs north from the main room; year halls attach
   alternately east/west along it — walking the spine is walking the server's history,
   each archway labeled ("2026 — N souls"). Crypt build kit: main week-room, month
-  room, corridor segment, door seal (4 standardized pieces, one style).
+  room, corridor segment, door seal, STAIRWELL segment (5 standardized pieces, one
+  style).
+- **The stairwell is builder-designed and TILEABLE:** `crypt_stair` = 7×7 footprint
+  descending 6 blocks per segment, top and bottom openings at the same position so
+  segments stack seamlessly. Code stacks segments from the church's lodestone down to
+  crypt depth (terrain-dependent count) and lands at the week room. Variants allowed.
 - **Month-room variants, calendar-mapped:** the crypt style may ship 1–12 month-room
   variants; rooms pick by MONTH INDEX cycling through what exists (12 variants = each
   calendar month has its own dedicated design, recurring yearly). Corridor variants
