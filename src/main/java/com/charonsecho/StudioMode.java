@@ -81,7 +81,11 @@ public final class StudioMode {
      */
     public record Category(String name, int w, int d, int h, int depth, boolean keepAir, int rowZ) {}
 
+    // NOTE: more-specific headstone classes come FIRST — category-by-prefix
+    // matching would otherwise classify "headstone_small_1" as "headstone".
     public static final List<Category> CATEGORIES = List.of(
+            new Category("headstone_small", 3, 3, 3, 2, false, 172),
+            new Category("headstone_large", 5, 5, 5, 3, false, 182),
             new Category("headstone", 4, 4, 4, 3, false, 44),
             new Category("tree", 7, 7, 10, 1, false, 58),
             new Category("clutter", 3, 3, 3, 1, false, 76),
@@ -89,6 +93,18 @@ public final class StudioMode {
             new Category("big_tree", 11, 11, 14, 1, false, 116),
             new Category("gate", 5, 3, 5, 1, false, 140),
             new Category("building", 16, 16, 12, 3, true, 152));
+
+    public static int widthOfCategory(String category) {
+        return CATEGORIES.stream().filter(c -> c.name().equals(category))
+                .mapToInt(Category::w).findFirst().orElse(4);
+    }
+
+    /** Category of a template id (set prefix stripped, matched by name prefix). */
+    public static String categoryOfTemplate(String templateId) {
+        String name = templateId.substring(templateId.lastIndexOf('/') + 1);
+        String cat = baseCategory(name);
+        return cat.isEmpty() ? "headstone" : cat;
+    }
 
     /** Below-grade capture depth for a plot, by its category (0 if unknown). */
     public static int depthFor(String plotName, String dynamicCategory) {
@@ -256,7 +272,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 17; // salt bumped: default-set gold border
+        int h = 19; // salt bumped: headstone size-class rows
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -411,6 +427,18 @@ public final class StudioMode {
         // Gates row (z = 140): field entrances — lych gate + variations.
         x = 0; z = 140;
         addPlot(plots, "gate_lych", 5, 3, 5, false, x, z, gap);
+
+        // Small stones row (z = 172): humble markers for rough ground.
+        x = 0; z = 172;
+        for (int i = 1; i <= 4; i++) {
+            x = addPlot(plots, "headstone_small_" + i, 3, 3, 3, false, x, z, gap);
+        }
+
+        // Large monuments row (z = 182): showpieces for flat ground.
+        x = 0; z = 182;
+        for (int i = 1; i <= 2; i++) {
+            x = addPlot(plots, "headstone_large_" + i, 5, 5, 5, false, x, z, gap);
+        }
 
         return List.copyOf(plots);
     }

@@ -220,8 +220,7 @@ public final class GraveyardPlots {
         int idx = nextPlotIndex();
         grave.plotIndex = idx;
         ensureField(graveyard, idx / PER_FIELD);
-        terracePlot(graveyard, idx);
-        placeHeadstone(graveyard, grave);
+        placeHeadstone(graveyard, grave); // terraces its own footprint
         if (idx % PER_FIELD == PER_FIELD - 1) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
@@ -344,39 +343,126 @@ public final class GraveyardPlots {
         }
     }
 
+    /** Terrain relief under a plot (plus margin) — decides which stone CLASS fits. */
+    private static int plotRelief(int plotIndex) {
+        BlockPos o = plotOrigin(plotIndex);
+        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        for (int x = o.getX() - 2; x < o.getX() + PLOT + 2; x++) {
+            for (int z = o.getZ() - 2; z < o.getZ() + PLOT + 2; z++) {
+                int h = GraveyardTerrain.groundHeight(x, z);
+                if (h < min) min = h;
+                if (h > max) max = h;
+            }
+        }
+        return max - min;
+    }
+
     /**
-     * The headstone: a hand-built approved template when one exists (variant
-     * chosen once per grave and remembered), else the generated placeholder.
+     * Terrain picks the stone class: flat ground gets the full mix (60%
+     * standard / 25% small / 15% large), moderate slopes drop the monuments,
+     * rough spots take only small markers that hug the terrain.
+     */
+    private static String pickStoneClass(GraveManager.Grave grave, int relief) {
+        int roll = Math.floorMod(grave.id.getLeastSignificantBits() * 31 + 7, 100);
+        if (relief <= 1) {
+            if (roll < 15) return "headstone_large";
+            if (roll < 75) return "headstone";
+            return "headstone_small";
+        }
+        if (relief <= 3) {
+            return roll < 70 ? "headstone" : "headstone_small";
+        }
+        return "headstone_small";
+    }
+
+    private static final String[][] CLASS_FALLBACK = {
+            {"headstone_large", "headstone", "headstone_small"},
+            {"headstone", "headstone_small", "headstone_large"},
+            {"headstone_small", "headstone", "headstone_large"},
+    };
+
+    private static String[] fallbackOrder(String cls) {
+        for (String[] order : CLASS_FALLBACK) {
+            if (order[0].equals(cls)) return order;
+        }
+        return CLASS_FALLBACK[1];
+    }
+
+    /**
+     * The headstone: terrain chooses the size class, the grave id chooses the
+     * variant (remembered forever). The stone centers in its 6×6 plot and only
+     * ITS footprint (+1 ring) is terraced — small stones perch on rough
+     * ground, monuments claim the flats.
      */
     static void placeHeadstone(ServerLevel level, GraveManager.Grave grave) {
         BlockPos o = plotOrigin(grave.plotIndex);
-        int y = plotSurfaceY(grave.plotIndex);
 
         var manager = level.getServer().getStructureManager();
         if (grave.stoneName.isEmpty()) {
-            var variants = StudioMode.approvedTemplates("headstone", manager,
-                    StudioSets.setForRegion(o.getX(), o.getZ()));
-            if (!variants.isEmpty()) {
-                grave.stoneName = variants.get(Math.floorMod(grave.id.hashCode(), variants.size()));
+            String set = StudioSets.setForRegion(o.getX(), o.getZ());
+            String cls = pickStoneClass(grave, plotRelief(grave.plotIndex));
+            for (String c : fallbackOrder(cls)) {
+                var variants = StudioMode.approvedTemplates(c, manager, set);
+                if (!variants.isEmpty()) {
+                    grave.stoneName = variants.get(Math.floorMod(grave.id.hashCode(), variants.size()));
+                    break;
+                }
             }
         }
         if (!grave.stoneName.isEmpty()) {
             var template = manager.get(net.minecraft.resources.Identifier
                     .fromNamespaceAndPath(CharonsEcho.MOD_ID, grave.stoneName));
             if (template.isPresent()) {
-                // Anchor by the template's MEASURED below-grade content, so
-                // stale above-grade-only exports land flush, not sunken.
-                int below = StudioMode.belowGradeOf(template.get(), "headstone");
-                BlockPos at = new BlockPos(o.getX(), y + 1 - below, o.getZ());
-                level.getChunk(o.getX() >> 4, o.getZ() >> 4);
+                String cat = StudioMode.categoryOfTemplate(grave.stoneName);
+                int w = StudioMode.widthOfCategory(cat);
+                int off = (PLOT - w) / 2; // center the stone in its plot
+                int sx = o.getX() + off, sz = o.getZ() + off;
+                // Level only the stone's footprint + 1 ring, to ITS local max.
+                int sy = areaMaxGround(sx - 1, sz - 1, w + 2);
+                terraceArea(level, sx - 1, sz - 1, w + 2, sy);
+                int below = StudioMode.belowGradeOf(template.get(), cat);
+                BlockPos at = new BlockPos(sx, sy + 1 - below, sz);
+                level.getChunk(sx >> 4, sz >> 4);
                 template.get().placeInWorld(level, at, at,
                         new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
                         net.minecraft.util.RandomSource.create(grave.id.hashCode()), 3);
-                writeEpitaphOnAnySign(level, grave, o, y);
+                writeEpitaphOnAnySign(level, grave, o, sy);
                 return;
             }
         }
-        placePlaceholderStone(level, grave, o, y);
+        terracePlot(level, grave.plotIndex);
+        placePlaceholderStone(level, grave, o, plotSurfaceY(grave.plotIndex));
+    }
+
+    /** Highest natural column in a square area. */
+    private static int areaMaxGround(int x0, int z0, int size) {
+        int max = Integer.MIN_VALUE;
+        for (int x = x0; x < x0 + size; x++) {
+            for (int z = z0; z < z0 + size; z++) {
+                max = Math.max(max, GraveyardTerrain.groundHeight(x, z));
+            }
+        }
+        return max;
+    }
+
+    /** Fill-up terrace of an arbitrary square to height h (never digs). */
+    private static void terraceArea(ServerLevel level, int x0, int z0, int size, int h) {
+        BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
+        BlockState tuff = Blocks.TUFF.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int x = x0; x < x0 + size; x++) {
+            for (int z = z0; z < z0 + size; z++) {
+                level.getChunk(x >> 4, z >> 4);
+                for (int y = h + 1; y <= h + 6; y++) {
+                    level.setBlock(new BlockPos(x, y, z), air, 2);
+                }
+                int ground = GraveyardTerrain.groundHeight(x, z);
+                for (int y = Math.min(ground, h - 2); y < h; y++) {
+                    level.setBlock(new BlockPos(x, y, z), tuff, 2);
+                }
+                level.setBlock(new BlockPos(x, h, z), moss, 2);
+            }
+        }
     }
 
     /** The template's sign (wherever the builder put it) gets the epitaph. */
@@ -448,8 +534,7 @@ public final class GraveyardPlots {
         int count = 0;
         for (GraveManager.Grave g : GraveManager.all()) {
             if (g.plotIndex < 0) continue;
-            terracePlot(graveyard, g.plotIndex);
-            placeHeadstone(graveyard, g);
+            placeHeadstone(graveyard, g); // terraces its own footprint
             count++;
         }
         GraveManager.save();

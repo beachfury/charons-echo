@@ -2,6 +2,13 @@
 
 ## 0.1.0 — in development
 
+- Headstone size classes: small 3×3×3 markers, standard 4×4×4 stones, large 5×5×5
+  monuments (new default-set rows headstone_small_1..4, headstone_large_1..2). The
+  TERRAIN picks the class per grave — flat ground rolls the full mix (60/25/15),
+  slopes drop the monuments, rough spots take only small markers — and only the
+  chosen stone's footprint (+1 ring) is terraced, so small stones hug the land.
+  Classes fall back to each other until templates exist.
+
 - SETS — style families: `/charon set new <name> [size]` stakes a gold-bordered, owner-sized
   (32–256) area in the Studio; plots stake free-form wherever the builder stands
   (`/charon plot new` inside a set). Lifecycle: open (any gravekeeper builds) → `set trust`
