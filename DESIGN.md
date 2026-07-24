@@ -393,6 +393,36 @@ that publish happens only after in-game approval of the Phase 1 build.
 6. Include the River Styx + ferry dock, or cut for scope? (Pure flourish — costs one
    template and a river carve in the generator.)
 
+## The Church & Crypt Standard (decided 2026-07-23, not yet built)
+
+- **Anchor:** the owner sets the graveyard's spawn/anchor point in-world (command);
+  default = origin plateau so the mod works with zero setup. The church ENTRANCE
+  generates ~48 blocks NORTH of the anchor (32×32×24 footprint, faces south); the
+  walk between anchor and doors is the approach. Anchor locks once the church exists
+  (explicit regen command to move it).
+- **One church, ever:** singleton chosen by config (`church-template=default/church`);
+  server owners may point it at their own build or a set's church. No variants.
+- **Marker vocabulary** (code replaces markers with function at paste; decoration free):
+  lodestone → crypt stairwell down; lectern → Book of the Dead (opens ledger);
+  gilded blackstone + attached sign naming the vendor (`obols`, later `ransom`,
+  `flowers`, ...) → typed vendor point; chiseled bookshelf → crypt day-shelf column.
+  A legal church = right footprint + faces south + those markers. Unknown sign labels
+  are decorative, never errors.
+- **The Crypt:** infinite underground month-room library below y≈44 (always beneath
+  riverbeds; solid deepslate zone). ONE room template standard (~21×21×8, doorways =
+  3-wide arches centered on each wall by geometry, no markers needed) + a door-seal
+  panel: arches stay sealed until the neighboring month-room is carved — the crypt
+  visibly digs itself as months pass. Room variants allowed via the category/set
+  system (hash-picked per room).
+- **The MAIN crypt room** (bottom of the church stairwell) is the WEEK room: its 7
+  required shelf columns are the rolling current week, one per day, re-targeted daily
+  with no rebuilding. Month archive rooms branch off it through the sealed arches.
+- **Shelves are indexes, not storage:** clicking a day-shelf opens that day's slice of
+  the ledger; book entries open read-only (BookGui). Rooms never fill up.
+- **Flower tributes render as PHYSICAL flowers accumulating on the plot** — the only
+  color in the monochrome world is what the living leave behind; exact counts in the
+  ledger tooltip (feeds Death of the Week later).
+
 ## Decisions log
 
 - 2026-07-22: the fare item is **Charon's Obol** (vanilla already has an "Echo Shard" —
