@@ -34,28 +34,65 @@ public final class Broker {
 
     private Broker() {}
 
+    private static boolean ensurePending;
+
     public static void register() {
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
-            if (Orchard.brokerId == null || !entity.getUUID().equals(Orchard.brokerId)) {
-                return InteractionResult.PASS;
-            }
+            // ANY wandering trader in the land of the dead IS the Broker —
+            // the graveyard has no natural spawns, so there is no ambiguity,
+            // and stale clones from earlier boots answer correctly too.
+            boolean isBroker = (Orchard.brokerId != null && entity.getUUID().equals(Orchard.brokerId))
+                    || (entity instanceof WanderingTrader
+                        && world.dimension() == CharonsEcho.GRAVEYARD_DIM);
+            if (!isBroker) return InteractionResult.PASS;
             if (!(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
             openShop(sp);
             return InteractionResult.SUCCESS;
         });
+        // Entities load ASYNC after their chunks — an immediate getEntity() at
+        // server start finds nothing and every boot would spawn another clone.
+        // The real ensure runs once, a few seconds in, and sweeps duplicates.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (!ensurePending || server.getTickCount() < 100) return;
+            ensurePending = false;
+            doEnsure(server);
+        });
     }
 
-    /** Ensure the Broker stands at his post (server start; also /charon orchard broker). */
+    /** Request the Broker at his post (fulfilled a few seconds after start). */
     public static void ensure(MinecraftServer server) {
+        ensurePending = true;
+    }
+
+    private static void doEnsure(MinecraftServer server) {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
         int y = GraveyardTerrain.groundHeight(STAND.getX(), STAND.getZ()) + 1;
         BlockPos at = new BlockPos(STAND.getX(), y, STAND.getZ());
         graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
 
-        if (Orchard.brokerId != null) {
-            Entity existing = graveyard.getEntity(Orchard.brokerId);
-            if (existing != null && existing.isAlive()) return;
+        // One Broker only: keep the first found near the post, sweep the rest.
+        var traders = graveyard.getEntitiesOfClass(WanderingTrader.class,
+                net.minecraft.world.phys.AABB.ofSize(
+                        net.minecraft.world.phys.Vec3.atCenterOf(at), 128, 96, 128));
+        WanderingTrader keeper = null;
+        for (WanderingTrader t : traders) {
+            if (keeper == null) {
+                keeper = t;
+            } else {
+                t.discard();
+            }
+        }
+        if (keeper != null) {
+            if (Orchard.brokerId == null || !keeper.getUUID().equals(Orchard.brokerId)) {
+                Orchard.brokerId = keeper.getUUID();
+                Orchard.save();
+            }
+            if (traders.size() > 1) {
+                System.out.println("[CharonsEcho] the Broker swept "
+                        + (traders.size() - 1) + " of his doubles away");
+            }
+            return;
         }
         WanderingTrader trader = EntityTypes.WANDERING_TRADER.create(graveyard, EntitySpawnReason.COMMAND);
         if (trader == null) return;
