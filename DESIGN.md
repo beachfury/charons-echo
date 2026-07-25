@@ -493,6 +493,13 @@ spawn only in loaded chunks and never within ~24 blocks of a player.
 
 ## Decisions log
 
+- 2026-07-25: **the dead face WEST** — mythically correct (the underworld lies beyond
+  the setting sun; Odysseus sails west; Erebus is the dark after dusk). Builders still
+  build stones facing SOUTH toward their studio label; the generator rotates them 90°
+  on burial. Ghosts arrive west of their stone facing east, reading their own epitaph.
+  Scattered decor (trees/clutter) rotates per-slot deterministically for variety; only
+  graves keep sacred uniform facing.
+
 - 2026-07-22: the fare item is **Charon's Obol** (vanilla already has an "Echo Shard" —
   name collision), built on the vanilla echo shard item for its sculk-teal texture.
   All spec references to "Echo Shard" as the fare item read as Charon's Obol.
