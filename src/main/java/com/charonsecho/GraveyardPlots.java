@@ -325,32 +325,34 @@ public final class GraveyardPlots {
      * soul count kept live as burials happen, filled date when the yard closes.
      */
     static void writeFieldSign(SignBlockEntity sign, int fieldIndex) {
+        // Hanging signs clip long lines into nothing — every line stays short.
+        // Layout: "Field N" / opening date (real calendar) / soul count / "† date" when full.
         String opened = sign.getFrontText().getMessage(1, false).getString();
-        if (!opened.startsWith("opened")) opened = "opened " + shortDate();
-        String filled = sign.getFrontText().getMessage(2, false).getString();
+        if (opened.isEmpty() || !Character.isDigit(opened.charAt(0))) opened = shortDate();
+        String closed = sign.getFrontText().getMessage(3, false).getString();
         int souls = 0;
         for (GraveManager.Grave g : GraveManager.all()) {
             if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) souls++;
         }
         SignText text = new SignText()
-                .setMessage(0, Component.literal("Grave Field " + (fieldIndex + 1)))
+                .setMessage(0, Component.literal("Field " + (fieldIndex + 1)))
                 .setMessage(1, Component.literal(opened))
-                .setMessage(3, Component.literal(souls + (souls == 1 ? " soul" : " souls")))
+                .setMessage(2, Component.literal(souls + (souls == 1 ? " soul" : " souls")))
                 .setHasGlowingText(true);
-        if (filled.startsWith("filled")) {
-            text = text.setMessage(2, Component.literal(filled));
+        if (closed.startsWith("†")) {
+            text = text.setMessage(3, Component.literal(closed));
         }
         sign.setText(text, true);
         sign.setText(text, false);
         sign.setChanged();
     }
 
-    /** The last dry plot closes the field's ledger. */
+    /** The last dry plot closes the field's ledger: the dagger and the date. */
     private static void markFieldFull(ServerLevel level, int fieldIndex) {
         SignBlockEntity sign = findFieldSign(level, fieldIndex);
         if (sign == null) return;
         SignText updated = sign.getFrontText()
-                .setMessage(2, Component.literal("filled " + shortDate()))
+                .setMessage(3, Component.literal("† " + shortDate()))
                 .setHasGlowingText(true);
         sign.setText(updated, true);
         sign.setText(updated, false);
