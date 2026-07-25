@@ -274,7 +274,7 @@ public final class Orchard {
         }
         long need = tree.stage == 0 ? CharonConfig.orchardStage1Ticks : CharonConfig.orchardStage2Ticks;
         if (tree.stageTicks >= need) {
-            advanceStage(level, tree);
+            advanceStage(level, tree, true);
         }
     }
 
@@ -311,8 +311,13 @@ public final class Orchard {
                 && p.getY() > b.getY() - 4 && p.getY() < b.getY() + 20;
     }
 
-    /** Advance seedling→small or small→grown (also the /charon orchard grow path). */
-    static void advanceStage(ServerLevel level, Tree tree) {
+    /**
+     * Advance seedling→small or small→grown. `natural` marks real growth —
+     * only real growth ever faces the big-stage roll; the admin command grows
+     * the common tree, always (lineage seeds excepted — they are determinism,
+     * not fortune).
+     */
+    static void advanceStage(ServerLevel level, Tree tree, boolean natural) {
         var manager = level.getServer().getStructureManager();
         String next;
         if (tree.stage == 0) {
@@ -320,7 +325,7 @@ public final class Orchard {
             if (options.isEmpty()) return;
             next = options.get(Math.floorMod(tree.id.hashCode(), options.size()));
         } else {
-            next = rollBigTemplate(level, tree);
+            next = rollBigTemplate(level, tree, natural);
             if (next.isEmpty()) return;
         }
         String category = tree.stage == 0 ? "tree" : "big_tree";
@@ -385,7 +390,7 @@ public final class Orchard {
     }
 
     /** The big-stage roll: elder seeds breed true; plain seeds face the curve. */
-    private static String rollBigTemplate(ServerLevel level, Tree tree) {
+    private static String rollBigTemplate(ServerLevel level, Tree tree, boolean natural) {
         var manager = level.getServer().getStructureManager();
         List<String> bigs = StudioMode.approvedTemplates("big_tree", manager, "default");
         if (bigs.isEmpty()) return "";
@@ -401,6 +406,7 @@ public final class Orchard {
             }
             tree.lineage = null; // relic of a dead house — grows ordinary
         }
+        if (!natural) return common; // commands never roll fortune
         double f = tree.totalTicks == 0 ? 0 : (double) tree.vigilTicks / tree.totalTicks;
         double p = 0.025 + 0.725 * Math.pow(Math.min(1.0, f / 0.95), 6);
         if (level.getRandom().nextDouble() < p) {
@@ -779,7 +785,7 @@ public final class Orchard {
         if (tree.wild) return "That tree is wild — it was born grown.";
         if (tree.stage >= 2) return "Already fully grown.";
         int before = tree.stage;
-        advanceStage(level, tree);
+        advanceStage(level, tree, false);
         return tree.stage > before ? "Stage " + before + " -> " + tree.stage + " (" + tree.template + ")"
                 : "It cannot grow — something blocks its space.";
     }
