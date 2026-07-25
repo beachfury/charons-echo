@@ -120,7 +120,7 @@ public final class PortalManager {
                         .filter(g -> g.owner.equals(player.getUUID()) && g.claimed && g.plotIndex >= 0)
                         .reduce((a, b) -> b)
                         .map(g -> new ReturnPortal(
-                                GraveyardPlots.arrivalPos(g.plotIndex).offset(2, 0, 0),
+                                GraveyardPlots.arrivalPos(g.plotIndex).offset(0, 0, 2),
                                 g.dimension, g.pos))
                         .orElse(null);
                 if (ret != null) RETURN_PORTALS.put(player.getUUID(), ret);
@@ -189,8 +189,10 @@ public final class PortalManager {
         }
         BlockPos arrive = GraveyardPlots.arrivalPos(grave.plotIndex);
         graveyard.getChunk(arrive.getX() >> 4, arrive.getZ() >> 4);
+        // Yaw -90 = facing EAST: the ghost stands west of the stone, looking
+        // back at their own epitaph — having faced west, the way of the dead.
         player.teleportTo(graveyard, arrive.getX() + 0.5, arrive.getY(), arrive.getZ() + 0.5,
-                Set.<Relative>of(), 180f, 0f, false);
+                Set.<Relative>of(), -90f, 0f, false);
         graveyard.playSound(null, arrive, SoundEvents.BELL_RESONATE, SoundSource.AMBIENT, 0.7f, 0.5f);
         player.sendSystemMessage(Component.literal(
                 "You stand in Charon's Echo. Your grave lies before you — touch the stone to reclaim what you lost.")
@@ -245,7 +247,7 @@ public final class PortalManager {
 
     /** After resurrection: choose where the portal home opens. */
     private static void openWhereToGui(ServerPlayer player, GraveManager.Grave grave) {
-        BlockPos gravePortal = GraveyardPlots.arrivalPos(grave.plotIndex).offset(2, 0, 0);
+        BlockPos gravePortal = GraveyardPlots.arrivalPos(grave.plotIndex).offset(0, 0, 2);
         ReturnPortal atGrave = new ReturnPortal(gravePortal, grave.dimension, grave.pos);
 
         var gui = new eu.pb4.sgui.api.gui.SimpleGui(

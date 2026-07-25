@@ -423,8 +423,13 @@ public final class GraveyardPlots {
                 int below = StudioMode.belowGradeOf(template.get(), cat);
                 BlockPos at = new BlockPos(sx, sy + 1 - below, sz);
                 level.getChunk(sx >> 4, sz >> 4);
-                template.get().placeInWorld(level, at, at,
-                        new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
+                // Stones are BUILT facing south (toward their studio label) but
+                // are TURNED to face WEST on burial — the dead face the way
+                // Charon carries them, beyond the setting sun.
+                var settings = new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings()
+                        .setRotation(net.minecraft.world.level.block.Rotation.CLOCKWISE_90)
+                        .setRotationPivot(new BlockPos(w / 2, 0, w / 2));
+                template.get().placeInWorld(level, at, at, settings,
                         net.minecraft.util.RandomSource.create(grave.id.hashCode()), 3);
                 writeEpitaphOnAnySign(level, grave, o, sy);
                 return;
@@ -487,22 +492,23 @@ public final class GraveyardPlots {
                 + "' at plot " + grave.plotIndex + " — epitaph not written");
     }
 
-    /** Generated fallback headstone: mound, stone, and the epitaph sign. */
+    /** Generated fallback headstone: mound, stone, and the epitaph sign —
+     *  facing WEST, the way of the dead. */
     private static void placePlaceholderStone(ServerLevel level, GraveManager.Grave grave, BlockPos o, int y) {
-        int cx = o.getX() + 2, cz = o.getZ() + 1; // stone near plot's north edge
+        int sx = o.getX() + 4, sz = o.getZ() + 2; // stone near plot's east edge
 
-        level.getChunk(cx >> 4, cz >> 4);
-        // Grave mound (coarse-textured): 1×2 of tuff in front of the stone.
-        level.setBlock(new BlockPos(cx, y, cz + 1), Blocks.TUFF.defaultBlockState(), 2);
-        level.setBlock(new BlockPos(cx, y, cz + 2), Blocks.TUFF.defaultBlockState(), 2);
+        level.getChunk(sx >> 4, sz >> 4);
+        // Grave mound (coarse-textured): 1×2 of tuff stretching west.
+        level.setBlock(new BlockPos(sx - 1, y, sz), Blocks.TUFF.defaultBlockState(), 2);
+        level.setBlock(new BlockPos(sx - 2, y, sz), Blocks.TUFF.defaultBlockState(), 2);
         // The stone: chiseled deepslate with a slab cap.
-        level.setBlock(new BlockPos(cx, y + 1, cz), Blocks.CHISELED_DEEPSLATE.defaultBlockState(), 2);
-        level.setBlock(new BlockPos(cx, y + 2, cz),
+        level.setBlock(new BlockPos(sx, y + 1, sz), Blocks.CHISELED_DEEPSLATE.defaultBlockState(), 2);
+        level.setBlock(new BlockPos(sx, y + 2, sz),
                 Blocks.DEEPSLATE_BRICK_SLAB.defaultBlockState(), 2);
-        // Epitaph sign on the south face.
-        BlockPos signPos = new BlockPos(cx, y + 1, cz + 1);
+        // Epitaph sign on the west face.
+        BlockPos signPos = new BlockPos(sx - 1, y + 1, sz);
         level.setBlock(signPos, Blocks.PALE_OAK_WALL_SIGN.defaultBlockState()
-                .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH), 2);
+                .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.WEST), 2);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
             sign.setText(epitaphText(grave), true);
             sign.setChanged();
@@ -573,9 +579,10 @@ public final class GraveyardPlots {
                 && Math.abs(pos.getY() - y) <= 4;
     }
 
-    /** Where a ghost arrives / stands to mourn: south of the headstone. */
+    /** Where a ghost arrives / stands to mourn: WEST of the headstone,
+     *  looking back east at their own epitaph. */
     public static BlockPos arrivalPos(int plotIndex) {
         BlockPos o = plotOrigin(plotIndex);
-        return new BlockPos(o.getX() + 2, plotSurfaceY(plotIndex) + 1, o.getZ() + 4);
+        return new BlockPos(o.getX() + 1, plotSurfaceY(plotIndex) + 1, o.getZ() + 2);
     }
 }
