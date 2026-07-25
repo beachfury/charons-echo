@@ -433,6 +433,7 @@ public final class Orchard {
         StudioMode.stripBelowGrade(settings, below, origin.getY());
         template.placeInWorld(level, origin, origin, settings,
                 RandomSource.create(tree.id.getLeastSignificantBits()), 2);
+        StudioMode.socketToGround(level, origin.getX(), origin.getZ(), w, origin.getY() + below);
         tree.template = name;
 
         // Record what the paste actually produced: the tree's box was clear

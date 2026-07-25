@@ -75,6 +75,36 @@ public final class StudioMode {
     }
 
     /**
+     * After a ground-stripped paste, the tree's base layer sits at one level
+     * while the terrain dips beneath it. Every base block hanging over a low
+     * spot grows a column of the LOCAL ground block down to meet the earth —
+     * mounds and pedestals instead of floaters.
+     */
+    public static void socketToGround(net.minecraft.server.level.ServerLevel level,
+                                      int x0, int z0, int w, int baseY) {
+        for (int x = x0; x < x0 + w; x++) {
+            for (int z = z0; z < z0 + w; z++) {
+                BlockPos basePos = new BlockPos(x, baseY, z);
+                var base = level.getBlockState(basePos);
+                if (base.isAir() || base.canBeReplaced()) continue;
+                // Find solid support within a modest reach below.
+                int y = baseY - 1;
+                while (y > baseY - 7) {
+                    var s = level.getBlockState(new BlockPos(x, y, z));
+                    if (!s.isAir() && !s.canBeReplaced()) break;
+                    y--;
+                }
+                if (y == baseY - 1 || y <= baseY - 7) continue; // grounded, or a chasm
+                var ground = level.getBlockState(new BlockPos(x, y, z));
+                if (!ground.getFluidState().isEmpty()) continue; // never bridge water
+                for (int fy = y + 1; fy < baseY; fy++) {
+                    level.setBlock(new BlockPos(x, fy, z), ground, 2);
+                }
+            }
+        }
+    }
+
+    /**
      * Trees spawn like vanilla trees: the exported ground layers (below-grade
      * capture) are stripped at paste time, so the tree stands on whatever the
      * terrain already is — no floating plate of studio ground.

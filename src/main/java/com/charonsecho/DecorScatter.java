@@ -200,6 +200,9 @@ public final class DecorScatter {
         }
         template.get().placeInWorld(level, at, at, settings,
                 RandomSource.create(mix(x, z, 555L)), 2);
+        if (category.equals("tree") || category.equals("big_tree")) {
+            StudioMode.socketToGround(level, x, z, w, at.getY() + below);
+        }
 
         if (category.equals("big_tree")) {
             // Wild elders bear Tollfruit for whoever dares walk here alive.
