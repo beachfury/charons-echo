@@ -34,15 +34,35 @@ Built for the CurseForge **Minecraft ModJam 2026 — "Echoes of the Past."**
 Early development for the jam — the core death loop is under construction. See
 [DESIGN.md](DESIGN.md) for the full design and [CHANGELOG.md](CHANGELOG.md) for progress.
 
-## For builders: Studio mode
+## For builders: the Studio
 
-Landmark builds (church, headstones, pale trees) are hand-built structure templates:
+All landmark builds (headstones, trees, gates, ruins, the church, crypt pieces) are
+hand-built structure templates, authored in the Studio — a flat builders-only world:
 
-1. `/charon studio` — teleports you to the authoring world with labeled, outlined plots
-2. Build inside an outline (lime block = NW anchor, orange = south-facing entrance)
-3. `/charon export` while standing in the plot — saves the `.nbt` under `world/generated/`
-4. Copy exported files into `src/main/resources/data/charons_echo/structure/`
-5. `/charon place <name>` — paste any template back for review
+- `/charon studio` — enter (gamemasters and rostered gravekeepers only; add builders
+  with `/charon builder add <player>`)
+- Build inside a plot outline. **Lime = NW anchor, orange = south** — your build's
+  front faces its label sign. Include exactly ONE sign per headstone (any sign type);
+  the mod writes name/date/cause onto it. You may dig below grade — coffins, roots,
+  and foundations ship (depth varies by category).
+- `/charon plot new <category> <name>` — stake a new correctly-sized plot (tab-complete
+  shows categories; names are auto-prefixed)
+- `/charon export [name]` — capture the plot to a template. Exports overwrite in place.
+- `/charon place <name>` — paste any template at your feet for review
+- Sets (style families): `/charon set new <name> [size]` stakes a bordered area where a
+  coherent style is built; admin `set trust` locks it to its steward + invitees,
+  `set approve` puts every exported piece into generation, `set reopen` allows
+  additions (shipped after the next approval). Each graveyard region draws from ONE set.
+
+**EXPORT = SAVE.** Studio builds are just blocks in a world; templates are forever.
+- Anything **exported** is safe: it generates in-game immediately, and the Studio
+  self-restores it — any empty plot with a known template regrows its build at server
+  start. Deleting the studio dimension resets it to a clean gallery of everything ever
+  exported.
+- Anything **not exported** exists only as blocks and dies with the world. Treat
+  `/charon export` like Ctrl+S: export early, export often — overwriting is free.
+- Layout changes and restamps never touch builds; only marker blocks (outlines,
+  anchors, borders, stray labels) are ever cleaned up automatically.
 
 ## License
 
