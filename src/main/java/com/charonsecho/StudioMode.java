@@ -75,6 +75,36 @@ public final class StudioMode {
     }
 
     /**
+     * Trees spawn like vanilla trees: the exported ground layers (below-grade
+     * capture) are stripped at paste time, so the tree stands on whatever the
+     * terrain already is — no floating plate of studio ground.
+     */
+    public static StructurePlaceSettings stripBelowGrade(StructurePlaceSettings settings, int below, int originY) {
+        if (below > 0) {
+            // The below-grade layers land in world rows [originY, originY+below)
+            // — judged by the FINAL world position, no trust in parameter
+            // semantics (they burned us once).
+            int cutY = originY + below;
+            settings.addProcessor(new net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor() {
+                @Override
+                public net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo processBlock(
+                        net.minecraft.world.level.LevelReader level,
+                        BlockPos offset, BlockPos pivot, BlockPos rawPos,
+                        net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo info,
+                        StructurePlaceSettings s) {
+                    return info.pos().getY() < cutY ? null : info;
+                }
+
+                @Override
+                public com.mojang.serialization.MapCodec<? extends net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor> codec() {
+                    return null; // runtime-only, never serialized
+                }
+            });
+        }
+        return settings;
+    }
+
+    /**
      * Category presets — sizes are LOCKED to the established plot standards.
      * depth = blocks BELOW grade captured and pasted (buried coffins, roots,
      * foundations — dig into your plot and it ships).

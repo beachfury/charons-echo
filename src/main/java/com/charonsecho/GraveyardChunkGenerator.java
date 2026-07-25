@@ -203,6 +203,19 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
         if (slope >= 3) return Blocks.DEEPSLATE.defaultBlockState();
         if (h <= 56 && sn > 0.10) return Blocks.SCULK.defaultBlockState();
         if (sn < -0.72) return Blocks.TUFF.defaultBlockState();
+        // Gravel scree washes across the moor in wide dithered patches.
+        double scree = fade((GraveyardTerrain.patchNoise(x, z, 60, 2100) - 0.60) / 0.18);
+        if (scree > 0 && GraveyardTerrain.blockHash(x + 9999, z) < scree) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+        // Blackstone flecks where the dark leans close to the surface.
+        if (h <= 58 && sn > 0.0 && GraveyardTerrain.blockHash(x, z + 7777) < 0.10) {
+            return Blocks.BLACKSTONE.defaultBlockState();
+        }
+        // A stray cobble here and there — rubble of the folk who came before.
+        if (GraveyardTerrain.blockHash(x + 3333, z) < 0.015) {
+            return Blocks.COBBLESTONE.defaultBlockState();
+        }
         return Blocks.PALE_MOSS_BLOCK.defaultBlockState();
     }
 

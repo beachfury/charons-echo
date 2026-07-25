@@ -430,6 +430,7 @@ public final class Orchard {
         };
         var settings = new StructurePlaceSettings().setRotation(rot)
                 .setRotationPivot(new BlockPos(w / 2, 0, w / 2));
+        StudioMode.stripBelowGrade(settings, below, origin.getY());
         template.placeInWorld(level, origin, origin, settings,
                 RandomSource.create(tree.id.getLeastSignificantBits()), 2);
         tree.template = name;

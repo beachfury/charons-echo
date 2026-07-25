@@ -171,8 +171,8 @@ public final class DecorScatter {
         var template = level.getServer().getStructureManager()
                 .get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
         if (template.isEmpty()) return;
-        int y = GraveyardTerrain.groundHeight(x, z)
-                - StudioMode.belowGradeOf(template.get(), category);
+        int below = StudioMode.belowGradeOf(template.get(), category);
+        int y = GraveyardTerrain.groundHeight(x, z) - below;
         BlockPos at = new BlockPos(x, y + 1, z);
 
         // Deterministic per-slot rotation so the wilds aren't wallpaper. Odd
@@ -195,6 +195,9 @@ public final class DecorScatter {
         var settings = new StructurePlaceSettings()
                 .setRotation(rot)
                 .setRotationPivot(new BlockPos(w / 2, 0, w / 2));
+        if (category.equals("tree") || category.equals("big_tree")) {
+            StudioMode.stripBelowGrade(settings, below, at.getY());
+        }
         template.get().placeInWorld(level, at, at, settings,
                 RandomSource.create(mix(x, z, 555L)), 2);
 
