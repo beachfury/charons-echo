@@ -401,6 +401,53 @@ public final class StudioMode {
         } catch (java.io.IOException e) {
             System.out.println("[CharonsEcho] failed to load studio_plots.dat: " + e);
         }
+        reconcileDynamic();
+    }
+
+    /**
+     * Saved plots carry the geometry of whatever layout existed when they were
+     * created — if the base rows have since grown or moved, a stored plot can
+     * sit on top of a base plot. Default-row plots are re-derived on every
+     * load: current category size, re-appended past the current base row (the
+     * same rule that placed them originally). Custom-set plots keep their
+     * staked spot — the set border hasn't moved.
+     */
+    private static void reconcileDynamic() {
+        java.util.Map<Integer, Integer> rowEnd = new java.util.HashMap<>();
+        boolean changed = false;
+        for (int i = 0; i < DYNAMIC.size(); i++) {
+            DynamicPlot d = DYNAMIC.get(i);
+            if (!d.set.equals("default")) continue;
+            Category cat = CATEGORIES.stream()
+                    .filter(c -> c.name().equals(d.category)).findFirst().orElse(null);
+            if (cat == null) continue;
+            int endX = rowEnd.computeIfAbsent(cat.rowZ(), z -> {
+                int e = 0;
+                for (StudioPlot p : BASE_PLOTS) {
+                    if (p.z0() == z) e = Math.max(e, p.x0() + p.w() + 6);
+                }
+                return e;
+            });
+            StudioPlot fixed = new StudioPlot(d.plot.name(), cat.w(), cat.d(), cat.h(),
+                    cat.keepAir(), endX, cat.rowZ());
+            if (!fixed.equals(d.plot)) {
+                DYNAMIC.set(i, new DynamicPlot(fixed, d.category, d.author, d.set, d.approved));
+                System.out.println("[CharonsEcho] studio: plot '" + d.plot.name()
+                        + "' re-fit to current layout (" + d.plot.x0() + "," + d.plot.z0()
+                        + " " + d.plot.w() + "x" + d.plot.d() + " -> " + fixed.x0() + ","
+                        + fixed.z0() + " " + fixed.w() + "x" + fixed.d() + ")");
+                changed = true;
+            }
+            rowEnd.put(cat.rowZ(), endX + cat.w() + 6);
+        }
+        if (changed) saveDynamic();
+    }
+
+    /** Delete a builder-created plot record; blocks in the world are untouched. */
+    public static boolean removePlot(String name) {
+        boolean removed = DYNAMIC.removeIf(d -> d.plot.name().equals(name));
+        if (removed) saveDynamic();
+        return removed;
     }
 
     private static void saveDynamic() {

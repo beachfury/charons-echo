@@ -48,6 +48,10 @@ public final class CharonCommands {
                     StudioMode.dynamicPlots().stream().filter(d -> !d.approved)
                             .map(d -> d.plot.name()), b);
 
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> DYNAMIC_SUGGESTIONS =
+            (ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                    StudioMode.dynamicPlots().stream().map(d -> d.plot.name()), b);
+
     /** Gamemaster only; sends an error and returns null otherwise. */
     private static ServerPlayer admin(CommandContext<CommandSourceStack> ctx)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -127,7 +131,7 @@ public final class CharonCommands {
         dispatcher.register(Commands.literal("charon")
                 .executes(ctx -> {
                     ctx.getSource().sendSystemMessage(Component.literal(
-                            "Charon's Echo — studio | export [name] | place <name> | plot new/approve/list | "
+                            "Charon's Echo — studio | export [name] | place <name> | plot new/approve/remove/list | "
                             + "visit | back | obol [n] | revive [player] | builder add/remove/list | rebuild-graves")
                             .withStyle(ChatFormatting.GRAY));
                     return 1;
@@ -189,6 +193,14 @@ public final class CharonCommands {
                                     ServerPlayer player = admin(ctx);
                                     if (player == null) return 0;
                                     return plotApprove(player, StringArgumentType.getString(ctx, "name"));
+                                })))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .suggests(DYNAMIC_SUGGESTIONS)
+                                        .executes(ctx -> {
+                                    ServerPlayer player = admin(ctx);
+                                    if (player == null) return 0;
+                                    return plotRemove(player, StringArgumentType.getString(ctx, "name"));
                                 })))
                         .then(Commands.literal("list").executes(ctx -> {
                             ServerPlayer player = builder(ctx);
@@ -441,7 +453,16 @@ public final class CharonCommands {
         ServerLevel studio = player.level().getServer().getLevel(CharonsEcho.STUDIO_DIM);
         if (studio == null) return 0;
         // Names carry their category prefix — applied automatically if omitted.
-        if (!name.startsWith(category + "_")) {
+        // The bare category name picks the next free number (big_tree ->
+        // big_tree_3), never a doubled prefix.
+        if (name.equals(category)) {
+            var names = StudioMode.allPlots().stream()
+                    .map(StudioMode.StudioPlot::name)
+                    .collect(Collectors.toSet());
+            int n = 1;
+            while (names.contains(category + "_" + n)) n++;
+            name = category + "_" + n;
+        } else if (!name.startsWith(category + "_")) {
             name = category + "_" + name;
         }
         // Inside a custom set, the plot stakes out where the builder stands —
@@ -490,6 +511,18 @@ public final class CharonCommands {
                 "Set '" + name + "' staked out (" + set.size + "x" + set.size + "), you are its steward. "
                 + "It is OPEN — any gravekeeper may build here until an admin trusts or approves it. "
                 + "Stake plots with /charon plot new <category> <name> wherever you stand.")
+                .withStyle(ChatFormatting.GREEN));
+        return 1;
+    }
+
+    private static int plotRemove(ServerPlayer admin, String name) {
+        if (StudioMode.findDynamic(name) == null) {
+            return err(admin, "No such builder plot — base layout plots can't be removed.");
+        }
+        StudioMode.removePlot(name);
+        StudioMode.ensureStamped(admin.level().getServer());
+        admin.sendSystemMessage(Component.literal(
+                "Plot '" + name + "' removed and its outline scrubbed. Blocks inside are untouched.")
                 .withStyle(ChatFormatting.GREEN));
         return 1;
     }
