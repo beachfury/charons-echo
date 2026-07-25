@@ -587,6 +587,14 @@ vanilla items, growth is template pastes, all state in `world/charons_echo/orcha
 
 ## Decisions log
 
+- 2026-07-25: **Field furniture standards.** Lych gate is 9x7x8 (user's build sets the
+  standard; fence opening matches). Fences become a buildable kit: `fence_straight`
+  5x3x4 tiles repeated along field edges (last tile overlaps to end flush),
+  `fence_corner` 3x3x4 at the turns, gate replacing the south run's center. Crypt kit
+  gets Studio rows at last: `crypt_stairwell` 7x7x8 dig-6-below, `crypt_corridor`
+  7x7x8, `crypt_seal` 5x3x8, `crypt_week` 15x15x8, `crypt_room` 21x21x8 (rooms keep
+  interior air). Generation wiring for fences/gates/crypt lands after first exports.
+
 - 2026-07-25: **the dead face WEST** — mythically correct (the underworld lies beyond
   the setting sun; Odysseus sails west; Erebus is the dark after dusk). Builders still
   build stones facing SOUTH toward their studio label; the generator rotates them 90°

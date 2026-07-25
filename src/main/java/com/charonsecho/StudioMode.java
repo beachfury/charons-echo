@@ -91,8 +91,19 @@ public final class StudioMode {
             new Category("clutter", 3, 3, 3, 1, false, 76),
             new Category("ruin", 12, 12, 9, 3, true, 94),
             new Category("big_tree", 15, 15, 16, 1, false, 116),
-            new Category("gate", 5, 3, 5, 1, false, 140),
-            new Category("building", 16, 16, 12, 3, true, 152));
+            new Category("gate", 9, 7, 8, 1, false, 140),
+            new Category("building", 16, 16, 12, 3, true, 152),
+            // Fence kit: the generator tiles straights along field edges and
+            // sets corners at the turns; the gate replaces the south run.
+            new Category("fence_straight", 5, 3, 4, 1, false, 200),
+            new Category("fence_corner", 3, 3, 4, 1, false, 200),
+            // Crypt kit (the Church & Crypt Standard): stairwell digs 6 below
+            // grade; rooms keep their interior air.
+            new Category("crypt_stairwell", 7, 7, 8, 6, true, 212),
+            new Category("crypt_corridor", 7, 7, 8, 0, true, 212),
+            new Category("crypt_seal", 5, 3, 8, 0, false, 212),
+            new Category("crypt_week", 15, 15, 8, 0, true, 232),
+            new Category("crypt_room", 21, 21, 8, 0, true, 232));
 
     public static int widthOfCategory(String category) {
         return CATEGORIES.stream().filter(c -> c.name().equals(category))
@@ -548,7 +559,7 @@ public final class StudioMode {
 
         // Gates row (z = 140): field entrances — lych gate + variations.
         x = 0; z = 140;
-        addPlot(plots, "gate_lych", 5, 3, 5, false, x, z, gap);
+        addPlot(plots, "gate_lych", 9, 7, 8, false, x, z, gap);
 
         // Small stones row (z = 172): humble markers for rough ground.
         x = 0; z = 172;
@@ -561,6 +572,25 @@ public final class StudioMode {
         for (int i = 1; i <= 2; i++) {
             x = addPlot(plots, "headstone_large_" + i, 5, 5, 5, false, x, z, gap);
         }
+
+        // Fence row (z = 200): straight runs, then corners.
+        x = 0; z = 200;
+        x = addPlot(plots, "fence_straight_1", 5, 3, 4, false, x, z, gap);
+        x = addPlot(plots, "fence_straight_2", 5, 3, 4, false, x, z, gap);
+        x = addPlot(plots, "fence_corner_1", 3, 3, 4, false, x, z, gap);
+        addPlot(plots, "fence_corner_2", 3, 3, 4, false, x, z, gap);
+
+        // Crypt kit, small pieces (z = 212): stairwell (dig 6 below grade!),
+        // corridor tile, door-seal panel.
+        x = 0; z = 212;
+        x = addPlot(plots, "crypt_stairwell_1", 7, 7, 8, true, x, z, gap);
+        x = addPlot(plots, "crypt_corridor_1", 7, 7, 8, true, x, z, gap);
+        addPlot(plots, "crypt_seal_1", 5, 3, 8, false, x, z, gap);
+
+        // Crypt rooms (z = 232): the week room and the month rooms.
+        x = 0; z = 232;
+        x = addPlot(plots, "crypt_week_1", 15, 15, 8, true, x, z, gap);
+        addPlot(plots, "crypt_room_1", 21, 21, 8, true, x, z, gap);
 
         return List.copyOf(plots);
     }
