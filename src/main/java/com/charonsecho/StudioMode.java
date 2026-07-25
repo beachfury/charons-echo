@@ -270,35 +270,22 @@ public final class StudioMode {
         }
     }
 
-    /** Fingerprint of the current layout — changes when plots move or appear. */
-    private static int layoutHash() {
-        int h = 31; // salt bumped: stale-marking cleanup sweep before restamps
-        for (StudioPlot p : allPlots()) {
-            h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
-        }
-        return h;
-    }
-
-    private static int stampedHash = 0;
-
     /**
-     * The studio always has its grid: on server start, re-stamp whenever the
-     * layout changed or the dimension was wiped (fingerprint mismatch).
+     * The studio ALWAYS gets a full clean + stamp — every server start and
+     * every /charon studio. No fingerprint shortcuts: they twice left the
+     * studio in an invisible half-state. The sweep + stamp is sub-second.
      */
     public static void ensureStamped(net.minecraft.server.MinecraftServer server) {
         ServerLevel studio = server.getLevel(CharonsEcho.STUDIO_DIM);
-        if (studio == null) return;
-        int current = layoutHash();
-        boolean dimensionFresh = !java.nio.file.Files.exists(
-                server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
-                        .resolve("dimensions").resolve(CharonsEcho.MOD_ID).resolve("studio"));
-        if (stampedHash != current || dimensionFresh) {
-            cleanStaleMarkings(studio);
-            stampLayout(studio);
-            StudioSets.stampAllBorders(studio);
-            stampedHash = current;
-            saveDynamic();
+        if (studio == null) {
+            System.out.println("[CharonsEcho] studio: dimension missing, no stamp");
+            return;
         }
+        cleanStaleMarkings(studio);
+        stampLayout(studio);
+        StudioSets.stampAllBorders(studio);
+        System.out.println("[CharonsEcho] studio: layout cleaned and stamped ("
+                + allPlots().size() + " plots)");
     }
 
     /**
@@ -395,7 +382,6 @@ public final class StudioMode {
 
     public static void loadDynamic(net.minecraft.server.MinecraftServer server) {
         DYNAMIC.clear();
-        stampedHash = 0;
         dynamicFile = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("charons_echo").resolve("studio_plots.dat");
         if (!java.nio.file.Files.exists(dynamicFile)) return;
@@ -412,7 +398,6 @@ public final class StudioMode {
                         c.getStringOr("author", "?"), c.getStringOr("set", "default"),
                         c.getBooleanOr("approved", false)));
             }
-            stampedHash = root.getIntOr("stampedHash", 0);
         } catch (java.io.IOException e) {
             System.out.println("[CharonsEcho] failed to load studio_plots.dat: " + e);
         }
@@ -440,7 +425,6 @@ public final class StudioMode {
             }
             var root = new net.minecraft.nbt.CompoundTag();
             root.put("plots", list);
-            root.putInt("stampedHash", stampedHash);
             net.minecraft.nbt.NbtIo.writeCompressed(root, dynamicFile);
         } catch (java.io.IOException e) {
             System.out.println("[CharonsEcho] failed to save studio_plots.dat: " + e);
@@ -549,7 +533,10 @@ public final class StudioMode {
                     .withStyle(ChatFormatting.RED));
             return;
         }
+        cleanStaleMarkings(studio);
         stampLayout(studio);
+        StudioSets.stampAllBorders(studio);
+        restorePlots(studio);
         int y = surfaceY(studio, -4, -4);
         player.teleportTo(studio, -4.5, y + 1, -4.5, Set.<Relative>of(), 45f, 0f, false);
         MODE_BEFORE_STUDIO.putIfAbsent(player.getUUID(), player.gameMode());
