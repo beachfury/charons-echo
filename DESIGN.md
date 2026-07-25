@@ -393,6 +393,18 @@ that publish happens only after in-game approval of the Phase 1 build.
 6. Include the River Styx + ferry dock, or cut for scope? (Pure flourish — costs one
    template and a river carve in the generator.)
 
+## Skybox choice — eternal night, living moon (decided 2026-07-23, post-jam)
+
+Owners choose the sky via a BUILT-IN OPTIONAL DATAPACK shipped in the mod
+(`/datapack enable charons_echo/moonlit_sky`) overriding the dimension type:
+default = the End void (no celestial bodies, frozen time); moonlit = overworld
+skybox locked to NIGHT with MOON CYCLES — the dimension runs its own clock,
+time flows through the night (moon arcs), then jumps past the day to the next
+dusk before dawn ever shows. Day counter still increments → moon phase advances
+each night (full→new over 8 nights). NEVER a day cycle; only the moon changes.
+Ships post-jam ("the moon has risen over Charon's Echo"); future hook: Death of
+the Week rolls over on the full moon.
+
 ## Trees in graveyards (decided 2026-07-23)
 
 Trees are ALLOWED in grave fields — churchyard yews are the aesthetic. Rules:
