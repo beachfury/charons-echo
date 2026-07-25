@@ -559,6 +559,9 @@ vanilla items, growth is template pastes, all state in `world/charons_echo/orcha
 - ZERO feedback at every step. No particles, no message, no advancement, no lore.
   The mechanic does not exist in-game; it spreads as rumor. The base sliver keeps
   every rumor unfalsifiable.
+- **The admin command never rolls fortune**: `/charon orchard grow` always grows
+  the common elder for plain seeds (lineage seeds still breed true — determinism,
+  not luck). The 6-chain tree enters the world ONLY through natural growth.
 
 ### The 6-chain elder & the bloodline (secret)
 - The 6-chain elder **always sets all 6 fruits, no roll**, every cycle.
