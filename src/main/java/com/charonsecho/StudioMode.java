@@ -272,7 +272,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 29; // salt bumped: tree plots 11x11x12, big trees 15x15x16
+        int h = 31; // salt bumped: stale-marking cleanup sweep before restamps
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -293,10 +293,57 @@ public final class StudioMode {
                 server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                         .resolve("dimensions").resolve(CharonsEcho.MOD_ID).resolve("studio"));
         if (stampedHash != current || dimensionFresh) {
+            cleanStaleMarkings(studio);
             stampLayout(studio);
             StudioSets.stampAllBorders(studio);
             stampedHash = current;
             saveDynamic();
+        }
+    }
+
+    /**
+     * Scrub the default area of ALL marker blocks (outline glass, lime/orange
+     * anchors, gold border) and label signs standing OUTSIDE current plots —
+     * old layouts can never overlap the new stamp. Blocks inside plot
+     * footprints above ground are builds and are never touched.
+     */
+    private static void cleanStaleMarkings(ServerLevel level) {
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        List<StudioPlot> plots = allPlots();
+        for (StudioPlot p : plots) {
+            minX = Math.min(minX, p.x0());
+            maxX = Math.max(maxX, p.x0() + p.w());
+            minZ = Math.min(minZ, p.z0());
+            maxZ = Math.max(maxZ, p.z0() + p.d());
+        }
+        BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int x = minX - 10; x <= maxX + 10; x++) {
+            for (int z = minZ - 10; z <= maxZ + 12; z++) {
+                level.getChunk(x >> 4, z >> 4);
+                for (int dy = 0; dy <= 2; dy++) {
+                    BlockPos pos = new BlockPos(x, STUDIO_GROUND_Y + dy, z);
+                    BlockState s = level.getBlockState(pos);
+                    boolean marker = s.is(Blocks.STAINED_GLASS.white())
+                            || s.is(Blocks.CONCRETE.lime())
+                            || s.is(Blocks.CONCRETE.orange())
+                            || s.is(Blocks.CONCRETE.yellow());
+                    if (marker) {
+                        level.setBlock(pos, dy == 0 ? moss : air, 2);
+                        continue;
+                    }
+                    if (dy > 0 && s.is(Blocks.PALE_OAK_SIGN)) {
+                        boolean insidePlot = false;
+                        for (StudioPlot p : plots) {
+                            if (p.contains(x, z)) { insidePlot = true; break; }
+                        }
+                        if (!insidePlot) {
+                            level.setBlock(pos, air, 2);
+                        }
+                    }
+                }
+            }
         }
     }
 
