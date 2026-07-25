@@ -491,6 +491,97 @@ spawn only in loaded chunks and never within ~24 blocks of a player.
   color in the monochrome world is what the living leave behind; exact counts in the
   ledger tooltip (feeds Death of the Week later).
 
+## The Stygian Orchard (decided 2026-07-25, not yet built)
+
+Players buy, plant, and grow the Withered Grove trees in the OVERWORLD; the trees
+bear fruit that crafts into Charon's Obols. Fully server-side: seed/fruit are marked
+vanilla items, growth is template pastes, all state in `world/charons_echo/orchard.dat`.
+
+### The Stygian Seed
+- Vanilla **sculk sensor** item + custom-data marker, named **"Stygian Seed"**, lore:
+  a sensor that listened too long at the river's edge, and took root.
+- Sold by **the Broker** — a persistent, invulnerable wandering trader spawned at the
+  church's **gilded blackstone vendor marker**. Only trade: emeralds → seed (steep,
+  config; default ~32 — costs more than one obol's ingredients because it pays forever).
+  Currency-mod integration later via config swap of the payment line.
+- Placing a marked sensor registers a planted tree (pos, dim, owner, stage, timers).
+  Per-player planted-tree cap (config, default 2–3).
+
+### Growth (two stages, template pastes)
+- Seedling: sensor sits; sculk veins creep outward in a cosmetic ring.
+- Stage 1 after a few in-game days: paste a random `pale_tree_1–6`.
+- Stage 2 after several more: swap to a big tree (see rarity below).
+- Trees only grow into air/replaceables — clearance checked at planting (warn if
+  tight) and re-checked each stage; if blocked, the tree WAITS. Growth ticks only
+  while the chunk is loaded.
+
+### Felling (all-or-nothing)
+- The tree drops NOTHING as blocks, ever. Breaking any block of a planted tree:
+  - without a **netherite axe**: break fails (cancel + sculk-soul puff, "the tree
+    does not yield"). Break-speed can't be slowed server-side, so the gate is the tool.
+  - with one: starts a several-second **felling** — shudder + sculk particles — then
+    the whole tree crumbles to nothing and drops **1 seed** (its own).
+- Anyone may fell (cutthroat by design — tree theft is seed theft). Only ripe fruit
+  is ever individually breakable.
+
+### Tollfruit (the fruit)
+- Grows on chains **no more than two links below the crown**. Lifecycle, readable at
+  a glance, per bud: **mangrove root** appears at chain's end → sculk veins cover its
+  sides+bottom one face at a time (top stays clean — that's the grip) → fully sealed
+  (ripening pause) → swaps to named **ochre froglight = ripe Tollfruit**.
+- Only BIG trees fruit. Per cycle a tree ROLLS bud count 1–4 (weighted low); no new
+  buds until every current fruit is removed. Breaking an unripe bud is breaking a
+  tree block → the tree collapses (patience is the mechanic).
+- Ripe fruit breaks normally, drops a **Tollfruit** item (marked froglight).
+  **Craft 4 Tollfruit → 1 Charon's Obol** (runtime recipe injection, obol pattern).
+- Big-tree templates ship with BARE chains (root tips removed 2026-07-25) — on a big
+  tree every root-on-chain MEANS fruit. Pale trees keep decorative root tips; they
+  never fruit. Tree-lore: roots on a small tree are dead weight; on an elder, come back.
+
+### Wild elders (Charon's Echo)
+- Wild big trees in the graveyard CAN fruit (same slow cycle) but never stage, never
+  drop seeds, and are never fellable — the graveyard break-protection gets exactly one
+  new exception: the ripe froglight. Living players foraging the land of the dead.
+- Big trees are RARE in decor scatter (weight elders down ~1 in 5–6 big slots).
+- **The 6-chain elder NEVER spawns wild** — see below. Wild elders are all 4-chain.
+
+### ---- SPOILERS BELOW — never in any in-game text, README, or changelog ----
+
+### The Vigil (secret)
+- Every planted tree silently tracks a **vigil score**: fraction of growth ticks the
+  PLANTER stood inside the grow footprint (+small skirt). Shifts don't count — only
+  the planter's presence. Logging out = absent; but if the chunk unloads the tree
+  pauses, so walking away waits rather than penalizes.
+- At the big-stage roll the score picks the odds of the **6-chain elder** vs the
+  common 4-chain: continuous curve, superlinear (half-vigil ≈ nothing over the ~2–3%
+  base sliver; the last stretch holds the real odds; tops out high, never 100%).
+  Bar for "full" has a hair of mercy (~95%) so a creeper chase can't silently ruin it.
+- ZERO feedback at every step. No particles, no message, no advancement, no lore.
+  The mechanic does not exist in-game; it spreads as rumor. The base sliver keeps
+  every rumor unfalsifiable.
+
+### The 6-chain elder & the bloodline (secret)
+- The 6-chain elder **always sets all 6 fruits, no roll**, every cycle.
+- **Lineage registry** in orchard.dat is the source of truth; seeds are tokens with
+  unique ids stamped in custom data. Cloned/duped items lose to the ledger — first
+  planted claims, copies degrade to ordinary elder seeds.
+- Felling any grown 6-elder returns its own **elder seed** (glint, same "Stygian
+  Seed" name — the glint is the only tell). Elder seeds re-stage on replant but
+  ALWAYS grow the 6-chain elder. Children are barren: they return only their own seed.
+- **The mint:** elder seeds are CREATED only by felling the MOTHER tree while all 6
+  fruits hang ripe (sacrifice the harvest AND the producer) → drops 2 seeds: the
+  **mother seed** (extra lore line in OBFUSCATED text — recognizable, unreadable) and
+  one clean elder seed (the one they sell). One child per full grow-and-ripen cycle —
+  the choice self-throttles the mint better than any config could.
+- **Only one mother can exist**, enforced by the ledger. Ownership follows
+  possession — fell a fruit-laden mother and the mint drops at the thief's feet;
+  the bloodline can be usurped at axe-point. Cutthroat confirmed.
+- **The mother dies** if her owner is banned or absent past a config threshold
+  (~30 days): ledger marks the line dead; from then on EVERY elder felled returns a
+  plain glintless seed. Standing trees keep fruiting (the dead don't un-grow) but the
+  line erodes felling by felling until a fresh vigil founds a new house. Glinting
+  seeds in chests degrade the same way — relics of a dead house.
+
 ## Decisions log
 
 - 2026-07-25: **the dead face WEST** — mythically correct (the underworld lies beyond
