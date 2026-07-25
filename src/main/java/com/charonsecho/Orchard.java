@@ -91,6 +91,7 @@ public final class Orchard {
         long dormantTicks;
         List<BlockPos> anchors = new ArrayList<>(); // chain-end fruit spots, scanned once grown
         boolean anchorsScanned;
+        transient long blockedWarnTicks; // throttle for the blocked-growth warning
     }
 
     private static final class FellJob {
@@ -328,6 +329,20 @@ public final class Orchard {
         if (!clearanceAt(level, tree, StudioMode.widthOfCategory(category),
                 StudioMode.heightOfCategory(category), tree.base)) {
             tree.stageTicks = Long.MAX_VALUE / 2; // stays due; retried each breath
+            // A silent wait looks like a bug — tell the owner once a minute.
+            tree.blockedWarnTicks += 20;
+            if (tree.blockedWarnTicks >= 1200) {
+                tree.blockedWarnTicks = 0;
+                ServerPlayer owner = level.getServer().getPlayerList().getPlayer(tree.owner);
+                if (owner != null) {
+                    owner.sendSystemMessage(Component.literal(
+                            "Your tree strains against something in its space — it needs "
+                            + StudioMode.widthOfCategory(category) + "x"
+                            + StudioMode.widthOfCategory(category) + " open ground, "
+                            + StudioMode.heightOfCategory(category) + " high.")
+                            .withStyle(ChatFormatting.GRAY));
+                }
+            }
             return;
         }
 
@@ -440,6 +455,8 @@ public final class Orchard {
                     BlockPos pos = new BlockPos(x, y, z);
                     BlockState s = level.getBlockState(pos);
                     if (s.isAir() || s.canBeReplaced()) continue;
+                    // The seedling's own creep never blocks its tree.
+                    if (s.is(Blocks.SCULK_VEIN)) continue;
                     if (tree.blocks.contains(pos.asLong())) continue;
                     return false;
                 }
@@ -801,7 +818,11 @@ public final class Orchard {
                 + (tree.lineage != null ? " lineage" : "")
                 + (tree.wild ? "" : " owner=" + tree.ownerName)
                 + (tree.stage < 2 && !tree.wild
-                        ? String.format(" vigil=%.0f%%", f * 100)
+                        ? String.format(" growth=%.0f%% vigil=%.0f%%",
+                                Math.min(100.0, 100.0 * tree.stageTicks
+                                        / (tree.stage == 0 ? CharonConfig.orchardStage1Ticks
+                                                           : CharonConfig.orchardStage2Ticks)),
+                                f * 100)
                         : " fruits=" + tree.fruits.size() + "/" + tree.anchors.size()
                           + (tree.dormant ? " (resting)" : ""));
     }
