@@ -8,6 +8,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
 public final class CharonsEcho implements ModInitializer {
@@ -56,6 +57,10 @@ public final class CharonsEcho implements ModInitializer {
             StudioMode.loadDynamic(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid
+            ServerLevel studio = server.getLevel(STUDIO_DIM);
+            if (studio != null) {
+                StudioMode.restorePlots(studio); // empty plots regrow their builds
+            }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             GraveManager.save();

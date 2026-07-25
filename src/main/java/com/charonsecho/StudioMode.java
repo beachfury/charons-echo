@@ -300,6 +300,50 @@ public final class StudioMode {
         }
     }
 
+    /**
+     * Self-restoring gallery: any plot that is COMPLETELY EMPTY but has a
+     * known template (shipped or exported) gets its build pasted back in.
+     * Never touches a plot containing any block — WIP is sacred.
+     */
+    public static void restorePlots(ServerLevel level) {
+        var manager = level.getServer().getStructureManager();
+        int restored = 0;
+        for (StudioPlot p : allPlots()) {
+            final StudioPlot fp = p;
+            String set = DYNAMIC.stream()
+                    .filter(d -> d.plot.name().equals(fp.name()) && d.plot.x0() == fp.x0()
+                            && d.plot.z0() == fp.z0())
+                    .map(d -> d.set).findFirst().orElse("default");
+            var template = manager.get(Identifier.fromNamespaceAndPath(
+                    CharonsEcho.MOD_ID, templateId(set, p.name())));
+            if (template.isEmpty() || !plotIsEmpty(level, p)) continue;
+            String cat = DYNAMIC.stream()
+                    .filter(d -> d.plot.name().equals(fp.name())).map(d -> d.category)
+                    .findFirst().orElse(baseCategory(p.name()));
+            int below = belowGradeOf(template.get(), cat);
+            BlockPos at = new BlockPos(p.x0(), STUDIO_GROUND_Y + 1 - below, p.z0());
+            template.get().placeInWorld(level, at, at, new StructurePlaceSettings(),
+                    RandomSource.create(p.name().hashCode()), 2);
+            restored++;
+        }
+        if (restored > 0) {
+            System.out.println("[CharonsEcho] studio: restored " + restored
+                    + " builds from their templates");
+        }
+    }
+
+    private static boolean plotIsEmpty(ServerLevel level, StudioPlot p) {
+        for (int x = p.x0(); x < p.x0() + p.w(); x++) {
+            for (int z = p.z0(); z < p.z0() + p.d(); z++) {
+                level.getChunk(x >> 4, z >> 4);
+                for (int y = STUDIO_GROUND_Y + 1; y <= STUDIO_GROUND_Y + p.h(); y++) {
+                    if (!level.getBlockState(new BlockPos(x, y, z)).isAir()) return false;
+                }
+            }
+        }
+        return true;
+    }
+
     // ---- dynamic-plot persistence (world/charons_echo/studio_plots.dat) ----
 
     public static void loadDynamic(net.minecraft.server.MinecraftServer server) {
