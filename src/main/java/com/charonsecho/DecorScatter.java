@@ -165,7 +165,28 @@ public final class DecorScatter {
         int y = GraveyardTerrain.groundHeight(x, z)
                 - StudioMode.belowGradeOf(template.get(), category);
         BlockPos at = new BlockPos(x, y + 1, z);
-        template.get().placeInWorld(level, at, at, new StructurePlaceSettings(),
+
+        // Deterministic per-slot rotation so the wilds aren't wallpaper. Odd
+        // squares spin freely about their center; even squares only 180° (a
+        // quarter-turn would shift their footprint half a block).
+        int w = StudioMode.widthOfCategory(category);
+        int roll = (int) Math.floorMod(mix(x, z, 777L), 4);
+        net.minecraft.world.level.block.Rotation rot;
+        if (w % 2 == 1) {
+            rot = switch (roll) {
+                case 1 -> net.minecraft.world.level.block.Rotation.CLOCKWISE_90;
+                case 2 -> net.minecraft.world.level.block.Rotation.CLOCKWISE_180;
+                case 3 -> net.minecraft.world.level.block.Rotation.COUNTERCLOCKWISE_90;
+                default -> net.minecraft.world.level.block.Rotation.NONE;
+            };
+        } else {
+            rot = roll < 2 ? net.minecraft.world.level.block.Rotation.NONE
+                           : net.minecraft.world.level.block.Rotation.CLOCKWISE_180;
+        }
+        var settings = new StructurePlaceSettings()
+                .setRotation(rot)
+                .setRotationPivot(new BlockPos(w / 2, 0, w / 2));
+        template.get().placeInWorld(level, at, at, settings,
                 RandomSource.create(mix(x, z, 555L)), 2);
     }
 
