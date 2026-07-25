@@ -2,7 +2,11 @@ package com.charonsecho;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
@@ -221,6 +225,10 @@ public final class GraveyardPlots {
         grave.plotIndex = idx;
         ensureField(graveyard, idx / PER_FIELD);
         placeHeadstone(graveyard, grave); // terraces its own footprint
+        SignBlockEntity fieldSign = findFieldSign(graveyard, idx / PER_FIELD);
+        if (fieldSign != null) {
+            writeFieldSign(fieldSign, idx / PER_FIELD); // the soul count ticks up
+        }
         if (idx % PER_FIELD == PER_FIELD - 1) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
@@ -247,25 +255,162 @@ public final class GraveyardPlots {
 
     /** Re-fence if the fence is missing (fresh field OR wiped/regenerated terrain). */
     private static void ensureField(ServerLevel level, int fieldIndex) {
-        BlockPos signPos = gateSignPos(fieldIndex);
-        level.getChunk(signPos.getX() >> 4, signPos.getZ() >> 4);
-        if (!(level.getBlockEntity(signPos) instanceof SignBlockEntity)) {
+        if (findFieldSign(level, fieldIndex) == null) {
             fenceField(level, fieldIndex);
         }
+    }
+
+    /**
+     * The sign that speaks for a field: the lych gate's hanging sign first
+     * (any sign inside the gate footprint), the old standing sign as fallback.
+     */
+    private static SignBlockEntity findFieldSign(ServerLevel level, int fieldIndex) {
+        BlockPos c = fieldCenter(fieldIndex);
+        int fenceZ = c.getZ() + FIELD_HALF + 1;
+        for (int x = c.getX() - 5; x <= c.getX() + 5; x++) {
+            for (int z = fenceZ - 4; z <= fenceZ + 4; z++) {
+                level.getChunk(x >> 4, z >> 4);
+                int g = GraveyardTerrain.groundHeight(x, z);
+                for (int y = g; y <= g + 10; y++) {
+                    if (level.getBlockEntity(new BlockPos(x, y, z)) instanceof SignBlockEntity sign) {
+                        return sign;
+                    }
+                }
+            }
+        }
+        BlockPos p = gateSignPos(fieldIndex);
+        level.getChunk(p.getX() >> 4, p.getZ() >> 4);
+        if (level.getBlockEntity(p) instanceof SignBlockEntity sign) {
+            return sign;
+        }
+        return null;
     }
 
     private static String shortDate() {
         return new java.text.SimpleDateFormat("M/d/yy").format(new java.util.Date());
     }
 
-    /** Fence the field perimeter, following the terrain, gate at south center. */
+    /**
+     * Fence the field perimeter, following the terrain. The lych gate straddles
+     * the south fence line (its own hanging sign carries the field's ledger);
+     * fence-kit templates tile the runs when they exist, plain pale-oak fence
+     * otherwise.
+     */
     private static void fenceField(ServerLevel level, int fieldIndex) {
+        BlockPos c = fieldCenter(fieldIndex);
+        var manager = level.getServer().getStructureManager();
+        String set = StudioSets.setForRegion(c.getX(), c.getZ());
+
+        boolean gate = placeGate(level, fieldIndex, manager, set);
+        java.util.List<String> straights = StudioMode.approvedTemplates("fence_straight", manager, set);
+        java.util.List<String> corners = StudioMode.approvedTemplates("fence_corner", manager, set);
+        if (!straights.isEmpty()) {
+            tiledFence(level, fieldIndex, manager, straights, corners, gate);
+        } else {
+            basicFence(level, fieldIndex, gate ? 4 : 1);
+        }
+
+        SignBlockEntity sign = findFieldSign(level, fieldIndex);
+        if (sign == null) {
+            // No gate (or a gate with no sign in it): the old standing sign.
+            BlockPos signPos = gateSignPos(fieldIndex);
+            level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
+            if (level.getBlockEntity(signPos) instanceof SignBlockEntity s) sign = s;
+        }
+        if (sign != null) writeFieldSign(sign, fieldIndex);
+    }
+
+    /**
+     * The gate's ledger: field number, opening date (preserved once written),
+     * soul count kept live as burials happen, filled date when the yard closes.
+     */
+    static void writeFieldSign(SignBlockEntity sign, int fieldIndex) {
+        String opened = sign.getFrontText().getMessage(1, false).getString();
+        if (!opened.startsWith("opened")) opened = "opened " + shortDate();
+        String filled = sign.getFrontText().getMessage(2, false).getString();
+        int souls = 0;
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) souls++;
+        }
+        SignText text = new SignText()
+                .setMessage(0, Component.literal("Grave Field " + (fieldIndex + 1)))
+                .setMessage(1, Component.literal(opened))
+                .setMessage(3, Component.literal(souls + (souls == 1 ? " soul" : " souls")))
+                .setHasGlowingText(true);
+        if (filled.startsWith("filled")) {
+            text = text.setMessage(2, Component.literal(filled));
+        }
+        sign.setText(text, true);
+        sign.setText(text, false);
+        sign.setChanged();
+    }
+
+    /** The last dry plot closes the field's ledger. */
+    private static void markFieldFull(ServerLevel level, int fieldIndex) {
+        SignBlockEntity sign = findFieldSign(level, fieldIndex);
+        if (sign == null) return;
+        SignText updated = sign.getFrontText()
+                .setMessage(2, Component.literal("filled " + shortDate()))
+                .setHasGlowingText(true);
+        sign.setText(updated, true);
+        sign.setText(updated, false);
+        sign.setChanged();
+        writeFieldSign(sign, fieldIndex);
+    }
+
+    /** The lych gate, centered on the south fence line, entrance facing out. */
+    private static boolean placeGate(ServerLevel level, int fieldIndex,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
+            String set) {
+        java.util.List<String> gates = StudioMode.approvedTemplates("gate", manager, set);
+        if (gates.isEmpty()) return false;
+        String piece = gates.get(Math.floorMod(fieldIndex * 7919, gates.size()));
+        var opt = manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
+        if (opt.isEmpty()) return false;
+        var template = opt.get();
+        int w = StudioMode.widthOfCategory("gate");
+        int d = StudioMode.CATEGORIES.stream().filter(cat -> cat.name().equals("gate"))
+                .mapToInt(StudioMode.Category::d).findFirst().orElse(7);
+        BlockPos c = fieldCenter(fieldIndex);
+        int fenceZ = c.getZ() + FIELD_HALF + 1;
+        int x0 = c.getX() - w / 2, z0 = fenceZ - d / 2;
+
+        int pad = Integer.MIN_VALUE, low = Integer.MAX_VALUE;
+        for (int x = x0; x < x0 + w; x++) {
+            for (int z = z0; z < z0 + d; z++) {
+                int g = GraveyardTerrain.groundHeight(x, z);
+                pad = Math.max(pad, g);
+                low = Math.min(low, g);
+            }
+        }
+        if (low < GraveyardTerrain.WATER_TOP) return false; // the gate never stands in water
+
+        BlockState tuff = Blocks.TUFF.defaultBlockState();
+        BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
+        for (int x = x0; x < x0 + w; x++) {
+            for (int z = z0; z < z0 + d; z++) {
+                level.getChunk(x >> 4, z >> 4);
+                for (int y = GraveyardTerrain.groundHeight(x, z); y < pad; y++) {
+                    level.setBlock(new BlockPos(x, y, z), tuff, 2);
+                }
+                level.setBlock(new BlockPos(x, pad, z), moss, 2);
+            }
+        }
+        int below = StudioMode.belowGradeOf(template, "gate");
+        BlockPos at = new BlockPos(x0, pad + 1 - below, z0);
+        template.placeInWorld(level, at, at, new StructurePlaceSettings(),
+                RandomSource.create(fieldIndex * 131L), 2);
+        return true;
+    }
+
+    /** The pale-oak default fence: posts and corner lanterns (gapHalf widens for the gate). */
+    private static void basicFence(ServerLevel level, int fieldIndex, int gapHalf) {
         BlockPos c = fieldCenter(fieldIndex);
         BlockState fence = Blocks.PALE_OAK_FENCE.defaultBlockState();
         BlockState lantern = Blocks.SOUL_LANTERN.defaultBlockState();
         int f = FIELD_HALF + 1;
         for (int x = c.getX() - f; x <= c.getX() + f; x++) {
-            boolean southGate = Math.abs(x - c.getX()) <= 1;
+            boolean southGate = Math.abs(x - c.getX()) <= gapHalf;
             fencePost(level, fence, x, c.getZ() - f);
             if (!southGate) fencePost(level, fence, x, c.getZ() + f);
         }
@@ -279,37 +424,99 @@ public final class GraveyardPlots {
             if (h < GraveyardTerrain.WATER_TOP) continue; // no drowned lanterns
             level.setBlock(new BlockPos(x, h + 2, z), lantern, 2);
         }
-
-        // Gate sign: which field this is, and when it opened — glowing, and
-        // written on BOTH faces so it reads from outside and inside the yard.
-        BlockPos signPos = gateSignPos(fieldIndex);
-        level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
-        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(0, Component.literal("Grave Field " + (fieldIndex + 1)))
-                    .setMessage(1, Component.literal("opened " + shortDate()))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
-            sign.setChanged();
-        }
     }
 
-    /** The last dry plot closes the field's ledger on the gate sign. */
-    private static void markFieldFull(ServerLevel level, int fieldIndex) {
-        int souls = 0;
-        for (GraveManager.Grave g : GraveManager.all()) {
-            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) souls++;
+    /**
+     * Fence-kit tiling: corner pieces (BUILT AS THE NORTH-WEST CORNER) rotate
+     * around the four turns; straight tiles (5 long, front facing the label =
+     * outward) repeat along each run, the last tile overlapping to land flush.
+     * Fence breaks at water, exactly like the pale-oak default.
+     */
+    private static void tiledFence(ServerLevel level, int fieldIndex,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
+            java.util.List<String> straights, java.util.List<String> corners, boolean gate) {
+        BlockPos c = fieldCenter(fieldIndex);
+        int f = FIELD_HALF + 1;
+        int west = c.getX() - f, east = c.getX() + f, north = c.getZ() - f, south = c.getZ() + f;
+
+        if (!corners.isEmpty()) {
+            placeFenceCorner(level, manager, corners, fieldIndex, west, north, Rotation.NONE);
+            placeFenceCorner(level, manager, corners, fieldIndex, east, north, Rotation.CLOCKWISE_90);
+            placeFenceCorner(level, manager, corners, fieldIndex, east, south, Rotation.CLOCKWISE_180);
+            placeFenceCorner(level, manager, corners, fieldIndex, west, south, Rotation.COUNTERCLOCKWISE_90);
+        } else {
+            BlockState fence = Blocks.PALE_OAK_FENCE.defaultBlockState();
+            for (int[] cn : new int[][]{{west, north}, {east, north}, {east, south}, {west, south}}) {
+                fencePost(level, fence, cn[0], cn[1]);
+            }
         }
-        BlockPos signPos = gateSignPos(fieldIndex);
-        if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText updated = sign.getFrontText()
-                    .setMessage(2, Component.literal("filled " + shortDate()))
-                    .setMessage(3, Component.literal(souls + " souls rest"))
-                    .setHasGlowingText(true);
-            sign.setText(updated, true);
-            sign.setText(updated, false);
-            sign.setChanged();
+
+        // North and south runs (east-west): front faces outward.
+        placeFenceRun(level, manager, straights, fieldIndex, true, north, west + 2, east - 2,
+                Rotation.CLOCKWISE_180);
+        if (gate) {
+            placeFenceRun(level, manager, straights, fieldIndex, true, south, west + 2, c.getX() - 5,
+                    Rotation.NONE);
+            placeFenceRun(level, manager, straights, fieldIndex, true, south, c.getX() + 5, east - 2,
+                    Rotation.NONE);
+        } else {
+            placeFenceRun(level, manager, straights, fieldIndex, true, south, west + 2, east - 2,
+                    Rotation.NONE);
+        }
+        // West and east runs (north-south).
+        placeFenceRun(level, manager, straights, fieldIndex, false, west, north + 2, south - 2,
+                Rotation.CLOCKWISE_90);
+        placeFenceRun(level, manager, straights, fieldIndex, false, east, north + 2, south - 2,
+                Rotation.COUNTERCLOCKWISE_90);
+    }
+
+    private static void placeFenceCorner(ServerLevel level,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
+            java.util.List<String> corners, int fieldIndex, int x, int z, Rotation rot) {
+        String piece = corners.get(Math.floorMod(fieldIndex * 31 + x + z, corners.size()));
+        var opt = manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
+        if (opt.isEmpty()) return;
+        int h = GraveyardTerrain.groundHeight(x, z);
+        if (h < GraveyardTerrain.WATER_TOP) return;
+        int below = StudioMode.belowGradeOf(opt.get(), "fence_corner");
+        BlockPos at = new BlockPos(x - 1, h + 1 - below, z - 1);
+        var settings = new StructurePlaceSettings().setRotation(rot)
+                .setRotationPivot(new BlockPos(1, 0, 1));
+        opt.get().placeInWorld(level, at, at, settings, RandomSource.create(x * 31L + z), 2);
+    }
+
+    /** One run of straight tiles from `from` to `to` (inclusive, along one axis). */
+    private static void placeFenceRun(ServerLevel level,
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
+            java.util.List<String> straights, int fieldIndex, boolean eastWest, int line,
+            int from, int to, Rotation rot) {
+        if (to - from + 1 < 5) return;
+        int t = from;
+        while (t <= to - 4) {
+            String piece = straights.get(Math.floorMod(fieldIndex * 17 + t, straights.size()));
+            var opt = manager.get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
+            if (opt.isPresent()) {
+                int centerA = t + 2;
+                int pad = Integer.MIN_VALUE, low = Integer.MAX_VALUE;
+                for (int a = t; a <= t + 4; a++) {
+                    int g = eastWest ? GraveyardTerrain.groundHeight(a, line)
+                                     : GraveyardTerrain.groundHeight(line, a);
+                    pad = Math.max(pad, g);
+                    low = Math.min(low, g);
+                }
+                if (low >= GraveyardTerrain.WATER_TOP) {
+                    int below = StudioMode.belowGradeOf(opt.get(), "fence_straight");
+                    BlockPos at = eastWest
+                            ? new BlockPos(centerA - 2, pad + 1 - below, line - 1)
+                            : new BlockPos(line - 2, pad + 1 - below, centerA - 1);
+                    var settings = new StructurePlaceSettings().setRotation(rot)
+                            .setRotationPivot(new BlockPos(2, 0, 1));
+                    opt.get().placeInWorld(level, at, at, settings,
+                            RandomSource.create(line * 31L + t), 2);
+                }
+            }
+            if (t == to - 4) break;
+            t = Math.min(t + 5, to - 4);
         }
     }
 
