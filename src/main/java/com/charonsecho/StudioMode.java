@@ -87,10 +87,10 @@ public final class StudioMode {
             new Category("headstone_small", 3, 3, 3, 2, false, 172),
             new Category("headstone_large", 5, 5, 5, 3, false, 182),
             new Category("headstone", 4, 4, 4, 3, false, 44),
-            new Category("tree", 7, 7, 10, 1, false, 58),
+            new Category("tree", 11, 11, 12, 1, false, 58),
             new Category("clutter", 3, 3, 3, 1, false, 76),
             new Category("ruin", 12, 12, 9, 3, true, 94),
-            new Category("big_tree", 11, 11, 14, 1, false, 116),
+            new Category("big_tree", 15, 15, 16, 1, false, 116),
             new Category("gate", 5, 3, 5, 1, false, 140),
             new Category("building", 16, 16, 12, 3, true, 152));
 
@@ -272,7 +272,7 @@ public final class StudioMode {
 
     /** Fingerprint of the current layout — changes when plots move or appear. */
     private static int layoutHash() {
-        int h = 23; // salt bumped: church height 48
+        int h = 29; // salt bumped: tree plots 11x11x12, big trees 15x15x16
         for (StudioPlot p : allPlots()) {
             h = h * 31 + (p.name() + ":" + p.x0() + ":" + p.z0() + ":" + p.w() + ":" + p.d()).hashCode();
         }
@@ -445,7 +445,7 @@ public final class StudioMode {
         // Trees row (z = 58).
         x = 0; z = 58;
         for (int i = 1; i <= 6; i++) {
-            x = addPlot(plots, "pale_tree_" + i, 7, 7, 10, false, x, z, gap);
+            x = addPlot(plots, "pale_tree_" + i, 11, 11, 12, false, x, z, gap);
         }
 
         // Clutter row (z = 76): benches, urns, candle clusters, statues.
@@ -465,8 +465,8 @@ public final class StudioMode {
 
         // Tall trees row (z = 116): ridgeline pieces.
         x = 0; z = 116;
-        x = addPlot(plots, "big_tree_1", 11, 11, 14, false, x, z, gap);
-        addPlot(plots, "big_tree_2", 11, 11, 14, false, x, z, gap);
+        x = addPlot(plots, "big_tree_1", 15, 15, 16, false, x, z, gap);
+        addPlot(plots, "big_tree_2", 15, 15, 16, false, x, z, gap);
 
         // Gates row (z = 140): field entrances — lych gate + variations.
         x = 0; z = 140;
