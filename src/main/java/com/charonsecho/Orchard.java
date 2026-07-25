@@ -264,6 +264,9 @@ public final class Orchard {
     private static void growTick(ServerLevel level, Tree tree, int ticks) {
         tree.totalTicks += ticks;
         tree.stageTicks += ticks;
+        if (tree.stage == 0) {
+            seedlingCreep(level, tree);
+        }
         ServerPlayer planter = level.getServer().getPlayerList().getPlayer(tree.owner);
         if (planter != null && planter.level() == level && inVigilArea(tree, planter)) {
             tree.vigilTicks += ticks;
@@ -271,6 +274,32 @@ public final class Orchard {
         long need = tree.stage == 0 ? CharonConfig.orchardStage1Ticks : CharonConfig.orchardStage2Ticks;
         if (tree.stageTicks >= need) {
             advanceStage(level, tree);
+        }
+    }
+
+    /**
+     * The ground claims its own: sculk veins creep outward around the planted
+     * sensor, reaching further as the seedling nears its first stage. Purely
+     * cosmetic — the veins are swept away when the tree rises through them.
+     */
+    private static void seedlingCreep(ServerLevel level, Tree tree) {
+        if (level.getRandom().nextFloat() > 0.15f) return;
+        double progress = Math.min(1.0,
+                (double) tree.stageTicks / Math.max(1, CharonConfig.orchardStage1Ticks));
+        int r = 1 + (int) Math.round(progress * 4);
+        int dx = level.getRandom().nextInt(r * 2 + 1) - r;
+        int dz = level.getRandom().nextInt(r * 2 + 1) - r;
+        if (dx == 0 && dz == 0) return;
+        // Find the surface near the sensor's level and lay a vein on it.
+        for (int dy = 1; dy >= -2; dy--) {
+            BlockPos pos = tree.base.offset(dx, dy, dz);
+            BlockPos ground = pos.below();
+            if (level.getBlockState(pos).isAir()
+                    && level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP)) {
+                level.setBlock(pos, Blocks.SCULK_VEIN.defaultBlockState()
+                        .setValue(BlockStateProperties.DOWN, true), 3);
+                return;
+            }
         }
     }
 
@@ -302,6 +331,19 @@ public final class Orchard {
             return;
         }
 
+        if (tree.stage == 0) {
+            // Sweep the seedling's creep — the tree rises through it.
+            for (int dx = -6; dx <= 6; dx++) {
+                for (int dz = -6; dz <= 6; dz++) {
+                    for (int dy = -2; dy <= 2; dy++) {
+                        BlockPos pos = tree.base.offset(dx, dy, dz);
+                        if (level.getBlockState(pos).is(Blocks.SCULK_VEIN)) {
+                            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                        }
+                    }
+                }
+            }
+        }
         clearRecorded(level, tree);
         pasteStage(level, tree, template.get(), category, next);
         tree.stage++;
