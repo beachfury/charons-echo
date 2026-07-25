@@ -587,6 +587,13 @@ vanilla items, growth is template pastes, all state in `world/charons_echo/orcha
 
 ## Decisions log
 
+- 2026-07-25: **Builder palette ruling.** All gray and black blocks are fair game,
+  including WOOL, CONCRETE POWDER, and CARPETS (dust layers, draped cloth, shadow
+  lines). Full CONCRETE is excluded — machine-flat, reads modern; for dead-smooth
+  gray use smooth basalt / polished deepslate. Eyeblossom scatter cut and flipped:
+  almost all CLOSED (dark buds), the rare open one staring back — the moor was
+  carrying too much white.
+
 - 2026-07-25: **Field furniture standards.** Lych gate is 9x7x8 (user's build sets the
   standard; fence opening matches). Fences become a buildable kit: `fence_straight`
   5x3x4 tiles repeated along field edges (last tile overlaps to end flush),

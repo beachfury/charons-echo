@@ -153,10 +153,12 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
                 (GraveyardTerrain.patchNoise(x, z, 90, 900) - 0.72) / 0.15)) {
             return Blocks.WITHER_ROSE.defaultBlockState();
         }
-        // Eyeblossoms stare from the moss flats (frozen dusk keeps them open).
-        if (roll < 0.25 * fade(
-                (GraveyardTerrain.patchNoise(x, z, 55, 1100) - 0.55) / 0.20)) {
-            return Blocks.OPEN_EYEBLOSSOM.defaultBlockState();
+        // Eyeblossoms on the moss flats — almost all CLOSED (dark buds; less
+        // white on the moor), the rare open one staring back.
+        if (roll < 0.10 * fade(
+                (GraveyardTerrain.patchNoise(x, z, 55, 1100) - 0.65) / 0.18)) {
+            return roll < 0.015 ? Blocks.OPEN_EYEBLOSSOM.defaultBlockState()
+                                : Blocks.CLOSED_EYEBLOSSOM.defaultBlockState();
         }
         // Torchflowers: the old folk's plantings, vanishingly rare.
         if (roll < 0.08 * fade(
