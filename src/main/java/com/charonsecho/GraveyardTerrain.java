@@ -78,6 +78,11 @@ public final class GraveyardTerrain {
         return valueNoise(x / 18.0 + 300.0, z / 18.0 + 300.0);
     }
 
+    /** Generic species patch noise: each groundcover species gets its own salt. */
+    public static double patchNoise(int x, int z, double scale, double salt) {
+        return valueNoise(x / scale + salt, z / scale + salt * 1.7);
+    }
+
     /** Per-block hash in [0, 1) — used for scatter decoration like moss carpets. */
     public static double blockHash(int x, int z) {
         return (lattice(x * 7 + 13, z * 7 + 71) + 1.0) / 2.0;

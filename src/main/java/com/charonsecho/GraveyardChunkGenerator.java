@@ -88,16 +88,90 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
                     worldSurface.update(dx, y, dz, state);
                 }
 
-                // Sparse pale-moss-carpet tufts on open moss ground.
-                if (!flooded && surf.is(Blocks.PALE_MOSS_BLOCK)
-                        && GraveyardTerrain.blockHash(x, z) < 0.10) {
-                    pos.set(x, h + 1, z);
-                    chunk.setBlockState(pos, carpet);
-                    worldSurface.update(dx, h + 1, dz, carpet);
+                // Groundcover: species-by-species patch noise, then the old
+                // moss-carpet tufts as the fallback filler.
+                if (!flooded) {
+                    BlockState plant = groundcover(x, z, h, surf);
+                    if (plant != null) {
+                        pos.set(x, h + 1, z);
+                        chunk.setBlockState(pos, plant);
+                        worldSurface.update(dx, h + 1, dz, plant);
+                    } else if (surf.is(Blocks.PALE_MOSS_BLOCK)
+                            && GraveyardTerrain.blockHash(x, z) < 0.10) {
+                        pos.set(x, h + 1, z);
+                        chunk.setBlockState(pos, carpet);
+                        worldSurface.update(dx, h + 1, dz, carpet);
+                    }
                 }
             }
         }
         return CompletableFuture.completedFuture(chunk);
+    }
+
+    /**
+     * Groundcover species, first match wins. Everything is seed-deterministic
+     * patch noise + per-block hash; color exceptions (fireflies, torchflower,
+     * wither roses) are rare and meaningful.
+     */
+    private static BlockState groundcover(int x, int z, int h, BlockState surf) {
+        double roll = GraveyardTerrain.blockHash(x, z);
+        boolean onMoss = surf.is(Blocks.PALE_MOSS_BLOCK);
+
+        // Glow lichen clings to the exposed rock faces.
+        if (surf.is(Blocks.DEEPSLATE)) {
+            return roll < 0.22 ? Blocks.GLOW_LICHEN.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DOWN, true)
+                    : null;
+        }
+        // Dead bush punctuates the tuff barrens.
+        if (surf.is(Blocks.TUFF)) {
+            return roll < 0.18 ? Blocks.DEAD_BUSH.defaultBlockState() : null;
+        }
+        if (!onMoss) return null;
+
+        // Firefly bushes trace the water's edge.
+        if (roll < 0.35 && waterAdjacent(x, z)) {
+            return Blocks.FIREFLY_BUSH.defaultBlockState();
+        }
+        // Sculk veins bleed outward past the vale pools.
+        if (h <= 58 && roll < 0.5) {
+            double sn = GraveyardTerrain.surfaceNoise(x, z);
+            if (sn > 0.0 && sn <= 0.10) {
+                return Blocks.SCULK_VEIN.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DOWN, true);
+            }
+        }
+        // Twisting vines reach up from the low places.
+        if (h <= 56 && roll < 0.30
+                && GraveyardTerrain.patchNoise(x, z, 40, 700) > 0.45) {
+            return Blocks.TWISTING_VINES.defaultBlockState();
+        }
+        // Wither-rose fields: rare — something terrible happened here.
+        if (roll < 0.40 && GraveyardTerrain.patchNoise(x, z, 90, 900) > 0.72) {
+            return Blocks.WITHER_ROSE.defaultBlockState();
+        }
+        // Eyeblossoms stare from the moss flats (frozen dusk keeps them open).
+        if (roll < 0.25 && GraveyardTerrain.patchNoise(x, z, 55, 1100) > 0.55) {
+            return Blocks.OPEN_EYEBLOSSOM.defaultBlockState();
+        }
+        // Torchflowers: the old folk's plantings, vanishingly rare.
+        if (roll < 0.08 && GraveyardTerrain.patchNoise(x, z, 130, 1300) > 0.85) {
+            return Blocks.TORCHFLOWER.defaultBlockState();
+        }
+        // Dry grass is the base texture of the moor.
+        if (roll < 0.45 && GraveyardTerrain.patchNoise(x, z, 70, 1500) > 0.15) {
+            return roll < 0.07 ? Blocks.TALL_DRY_GRASS.defaultBlockState()
+                               : Blocks.SHORT_DRY_GRASS.defaultBlockState();
+        }
+        return null;
+    }
+
+    /** Any cardinal neighbor column flooded → this is a bank. */
+    private static boolean waterAdjacent(int x, int z) {
+        return GraveyardTerrain.groundHeight(x + 1, z) < GraveyardTerrain.WATER_TOP
+                || GraveyardTerrain.groundHeight(x - 1, z) < GraveyardTerrain.WATER_TOP
+                || GraveyardTerrain.groundHeight(x, z + 1) < GraveyardTerrain.WATER_TOP
+                || GraveyardTerrain.groundHeight(x, z - 1) < GraveyardTerrain.WATER_TOP;
     }
 
     /**
