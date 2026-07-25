@@ -133,37 +133,48 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
         if (roll < 0.35 && waterAdjacent(x, z)) {
             return Blocks.FIREFLY_BUSH.defaultBlockState();
         }
-        // Sculk veins bleed outward past the vale pools.
-        if (h <= 58 && roll < 0.5) {
+        // Sculk veins bleed outward past the vale pools — densest at the band
+        // center, feathering to nothing at both edges.
+        if (h <= 58) {
             double sn = GraveyardTerrain.surfaceNoise(x, z);
-            if (sn > 0.0 && sn <= 0.10) {
+            double band = Math.min(sn / 0.04, (0.10 - sn) / 0.04);
+            if (roll < 0.5 * fade(band)) {
                 return Blocks.SCULK_VEIN.defaultBlockState()
                         .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DOWN, true);
             }
         }
         // Twisting vines reach up from the low places.
-        if (h <= 56 && roll < 0.30
-                && GraveyardTerrain.patchNoise(x, z, 40, 700) > 0.45) {
+        if (h <= 56 && roll < 0.30 * fade(
+                (GraveyardTerrain.patchNoise(x, z, 40, 700) - 0.45) / 0.20)) {
             return Blocks.TWISTING_VINES.defaultBlockState();
         }
         // Wither-rose fields: rare — something terrible happened here.
-        if (roll < 0.40 && GraveyardTerrain.patchNoise(x, z, 90, 900) > 0.72) {
+        if (roll < 0.40 * fade(
+                (GraveyardTerrain.patchNoise(x, z, 90, 900) - 0.72) / 0.15)) {
             return Blocks.WITHER_ROSE.defaultBlockState();
         }
         // Eyeblossoms stare from the moss flats (frozen dusk keeps them open).
-        if (roll < 0.25 && GraveyardTerrain.patchNoise(x, z, 55, 1100) > 0.55) {
+        if (roll < 0.25 * fade(
+                (GraveyardTerrain.patchNoise(x, z, 55, 1100) - 0.55) / 0.20)) {
             return Blocks.OPEN_EYEBLOSSOM.defaultBlockState();
         }
         // Torchflowers: the old folk's plantings, vanishingly rare.
-        if (roll < 0.08 && GraveyardTerrain.patchNoise(x, z, 130, 1300) > 0.85) {
+        if (roll < 0.08 * fade(
+                (GraveyardTerrain.patchNoise(x, z, 130, 1300) - 0.85) / 0.10)) {
             return Blocks.TORCHFLOWER.defaultBlockState();
         }
-        // Dry grass is the base texture of the moor.
-        if (roll < 0.45 && GraveyardTerrain.patchNoise(x, z, 70, 1500) > 0.15) {
+        // Dry grass is the base texture of the moor, fading in over wide rims.
+        if (roll < 0.45 * fade(
+                (GraveyardTerrain.patchNoise(x, z, 70, 1500) - 0.15) / 0.35)) {
             return roll < 0.07 ? Blocks.TALL_DRY_GRASS.defaultBlockState()
                                : Blocks.SHORT_DRY_GRASS.defaultBlockState();
         }
         return null;
+    }
+
+    /** Clamp to [0,1]: density ramps across patch rims instead of hard edges. */
+    private static double fade(double t) {
+        return t < 0 ? 0 : Math.min(t, 1.0);
     }
 
     /** Any cardinal neighbor column flooded → this is a bank. */
