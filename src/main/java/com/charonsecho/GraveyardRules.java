@@ -35,6 +35,9 @@ public final class GraveyardRules {
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (world, player, pos, state, blockEntity) -> {
                     if (world.dimension() == CharonsEcho.GRAVEYARD_DIM) {
+                        // The one thing the living may take from the dead's
+                        // world: ripe Tollfruit (the Orchard handler collects it).
+                        if (Orchard.isRipeFruit(world, pos)) return true;
                         return player instanceof net.minecraft.server.level.ServerPlayer sp
                                 && Gravekeepers.canBuild(sp);
                     }

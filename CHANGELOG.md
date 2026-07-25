@@ -2,6 +2,31 @@
 
 ## 0.1.0 — in development
 
+- THE STYGIAN ORCHARD — plant the Withered Grove in the overworld. **The Broker**,
+  a trader who stopped wandering long ago, stands in Charon's Echo selling
+  **Stygian Seeds** (config `orchard-seed-price`, default 32 emeralds). Plant one
+  on solid ground: it grows in two stages (small tree, then a grown elder) while
+  its chunk is loaded. Grown trees hang **Tollfruit** from their chains — a
+  mangrove-root bud that sculk slowly seals, then ripens into a glowing froglight.
+  Break the ripe fruit (anyone may), and **craft 4 Tollfruit → 1 Charon's Obol**.
+  The tree itself drops NOTHING as blocks: breaking any part of it without a
+  netherite axe fails; with one, a felling ritual crumbles the whole tree to
+  nothing and returns only its seed. Per-player tree cap (`orchard-tree-cap`,
+  default 3). Trees only grow into open ground and wait politely when blocked.
+  Fruit per cycle is a weighted roll (1–4); the tree rests after a full harvest.
+  Wild elders in Charon's Echo bear fruit too — the one thing the living may
+  take from the graveyard — and elder growth has its mysteries.
+- Big-slot decor (ruins, wild elders) tolerates relief 5 on its footprint —
+  flat-ground demands left the wilds with no big pieces at all; wild elders are
+  deliberately rare (~1 in 5–6 big slots).
+- Fixed: graveyard chunks already loaded at server start (forceloaded areas)
+  were dropped from the decoration queue and never decorated.
+- Fixed: saved studio plots created under an older layout could overlap the
+  widened base rows — default-row plots now re-fit to the current layout on
+  every load. `/charon plot new <category> <category>` no longer doubles the
+  prefix, and `/charon plot remove <name>` (admin) deletes a builder plot.
+- Graves face WEST, the way of the dead; ghosts arrive facing their own epitaph.
+
 - Headstone size classes: small 3×3×3 markers, standard 4×4×4 stones, large 5×5×5
   monuments (new default-set rows headstone_small_1..4, headstone_large_1..2). The
   TERRAIN picks the class per grave — flat ground rolls the full mix (60/25/15),

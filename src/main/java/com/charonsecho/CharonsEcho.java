@@ -46,6 +46,9 @@ public final class CharonsEcho implements ModInitializer {
         PortalManager.register();
         // Seed-deterministic decoration scatter (trees, clutter, ruins).
         DecorScatter.register();
+        // The Stygian Orchard: plant Withered Grove trees, harvest Tollfruit.
+        Orchard.register();
+        Broker.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
@@ -55,6 +58,9 @@ public final class CharonsEcho implements ModInitializer {
             Gravekeepers.load(server);
             StudioSets.load(server);
             StudioMode.loadDynamic(server);
+            Orchard.load(server);
+            Orchard.detectElder(server);
+            Broker.ensure(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid
             ServerLevel studio = server.getLevel(STUDIO_DIM);
@@ -66,6 +72,7 @@ public final class CharonsEcho implements ModInitializer {
             GraveManager.save();
             GhostState.save();
             DecorScatter.save();
+            Orchard.save();
         });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) ->

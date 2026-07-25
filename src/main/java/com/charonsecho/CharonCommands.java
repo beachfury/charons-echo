@@ -398,6 +398,78 @@ public final class CharonCommands {
                             .withStyle(on ? ChatFormatting.YELLOW : ChatFormatting.GREEN));
                     return 1;
                 }))
+                .then(Commands.literal("orchard")
+                        .then(Commands.literal("seed").executes(ctx -> {
+                            ServerPlayer player = admin(ctx);
+                            if (player == null) return 0;
+                            player.getInventory().add(StygianItems.seed(1));
+                            return 1;
+                        })
+                                .then(Commands.literal("elder").executes(ctx -> {
+                                    ServerPlayer player = admin(ctx);
+                                    if (player == null) return 0;
+                                    if (!Orchard.lineAlive || Orchard.motherId == null) {
+                                        return err(player, "No living line — found one first"
+                                                + " (grow an elder, or give a mother seed).");
+                                    }
+                                    player.getInventory().add(
+                                            StygianItems.elderSeed(java.util.UUID.randomUUID()));
+                                    return 1;
+                                }))
+                                .then(Commands.literal("mother").executes(ctx -> {
+                                    ServerPlayer player = admin(ctx);
+                                    if (player == null) return 0;
+                                    // Founds (or re-founds) the line on the spot — test hook.
+                                    Orchard.motherId = java.util.UUID.randomUUID();
+                                    Orchard.motherOwner = player.getUUID();
+                                    Orchard.motherOwnerName = player.getName().getString();
+                                    Orchard.motherLastSeen = System.currentTimeMillis();
+                                    Orchard.lineAlive = true;
+                                    Orchard.motherTreeId = null;
+                                    Orchard.save();
+                                    player.getInventory().add(StygianItems.motherSeed(Orchard.motherId));
+                                    player.sendSystemMessage(Component.literal(
+                                            "A new line is founded. You are its keeper.")
+                                            .withStyle(ChatFormatting.DARK_PURPLE));
+                                    return 1;
+                                })))
+                        .then(Commands.literal("grow").executes(ctx -> {
+                            ServerPlayer player = admin(ctx);
+                            if (player == null) return 0;
+                            var tree = Orchard.nearest((ServerLevel) player.level(), player.blockPosition());
+                            if (tree == null) return err(player, "No orchard tree in this dimension.");
+                            player.sendSystemMessage(Component.literal(
+                                    Orchard.debugGrow((ServerLevel) player.level(), tree))
+                                    .withStyle(ChatFormatting.GREEN));
+                            return 1;
+                        }))
+                        .then(Commands.literal("fruit").executes(ctx -> {
+                            ServerPlayer player = admin(ctx);
+                            if (player == null) return 0;
+                            var tree = Orchard.nearest((ServerLevel) player.level(), player.blockPosition());
+                            if (tree == null) return err(player, "No orchard tree in this dimension.");
+                            player.sendSystemMessage(Component.literal(
+                                    Orchard.debugFruit((ServerLevel) player.level(), tree))
+                                    .withStyle(ChatFormatting.GREEN));
+                            return 1;
+                        }))
+                        .then(Commands.literal("info").executes(ctx -> {
+                            ServerPlayer player = admin(ctx);
+                            if (player == null) return 0;
+                            var tree = Orchard.nearest((ServerLevel) player.level(), player.blockPosition());
+                            if (tree == null) return err(player, "No orchard tree in this dimension.");
+                            player.sendSystemMessage(Component.literal(Orchard.describe(tree))
+                                    .withStyle(ChatFormatting.GRAY));
+                            return 1;
+                        }))
+                        .then(Commands.literal("broker").executes(ctx -> {
+                            ServerPlayer player = admin(ctx);
+                            if (player == null) return 0;
+                            Broker.moveTo(player);
+                            player.sendSystemMessage(Component.literal("The Broker takes his post here.")
+                                    .withStyle(ChatFormatting.GOLD));
+                            return 1;
+                        })))
                 .then(Commands.literal("rebuild-decor").executes(ctx -> {
                     ServerPlayer player = admin(ctx);
                     if (player == null) return 0;

@@ -25,6 +25,22 @@ public final class CharonConfig {
     public static volatile double ghostTetherRadius = 24.0;
     /** Charon's toll without an obol: percent of the grave's XP taken. */
     public static volatile int tollXpPercent = 50;
+    /** The Broker's price for one Stygian Seed, in emeralds. */
+    public static volatile int orchardSeedPrice = 32;
+    /** How many orchard trees one player may have planted at once. */
+    public static volatile int orchardTreeCap = 3;
+    /** Loaded ticks from seedling to the small tree (48000 = 40 real minutes). */
+    public static volatile int orchardStage1Ticks = 48000;
+    /** Loaded ticks from small tree to the grown tree. */
+    public static volatile int orchardStage2Ticks = 72000;
+    /** Loaded ticks per sculk face closing over a growing fruit (5 faces). */
+    public static volatile int orchardFruitFaceTicks = 2400;
+    /** Loaded ticks a sealed fruit takes to ripen. */
+    public static volatile int orchardFruitSealTicks = 6000;
+    /** Loaded ticks a tree rests after a full harvest before budding again. */
+    public static volatile int orchardDormancyTicks = 24000;
+    /** Real days the mother's owner may be absent before the line dies. */
+    public static volatile int motherAbsenceDays = 30;
 
     private CharonConfig() {}
 
@@ -42,6 +58,14 @@ public final class CharonConfig {
             wakeTimeoutSeconds = clamp(inted(p, "wake-timeout-seconds", wakeTimeoutSeconds), 5, 600);
             ghostTetherRadius = clamp(inted(p, "ghost-tether-radius", (int) ghostTetherRadius), 8, 256);
             tollXpPercent = clamp(inted(p, "toll-xp-percent", tollXpPercent), 0, 100);
+            orchardSeedPrice = clamp(inted(p, "orchard-seed-price", orchardSeedPrice), 1, 4096);
+            orchardTreeCap = clamp(inted(p, "orchard-tree-cap", orchardTreeCap), 1, 64);
+            orchardStage1Ticks = clamp(inted(p, "orchard-stage1-ticks", orchardStage1Ticks), 200, 12000000);
+            orchardStage2Ticks = clamp(inted(p, "orchard-stage2-ticks", orchardStage2Ticks), 200, 12000000);
+            orchardFruitFaceTicks = clamp(inted(p, "orchard-fruit-face-ticks", orchardFruitFaceTicks), 100, 12000000);
+            orchardFruitSealTicks = clamp(inted(p, "orchard-fruit-seal-ticks", orchardFruitSealTicks), 100, 12000000);
+            orchardDormancyTicks = clamp(inted(p, "orchard-dormancy-ticks", orchardDormancyTicks), 100, 12000000);
+            motherAbsenceDays = clamp(inted(p, "mother-absence-days", motherAbsenceDays), 1, 3650);
 
             // Always write the full set back so new keys appear for admins.
             p.setProperty("set-default-size", Integer.toString(setDefaultSize));
@@ -49,6 +73,14 @@ public final class CharonConfig {
             p.setProperty("wake-timeout-seconds", Integer.toString(wakeTimeoutSeconds));
             p.setProperty("ghost-tether-radius", Integer.toString((int) ghostTetherRadius));
             p.setProperty("toll-xp-percent", Integer.toString(tollXpPercent));
+            p.setProperty("orchard-seed-price", Integer.toString(orchardSeedPrice));
+            p.setProperty("orchard-tree-cap", Integer.toString(orchardTreeCap));
+            p.setProperty("orchard-stage1-ticks", Integer.toString(orchardStage1Ticks));
+            p.setProperty("orchard-stage2-ticks", Integer.toString(orchardStage2Ticks));
+            p.setProperty("orchard-fruit-face-ticks", Integer.toString(orchardFruitFaceTicks));
+            p.setProperty("orchard-fruit-seal-ticks", Integer.toString(orchardFruitSealTicks));
+            p.setProperty("orchard-dormancy-ticks", Integer.toString(orchardDormancyTicks));
+            p.setProperty("mother-absence-days", Integer.toString(motherAbsenceDays));
             Files.createDirectories(file.getParent());
             try (OutputStream out = Files.newOutputStream(file)) {
                 p.store(out, "Charon's Echo — edit and restart to apply");

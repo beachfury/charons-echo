@@ -36,6 +36,34 @@ public final class ObolRecipe {
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resources, success) -> inject(server));
     }
 
+    /**
+     * Four TOLLFRUIT (our marked froglights) — vanilla ingredients ignore
+     * components, so the shapeless match is tightened to require the marker.
+     * A pile of plain ochre froglights buys nothing from the Ferryman.
+     */
+    private static final class TollfruitRecipe extends ShapelessRecipe {
+        TollfruitRecipe() {
+            super(new Recipe.CommonInfo(true),
+                    new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, "charons_echo"),
+                    ItemStackTemplate.fromNonEmptyStack(CharonObol.create(1)),
+                    List.of(Ingredient.of(Items.OCHRE_FROGLIGHT),
+                            Ingredient.of(Items.OCHRE_FROGLIGHT),
+                            Ingredient.of(Items.OCHRE_FROGLIGHT),
+                            Ingredient.of(Items.OCHRE_FROGLIGHT)));
+        }
+
+        @Override
+        public boolean matches(net.minecraft.world.item.crafting.CraftingInput input,
+                               net.minecraft.world.level.Level level) {
+            if (!super.matches(input, level)) return false;
+            for (int i = 0; i < input.size(); i++) {
+                var stack = input.getItem(i);
+                if (!stack.isEmpty() && !StygianItems.isTollfruit(stack)) return false;
+            }
+            return true;
+        }
+    }
+
     private static void inject(MinecraftServer server) {
         try {
             ShapelessRecipe recipe = new ShapelessRecipe(
@@ -49,15 +77,24 @@ public final class ObolRecipe {
                     ResourceKey.create(Registries.RECIPE,
                             Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, "obol")),
                     recipe);
+            RecipeHolder<?> fruitHolder = new RecipeHolder<>(
+                    ResourceKey.create(Registries.RECIPE,
+                            Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, "tollfruit_obol")),
+                    new TollfruitRecipe());
 
             RecipeManager manager = server.getRecipeManager();
             Field recipesField = RecipeManager.class.getDeclaredField("recipes");
             recipesField.setAccessible(true);
             RecipeMap current = (RecipeMap) recipesField.get(manager);
             List<RecipeHolder<?>> all = new ArrayList<>(current.values());
-            boolean present = all.stream().anyMatch(h -> h.id().equals(holder.id()));
-            if (!present) {
-                all.add(holder);
+            boolean changed = false;
+            for (RecipeHolder<?> h : List.of(holder, fruitHolder)) {
+                if (all.stream().noneMatch(x -> x.id().equals(h.id()))) {
+                    all.add(h);
+                    changed = true;
+                }
+            }
+            if (changed) {
                 recipesField.set(manager, RecipeMap.create(all));
                 manager.finalizeRecipeLoading(server.getWorldData().enabledFeatures());
             }

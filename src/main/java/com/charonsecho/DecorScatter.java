@@ -123,7 +123,8 @@ public final class DecorScatter {
 
     private static String pickCategory(long h, boolean big) {
         double roll = Math.floorMod(h >> 44, 1000) / 1000.0;
-        if (big) return roll < 0.6 ? "ruin" : "big_tree";
+        // Wild elders are landmarks, not wallpaper — most big slots are ruins.
+        if (big) return roll < 0.82 ? "ruin" : "big_tree";
         return roll < 0.65 ? "tree" : "clutter";
     }
 
@@ -142,7 +143,11 @@ public final class DecorScatter {
                 if (hh > max) max = hh;
             }
         }
-        return min >= GraveyardTerrain.WATER_TOP && (max - min) <= 3;
+        // Big pieces tolerate more slope — knuckle roots and ruin rubble read
+        // fine half-buried, and demanding flat 15x15 ground in these hills
+        // would leave the wilds without a single elder or ruin.
+        int maxRelief = cat.w() >= 12 ? 5 : 3;
+        return min >= GraveyardTerrain.WATER_TOP && (max - min) <= maxRelief;
     }
 
     /**
@@ -153,6 +158,10 @@ public final class DecorScatter {
     private static String choosePiece(ServerLevel level, String category, int x, int z) {
         List<String> options = StudioMode.approvedTemplates(category,
                 level.getServer().getStructureManager(), StudioSets.setForRegion(x, z));
+        if (category.equals("big_tree")) {
+            // The 6-chain elder never grows wild — every one is earned.
+            options = options.stream().filter(o -> !o.equals(Orchard.elderTemplate())).toList();
+        }
         if (options.isEmpty()) return "";
         int idx = (int) Math.floorMod(mix(x, z, 991L), options.size());
         return options.get(idx);
@@ -188,6 +197,11 @@ public final class DecorScatter {
                 .setRotationPivot(new BlockPos(w / 2, 0, w / 2));
         template.get().placeInWorld(level, at, at, settings,
                 RandomSource.create(mix(x, z, 555L)), 2);
+
+        if (category.equals("big_tree")) {
+            // Wild elders bear Tollfruit for whoever dares walk here alive.
+            Orchard.registerWild(level, new BlockPos(x + w / 2, y + 1, z + w / 2), piece);
+        }
     }
 
     /** Clear a slot's build volume back to air above the terrain. */
@@ -212,6 +226,7 @@ public final class DecorScatter {
      * first time, with all items re-scattered. Terrain and graves untouched.
      */
     public static int rebuild(ServerLevel level) {
+        Orchard.clearWild(); // wild trees re-register as their slots re-place
         int placed = 0;
         for (Map.Entry<Long, Placement> entry : PLACEMENTS.entrySet()) {
             Placement p = entry.getValue();
@@ -232,7 +247,10 @@ public final class DecorScatter {
     public static void load(MinecraftServer server) {
         DECORATED.clear();
         PLACEMENTS.clear();
-        PENDING.clear();
+        // PENDING is NOT cleared: forceloaded graveyard chunks fire CHUNK_LOAD
+        // during startup, before this runs — clearing here would silently drop
+        // them and they'd never decorate. Already-decorated keys are skipped
+        // in tick() anyway.
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("decor.dat");
         if (!Files.exists(file)) return;
         try {
