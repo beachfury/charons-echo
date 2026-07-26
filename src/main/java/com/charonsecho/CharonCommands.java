@@ -167,8 +167,9 @@ public final class CharonCommands {
         dispatcher.register(Commands.literal("charon")
                 .executes(ctx -> {
                     ctx.getSource().sendSystemMessage(Component.literal(
-                            "Charon's Echo — studio | export [name] | place <name> | plot new/approve/remove/list | "
-                            + "visit | back | obol [n] | revive [player] | builder add/remove/list | rebuild-graves")
+                            "Charon's Echo — ledger | oath [quit] || builders: studio | export | place | plot | set || "
+                            + "admins: visit | spawn here | back | obol [n] | revive | builder | orchard | "
+                            + "rebuild-graves | rebuild-decor | testmode")
                             .withStyle(ChatFormatting.GRAY));
                     return 1;
                 })

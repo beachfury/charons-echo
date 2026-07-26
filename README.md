@@ -1,68 +1,94 @@
 # Charon's Echo
 
-**Death, reimagined.** When you die, your items don't scatter — Charon takes them. A smoking
-portal rises at the site of your death, and your ghost must cross into *Charon's Echo*, an
-endless misty graveyard dimension, to pay the Ferryman and reclaim what you lost. Every death
-digs a headstone. The graveyard **is** the history of your server.
+**Death, reimagined.** When you die, your items don't scatter — Charon takes them.
+A soul-fire portal rises where you fell, and your ghost must cross into
+*Charon's Echo*, an endless dusk-lit graveyard dimension, to stand at your own
+grave and settle with the Ferryman. Every death digs a headstone. The graveyard
+**is** the history of your server.
 
 Built for the CurseForge **Minecraft ModJam 2026 — "Echoes of the Past."**
 
-## Highlights
+## The death loop
 
-- **Server-side only** — vanilla Java clients and Bedrock players (via Geyser) join with no
-  client mod, no resource pack.
-- **The graveyard dimension** — monochrome hills of pale moss and deepslate under the End's
-  void sky. A gothic church, endless terraced grave fields, a winding river, silence in the
-  air, and blind Wardens patrolling the paths as passive gravekeepers.
-- **Echo Shards** — Charon's fare, crafted or bought in advance. Soul-bound: the one thing
-  death cannot take. Die without one and the Ferryman takes his toll — half your XP, or your
-  most valuable item, held ransom in his vault.
-- **Ghosts** — invisible but for a wisp of soul-fire, tethered to the site of death until
-  they cross the portal. Teammates can kneel and drop a shard on your body to pay your fare.
-- **Every grave persists** — epitaphs, the Book of the Dead, flower tributes, and a Death of
-  the Week enshrined by the church door.
-- **An expanding world border** — the world of the dead literally grows as your server's
-  dead accumulate.
+1. **You die.** Your body lies in state for a minute — friends can kneel and lay
+   a **Charon's Obol** on you to pay your fare.
+2. **You rise as a ghost** — invisible but for a wisp of soul-fire, tethered to
+   where you fell, until you walk into the portal.
+3. **You arrive at your own grave** in Charon's Echo, and touch the stone.
+   Charon offers three ways back:
+   - **Pay the fare** — one Charon's Obol (craft: echo shard + gold + soul sand,
+     soul-bound through death; or buy from the Broker's orchard, below).
+   - **Pay the toll** — a cut of your XP.
+   - **Take the oath** — enlist in the War Below the Moon and pay with time.
+4. **Resurrection at the stone** — items, XP, and a portal home to where you fell.
+   Beds never mattered.
+
+## The world of the dead
+
+- **Server-side only** — vanilla Java clients and Bedrock players (via Geyser)
+  join with no client mod and no resource pack.
+- **A unique graveyard per world** — monochrome hills seeded from your world:
+  pale moss, gravel scree, sculk vales, a winding river, hand-built withered
+  trees, and grave fields that spiral outward as the dead accumulate, each
+  behind its own lych gate with a living ledger sign.
+- **The church** on the plateau: the **Broker** sells Stygian Seeds, the
+  **Scrivener** hands out free books so the dead can write their stories, and
+  the **Book of the Dead** rests on the lectern.
+- **The crypt grows with the dead** — beneath the church, seven day-shelves
+  hold a rolling week of the fallen, and the first death of every month breaks
+  the seal and carves that month's hall. A year-old server has a corridor
+  twelve halls deep.
+- **Grave books and flower tributes** — write your death story into your stone;
+  the living shift-click flowers onto graves (the only color in this world),
+  and the most-mourned soul is crowned **Death of the Week**.
+
+## The Stygian Orchard
+
+Buy a **Stygian Seed** from the Broker and plant it in the overworld. It grows
+(in its own time) into a withered tree that hangs **Tollfruit** from its
+chains — sculk seals each fruit, then it ripens into glowing amber. Four
+Tollfruit craft one obol. The tree drops nothing else, ever: felling it
+(netherite axe, a slow ritual) returns only its seed. Wild elders in the
+graveyard bear fruit too — the one thing the living may take from the dead's
+world. And some trees are more than they seem.
+
+## The War Below the Moon
+
+An eternal three-sided war, fought at the newest grave field: iron golem and
+creaking **Keepers** hold the yards, the risen **Restless** tear at them, and
+the **Hollow Wind** raids both. The war cannot see the living — walk through
+it untouched. Only the enlisted dead are real to it: take the oath, receive a
+loaned kit, fight (enemies downed shave your sentence), and serve out your
+clock for a free resurrection. Enlisted players of opposing banners can fight
+each other — defeat costs service time, never items. Filled fields become
+settled ground; the front marches on.
 
 ## Requirements
 
-- Minecraft **26.2** (Fabric) — a 26.1.2 build is planned
-- Fabric API, [sgui](https://maven.nucleoid.xyz) (jar in the mods folder)
+- Minecraft **26.2** (Fabric)
+- [Fabric API](https://modrinth.com/mod/fabric-api) and
+  [sgui](https://maven.nucleoid.xyz) in the mods folder
 
-## Status
-
-Early development for the jam — the core death loop is under construction. See
-[DESIGN.md](DESIGN.md) for the full design and [CHANGELOG.md](CHANGELOG.md) for progress.
+Every timer, price, cap, and war knob lives in
+`config/charons-echo.properties`, written as a documented manual.
 
 ## For builders: the Studio
 
-All landmark builds (headstones, trees, gates, ruins, the church, crypt pieces) are
-hand-built structure templates, authored in the Studio — a flat builders-only world:
+All landmark builds (headstones, trees, gates, the church, crypt pieces) are
+hand-built structure templates, authored in the Studio — a flat builders-only
+world:
 
-- `/charon studio` — enter (gamemasters and rostered gravekeepers only; add builders
-  with `/charon builder add <player>`)
-- Build inside a plot outline. **Lime = NW anchor, orange = south** — your build's
-  front faces its label sign. Include exactly ONE sign per headstone (any sign type);
-  the mod writes name/date/cause onto it. You may dig below grade — coffins, roots,
-  and foundations ship (depth varies by category).
-- `/charon plot new <category> <name>` — stake a new correctly-sized plot (tab-complete
-  shows categories; names are auto-prefixed)
-- `/charon export [name]` — capture the plot to a template. Exports overwrite in place.
-- `/charon place <name>` — paste any template at your feet for review
-- Sets (style families): `/charon set new <name> [size]` stakes a bordered area where a
-  coherent style is built; admin `set trust` locks it to its steward + invitees,
-  `set approve` puts every exported piece into generation, `set reopen` allows
-  additions (shipped after the next approval). Each graveyard region draws from ONE set.
+- `/charon studio` — enter (gamemasters and rostered gravekeepers only; add
+  builders with `/charon builder add <player>`)
+- Build inside a plot outline; your build's front faces its label sign. You may
+  dig below grade — coffins, roots, floors, and foundations ship.
+- `/charon plot new <category> <name>` stakes a plot,
+  `/charon export [name]` captures it, `/charon place <name>` reviews it.
+- Sets (style families): `/charon set new <name> [size]`, with a
+  trust/approve/reopen lifecycle. Each graveyard region draws from ONE set.
 
-**EXPORT = SAVE.** Studio builds are just blocks in a world; templates are forever.
-- Anything **exported** is safe: it generates in-game immediately, and the Studio
-  self-restores it — any empty plot with a known template regrows its build at server
-  start. Deleting the studio dimension resets it to a clean gallery of everything ever
-  exported.
-- Anything **not exported** exists only as blocks and dies with the world. Treat
-  `/charon export` like Ctrl+S: export early, export often — overwriting is free.
-- Layout changes and restamps never touch builds; only marker blocks (outlines,
-  anchors, borders, stray labels) are ever cleaned up automatically.
+**EXPORT = SAVE.** Studio builds are just blocks; templates are forever. The
+Studio self-restores every exported build at server start.
 
 ## License
 
