@@ -51,9 +51,11 @@ public final class Broker {
         });
         // Entities load ASYNC after their chunks — an immediate getEntity() at
         // server start finds nothing and every boot would spawn another clone.
-        // The real ensure runs once, a few seconds in, and sweeps duplicates.
+        // The ensure runs a few seconds in and then REPEATS every 30s: clones
+        // whose entities loaded late get swept on the next pass.
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!ensurePending || server.getTickCount() < 100) return;
+            if (server.getTickCount() < 100) return;
+            if (!ensurePending && server.getTickCount() % 600 != 0) return;
             ensurePending = false;
             doEnsure(server);
         });
@@ -93,10 +95,12 @@ public final class Broker {
                 Orchard.brokerId = keeper.getUUID();
                 Orchard.save();
             }
-            // A standing Broker takes his proper post when the church offers one.
-            if (keeper.blockPosition().distSqr(at) > 9) {
+            // A standing Broker takes his proper post when the church offers one,
+            // and faces the open side of his nook — never the wall.
+            if (keeper.blockPosition().distSqr(at) > 2) {
                 keeper.teleportTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
             }
+            face(graveyard, keeper, at);
             if (traders.size() > 1) {
                 System.out.println("[CharonsEcho] the Broker swept "
                         + (traders.size() - 1) + " of his doubles away");
@@ -113,9 +117,25 @@ public final class Broker {
         trader.setSilent(true);
         trader.setPersistenceRequired();
         graveyard.addFreshEntity(trader);
+        face(graveyard, trader, at);
         Orchard.brokerId = trader.getUUID();
         Orchard.save();
         System.out.println("[CharonsEcho] the Broker waits at " + at.toShortString());
+    }
+
+    /** Face the open air of the nook — a merchant who stares at masonry sells nothing. */
+    private static void face(ServerLevel level, WanderingTrader trader, BlockPos at) {
+        float yaw = 0f; // south, the studio convention, if all else fails
+        for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            BlockPos side = at.relative(dir);
+            if (level.getBlockState(side).isAir() && level.getBlockState(side.above()).isAir()) {
+                yaw = dir.toYRot();
+                break;
+            }
+        }
+        trader.setYRot(yaw);
+        trader.setYBodyRot(yaw);
+        trader.setYHeadRot(yaw);
     }
 
     /** Move the Broker to a new post (admin nicety while the church is unbuilt). */

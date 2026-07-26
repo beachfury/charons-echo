@@ -49,10 +49,22 @@ public final class Church {
         if (template.isEmpty()) return;
 
         int ground = GraveyardTerrain.groundHeight(0, 0); // the plateau: 64
-        BlockPos origin = new BlockPos(-HALF, ground + 1, -HALF);
+        // Bottom layer of the build IS the floor: it replaces the plateau
+        // surface so the church sits flush, not one step proud.
+        BlockPos origin = new BlockPos(-HALF, ground, -HALF);
         for (int cx = (-HALF) >> 4; cx <= (HALF - 1) >> 4; cx++) {
             for (int cz = (-HALF) >> 4; cz <= (HALF - 1) >> 4; cz++) {
                 graveyard.getChunk(cx, cz);
+            }
+        }
+        // Clear the footprint first — a re-paste (marker fixes, updated build)
+        // must never leave crusts of the old church behind.
+        for (int x = -HALF; x < HALF; x++) {
+            for (int z = -HALF; z < HALF; z++) {
+                for (int y = ground + 1; y <= ground + 50; y++) {
+                    graveyard.setBlock(new BlockPos(x, y, z),
+                            Blocks.AIR.defaultBlockState(), 2);
+                }
             }
         }
         template.get().placeInWorld(graveyard, origin, origin,
@@ -77,6 +89,14 @@ public final class Church {
                 }
             }
         }
+        // Markers are INSTRUCTIONS, not furniture: once read, the gilded
+        // blackstone and lodestone dissolve — only the lectern is real.
+        if (vendor != null) {
+            graveyard.setBlock(vendor, Blocks.AIR.defaultBlockState(), 3);
+        }
+        if (lodestone != null) {
+            graveyard.setBlock(lodestone, Blocks.AIR.defaultBlockState(), 3);
+        }
         placed = true;
         save();
         System.out.println("[CharonsEcho] the church stands on the plateau"
@@ -85,9 +105,9 @@ public final class Church {
                 + (lectern != null ? "; ledger at " + lectern.toShortString() : ""));
     }
 
-    /** Where the Broker belongs: standing on the vendor marker, if one exists. */
+    /** Where the Broker belongs: on the floor where the vendor marker stood. */
     public static BlockPos vendorStand() {
-        return placed && vendor != null ? vendor.above() : null;
+        return placed && vendor != null ? vendor : null;
     }
 
     public static BlockPos cryptMarker() {
