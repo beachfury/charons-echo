@@ -78,14 +78,18 @@ public final class GhostState {
             return PortalManager.tryReclaim(sp, hit.getBlockPos())
                     ? InteractionResult.SUCCESS : InteractionResult.FAIL;
         });
+        // Enlisted dead are SOLDIERS: their hands work again — for the war.
         UseItemCallback.EVENT.register((player, world, hand) ->
-                isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
+                isGhost(player.getUUID()) && !War.isActive(player.getUUID())
+                        ? InteractionResult.FAIL : InteractionResult.PASS);
         AttackBlockCallback.EVENT.register((player, world, hand, pos, dir) ->
                 isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
-                isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
+                isGhost(player.getUUID()) && !War.isActive(player.getUUID())
+                        ? InteractionResult.FAIL : InteractionResult.PASS);
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
-                isGhost(player.getUUID()) ? InteractionResult.FAIL : InteractionResult.PASS);
+                isGhost(player.getUUID()) && !War.isActive(player.getUUID())
+                        ? InteractionResult.FAIL : InteractionResult.PASS);
 
         // Rejoining ghosts stay ghosts.
         ServerPlayConnectionEvents.JOIN.register((handler, sender, srv) -> {
@@ -111,6 +115,7 @@ public final class GhostState {
 
     public static void remove(ServerPlayer player) {
         GHOSTS.remove(player.getUUID());
+        War.onGhostEnd(player); // any oath dissolves with the ghost
         player.removeTag(TAG);
         player.removeEffect(MobEffects.INVISIBILITY);
         player.removeEffect(MobEffects.SLOW_FALLING);
@@ -151,13 +156,27 @@ public final class GhostState {
             if (data == null) continue;
 
             // Re-assert every tick — cheap, and other mods can't stomp it for long.
-            if (!player.getAbilities().mayfly || !player.getAbilities().invulnerable) {
-                player.getAbilities().mayfly = true;
-                player.getAbilities().invulnerable = true;
-                player.onUpdateAbilities();
-            }
-            if (!player.hasEffect(MobEffects.INVISIBILITY)) {
-                player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, -1, 0, true, false, false));
+            // ENLISTED dead are soldiers: visible, vulnerable to the war, grounded.
+            boolean soldier = War.isActive(player.getUUID());
+            if (soldier) {
+                if (player.getAbilities().mayfly || player.getAbilities().invulnerable) {
+                    player.getAbilities().mayfly = false;
+                    player.getAbilities().flying = false;
+                    player.getAbilities().invulnerable = false;
+                    player.onUpdateAbilities();
+                }
+                if (player.hasEffect(MobEffects.INVISIBILITY)) {
+                    player.removeEffect(MobEffects.INVISIBILITY);
+                }
+            } else {
+                if (!player.getAbilities().mayfly || !player.getAbilities().invulnerable) {
+                    player.getAbilities().mayfly = true;
+                    player.getAbilities().invulnerable = true;
+                    player.onUpdateAbilities();
+                }
+                if (!player.hasEffect(MobEffects.INVISIBILITY)) {
+                    player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, -1, 0, true, false, false));
+                }
             }
             if (!player.hasEffect(MobEffects.SLOW_FALLING)) {
                 player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, -1, 0, true, false, false));

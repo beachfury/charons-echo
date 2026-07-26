@@ -203,7 +203,7 @@ public final class GraveyardPlots {
     }
 
     /** A field is full when every plot is either claimed or tree-blocked. */
-    private static boolean fieldFull(int fieldIndex) {
+    static boolean fieldFull(int fieldIndex) {
         java.util.Set<Integer> used = new java.util.HashSet<>();
         for (GraveManager.Grave g : GraveManager.all()) {
             if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) {

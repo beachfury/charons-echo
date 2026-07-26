@@ -24,9 +24,12 @@ public final class GraveyardRules {
     private GraveyardRules() {}
 
     public static void register() {
-        // Nothing hurts anyone in the world of the dead.
+        // The graveyard's one law of violence: the war may harm only itself.
+        // Living players untouchable and harmless; civilians sacred; the
+        // enlisted dead fight enemy factions only (War decides the matrix).
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
-                entity.level().dimension() != CharonsEcho.GRAVEYARD_DIM);
+                entity.level().dimension() != CharonsEcho.GRAVEYARD_DIM
+                        || War.allowDamage(entity, source, amount));
 
         // The living may visit, but not build or break — hallowed ground.
         // Gamemasters and rostered gravekeepers are exempt (permissions()
@@ -210,14 +213,23 @@ public final class GraveyardRules {
         var players = graveyard.players();
         for (Entity e : graveyard.getAllEntities()) {
             if (!(e instanceof Mob mob)) continue;
-            if (mob.getType() == EntityTypes.WARDEN || mob.getType() == EntityTypes.CREAKING
-                    || mob.getType() == EntityTypes.IRON_GOLEM) {
-                // Same team → isAlliedTo() → vanilla targeting (Warden included)
-                // skips them. Target-clearing stays as a cheap backstop.
+            String factionTeam = War.teamFor(mob);
+            if (factionTeam != null || mob.getType() == EntityTypes.WARDEN
+                    || mob.getType() == EntityTypes.ALLAY || mob.getType() == EntityTypes.SNIFFER) {
+                // Every war mob joins its faction's team (allies never fight);
+                // wardens and civilians shelter with the keepers.
                 if (mob.getTeam() == null) {
-                    sb.addPlayerToTeam(mob.getScoreboardName(), keepers);
+                    PlayerTeam team = factionTeam == null ? keepers : sb.getPlayerTeam(factionTeam);
+                    if (team == null) {
+                        team = sb.addPlayerTeam(factionTeam);
+                        team.setAllowFriendlyFire(false);
+                    }
+                    sb.addPlayerToTeam(mob.getScoreboardName(), team);
                 }
-                if (mob.getTarget() != null) {
+                // The war cannot see the living: strip any player target that
+                // is not an enlisted enemy. Mob-vs-mob targets are the war's own.
+                if (mob.getTarget() instanceof net.minecraft.server.level.ServerPlayer tp
+                        && !War.isActiveEnemy(mob, tp)) {
                     mob.setTarget(null);
                 }
                 // Post enforcement: keepers spawned before homes existed adopt

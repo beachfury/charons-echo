@@ -41,6 +41,16 @@ public final class CharonConfig {
     public static volatile int orchardDormancyTicks = 24000;
     /** Real days the mother's owner may be absent before the line dies. */
     public static volatile int motherAbsenceDays = 30;
+    /** Minutes of war service that earn a free resurrection. */
+    public static volatile int warServiceMinutes = 15;
+    /** Seconds shaved off the service clock per enemy downed. */
+    public static volatile int warKillCreditSeconds = 30;
+    /** Seconds ADDED to the clock when an enlisted player is downed. */
+    public static volatile int warDownedPenaltySeconds = 60;
+    /** Restless soldiers fielded at the front at once. */
+    public static volatile int warRestlessCap = 8;
+    /** Hollow Wind raiders fielded at the front at once. */
+    public static volatile int warWindCap = 4;
 
     private CharonConfig() {}
 
@@ -66,6 +76,11 @@ public final class CharonConfig {
             orchardFruitSealTicks = clamp(inted(p, "orchard-fruit-seal-ticks", orchardFruitSealTicks), 100, 12000000);
             orchardDormancyTicks = clamp(inted(p, "orchard-dormancy-ticks", orchardDormancyTicks), 100, 12000000);
             motherAbsenceDays = clamp(inted(p, "mother-absence-days", motherAbsenceDays), 1, 3650);
+            warServiceMinutes = clamp(inted(p, "war-service-minutes", warServiceMinutes), 1, 1440);
+            warKillCreditSeconds = clamp(inted(p, "war-kill-credit-seconds", warKillCreditSeconds), 0, 3600);
+            warDownedPenaltySeconds = clamp(inted(p, "war-downed-penalty-seconds", warDownedPenaltySeconds), 0, 3600);
+            warRestlessCap = clamp(inted(p, "war-restless-cap", warRestlessCap), 0, 64);
+            warWindCap = clamp(inted(p, "war-wind-cap", warWindCap), 0, 64);
 
             // Always write the full set back so new keys appear for admins.
             p.setProperty("set-default-size", Integer.toString(setDefaultSize));
@@ -81,6 +96,11 @@ public final class CharonConfig {
             p.setProperty("orchard-fruit-seal-ticks", Integer.toString(orchardFruitSealTicks));
             p.setProperty("orchard-dormancy-ticks", Integer.toString(orchardDormancyTicks));
             p.setProperty("mother-absence-days", Integer.toString(motherAbsenceDays));
+            p.setProperty("war-service-minutes", Integer.toString(warServiceMinutes));
+            p.setProperty("war-kill-credit-seconds", Integer.toString(warKillCreditSeconds));
+            p.setProperty("war-downed-penalty-seconds", Integer.toString(warDownedPenaltySeconds));
+            p.setProperty("war-restless-cap", Integer.toString(warRestlessCap));
+            p.setProperty("war-wind-cap", Integer.toString(warWindCap));
             Files.createDirectories(file.getParent());
             try (OutputStream out = Files.newOutputStream(file)) {
                 p.store(out, "Charon's Echo — edit and restart to apply");

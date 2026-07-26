@@ -138,6 +138,18 @@ public final class CharonCommands {
                 })
 
                 // ---- everyone ----
+                .then(Commands.literal("oath")
+                        .executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            player.sendSystemMessage(Component.literal(War.status(player))
+                                    .withStyle(ChatFormatting.DARK_PURPLE));
+                            return 1;
+                        })
+                        .then(Commands.literal("quit").executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            War.quit(player);
+                            return 1;
+                        })))
                 .then(Commands.literal("ledger").executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     openLedger(player);

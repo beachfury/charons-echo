@@ -49,6 +49,8 @@ public final class CharonsEcho implements ModInitializer {
         // The Stygian Orchard: plant Withered Grove trees, harvest Tollfruit.
         Orchard.register();
         Broker.register();
+        // The War Below the Moon: the third way to pay Charon.
+        War.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
@@ -60,6 +62,7 @@ public final class CharonsEcho implements ModInitializer {
             StudioMode.loadDynamic(server);
             Orchard.load(server);
             Orchard.detectElder(server);
+            War.load(server);
             Broker.ensure(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid
@@ -73,6 +76,7 @@ public final class CharonsEcho implements ModInitializer {
             GhostState.save();
             DecorScatter.save();
             Orchard.save();
+            War.save();
         });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) ->

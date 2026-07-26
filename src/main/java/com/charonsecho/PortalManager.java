@@ -163,26 +163,12 @@ public final class PortalManager {
         }
         GraveManager.Grave grave = graveOpt.get();
 
-        // Charon's fare.
-        if (grave.farePaid) {
-            player.sendSystemMessage(Component.literal("Your fare was paid at the wake. Charon nods.")
-                    .withStyle(ChatFormatting.DARK_PURPLE));
-        } else if (consumeObol(player)) {
-            player.sendSystemMessage(Component.literal("Charon accepts your fare.")
-                    .withStyle(ChatFormatting.DARK_PURPLE));
-        } else if (grave.xpLevels > 0 && CharonConfig.tollXpPercent > 0) {
-            int before = grave.xpLevels;
-            grave.xpLevels = before * (100 - CharonConfig.tollXpPercent) / 100;
-            GraveManager.save();
-            player.sendSystemMessage(Component.literal(
-                    "No coin for the Ferryman. Charon takes his share of the memory of your deeds ("
-                    + before + " → " + grave.xpLevels + " levels).")
-                    .withStyle(ChatFormatting.DARK_PURPLE));
-        } else {
-            player.sendSystemMessage(Component.literal(
-                    "No coin, and nothing worth taking. Charon ferries you out of pity.")
-                    .withStyle(ChatFormatting.DARK_PURPLE));
-        }
+        // The crossing itself is free — Charon ferries all the dead. Payment
+        // is due at the STONE: fare, toll, or the oath (the war's third way).
+        player.sendSystemMessage(Component.literal(grave.farePaid
+                ? "Your fare was paid at the wake. Charon nods."
+                : "Charon ferries you across. Payment is due at the stone.")
+                .withStyle(ChatFormatting.DARK_PURPLE));
 
         if (grave.plotIndex < 0) {
             GraveyardPlots.allocate(graveyard, grave);
@@ -199,7 +185,7 @@ public final class PortalManager {
                 .withStyle(ChatFormatting.GRAY));
     }
 
-    private static boolean consumeObol(ServerPlayer player) {
+    static boolean consumeObol(ServerPlayer player) {
         var inv = player.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
             ItemStack stack = inv.getItem(i);
@@ -219,6 +205,18 @@ public final class PortalManager {
         GraveManager.Grave grave = graveOpt.get();
         if (!GraveyardPlots.isOnPlot(grave, clicked)) return false;
 
+        // The stone is where Charon collects: unpaid graves get the choice —
+        // fare, toll, or the oath.
+        if (!grave.farePaid) {
+            War.openChoice(player, grave, clicked);
+            return true;
+        }
+        resurrect(player, grave, clicked);
+        return true;
+    }
+
+    /** The resurrection itself — reached only once Charon is satisfied. */
+    public static void resurrect(ServerPlayer player, GraveManager.Grave grave, BlockPos clicked) {
         ServerLevel graveyard = (ServerLevel) player.level();
         for (ItemStack stack : grave.items) {
             player.getInventory().placeItemBackInInventory(stack.copy());
@@ -242,7 +240,6 @@ public final class PortalManager {
                 "What was yours is yours again — your echo rejoins the living.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
         openWhereToGui(player, grave);
-        return true;
     }
 
     /** After resurrection: choose where the portal home opens. */
