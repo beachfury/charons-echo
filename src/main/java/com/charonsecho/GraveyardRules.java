@@ -62,12 +62,12 @@ public final class GraveyardRules {
                 if (graveOpt.isPresent()) {
                     GraveManager.Grave grave = graveOpt.get();
                     var held = sp.getItemInHand(hand);
-                    // Flower tributes: what the living leave behind — the only
-                    // color in the monochrome world, and the only votes here.
+                    // Flower tributes: SHIFT+right-click with a flower — a plain
+                    // right-click stays the epitaph read, whatever's in hand.
                     boolean isFlower = held.getItem() instanceof net.minecraft.world.item.BlockItem bi
                             && bi.getBlock().defaultBlockState()
                                     .is(net.minecraft.tags.BlockTags.SMALL_FLOWERS);
-                    if (isFlower && !GhostState.isGhost(sp.getUUID())) {
+                    if (isFlower && sp.isShiftKeyDown() && !GhostState.isGhost(sp.getUUID())) {
                         if (GraveyardPlots.layTribute((ServerLevel) world, grave, held)) {
                             if (!sp.isCreative()) held.shrink(1);
                             sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
