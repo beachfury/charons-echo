@@ -42,6 +42,8 @@ public final class CharonConfig {
     public static volatile int motherAbsenceDays = 30;
     /** The seed listens: dancing near a seedling speeds stage 1 up to this multiple. */
     public static volatile int orchardDanceMultiplier = 3;
+    /** The harvest dance: group dancing speeds fruit (1 on, 0 off). */
+    public static volatile int orchardFruitDance = 1;
     /** Minutes of war service that earn a free resurrection. */
     public static volatile int warServiceMinutes = 15;
     /** Seconds shaved off the service clock per enemy downed. */
@@ -84,6 +86,7 @@ public final class CharonConfig {
             orchardDormancyTicks = clamp(inted(p, "orchard-dormancy-ticks", orchardDormancyTicks), 100, 12000000);
             motherAbsenceDays = clamp(inted(p, "mother-absence-days", motherAbsenceDays), 1, 3650);
             orchardDanceMultiplier = clamp(inted(p, "orchard-dance-multiplier", orchardDanceMultiplier), 1, 5);
+            orchardFruitDance = clamp(inted(p, "orchard-fruit-dance", orchardFruitDance), 0, 1);
             warServiceMinutes = clamp(inted(p, "war-service-minutes", warServiceMinutes), 1, 1440);
             warKillCreditSeconds = clamp(inted(p, "war-kill-credit-seconds", warKillCreditSeconds), 0, 3600);
             warDownedPenaltySeconds = clamp(inted(p, "war-downed-penalty-seconds", warDownedPenaltySeconds), 0, 3600);
@@ -179,8 +182,16 @@ public final class CharonConfig {
             # THE SEED LISTENS.  It is a sculk sensor: moving, jumping, and
             # dancing near a seedling feeds it vibration and speeds stage one
             # up to this multiple (walking ~2x, hard dancing hits the cap).
+            # Mobs count here too — a shuffling pen feeds a SEEDLING fine.
             # Range 1-5.  Default 3.  1 disables the dance entirely.
             orchard-dance-multiplier=%d
+
+            # THE HARVEST DANCE.  Fruit hurries only for COMPANY — living
+            # players dancing at the tree: 1 dancer = nothing (fruit is
+            # income; solo grinding earns none), 2 = 1.5x, 3 = 1.75x,
+            # 4+ = 2x.  Mobs never count for fruit.  Works at wild elders.
+            # 1 = on, 0 = off.  Default 1.
+            orchard-fruit-dance=%d
 
             # ---- The War Below the Moon ----
 
@@ -223,7 +234,7 @@ public final class CharonConfig {
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
-                orchardDanceMultiplier,
+                orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage);
     }

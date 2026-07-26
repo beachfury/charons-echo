@@ -103,6 +103,10 @@ public final class Orchard {
 
     private static final List<Tree> TREES = new CopyOnWriteArrayList<>();
     private static final Map<UUID, FellJob> FELLING = new ConcurrentHashMap<>();
+    /** Last sampled positions, for spotting dancers (all players, once a second). */
+    private static final Map<UUID, net.minecraft.world.phys.Vec3> DANCE_LAST = new ConcurrentHashMap<>();
+    /** The harvest dance curve: dancers -> multiplier. Solo gets nothing. */
+    private static final double[] DANCE_CURVE = {1.0, 1.0, 1.5, 1.75, 2.0};
 
     // ---- lineage ledger (the Book of the Living, one entry long) ----
     static UUID motherId;          // the one true mother seed
@@ -261,6 +265,29 @@ public final class Orchard {
                 fruitTick(level, tree, 20);
             }
         }
+        if (server.getTickCount() % 20 == 0) {
+            // Record positions AFTER the trees have judged this breath's dancing.
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                DANCE_LAST.put(p.getUUID(), p.position());
+            }
+        }
+    }
+
+    /**
+     * THE HARVEST DANCE: fruit hurries only for COMPANY — one dancer moves
+     * nothing (fruit is income; solo grinding earns none), two dance it to
+     * 1.5x, three to 1.75x, four or more to 2x. Living players only; the
+     * sculk ignores livestock here. Works at wild elders too — bring friends.
+     */
+    private static int dancersNear(ServerLevel level, Tree tree) {
+        int n = 0;
+        for (ServerPlayer p : level.players()) {
+            if (GhostState.isGhost(p.getUUID())) continue;
+            if (!inVigilArea(tree, p)) continue;
+            net.minecraft.world.phys.Vec3 last = DANCE_LAST.get(p.getUUID());
+            if (last != null && p.position().distanceTo(last) > 1.5) n++;
+        }
+        return Math.min(n, 4);
     }
 
     private static void growTick(ServerLevel level, Tree tree, int ticks) {
@@ -526,12 +553,16 @@ public final class Orchard {
             return;
         }
 
+        int effTicks = ticks;
+        if (CharonConfig.orchardFruitDance != 0) {
+            effTicks = (int) Math.round(ticks * DANCE_CURVE[dancersNear(level, tree)]);
+        }
         boolean allDone = true;
         for (Fruit f : tree.fruits) {
             if (f.harvested) continue;
             allDone = false;
             if (f.ripe) continue;
-            f.ticks += ticks;
+            f.ticks += effTicks;
             if (f.phase < VEIN_FACES && f.ticks >= CharonConfig.orchardFruitFaceTicks) {
                 f.ticks = 0;
                 f.phase++;
