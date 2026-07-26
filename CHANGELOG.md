@@ -2,6 +2,23 @@
 
 ## 0.1.0 — in development
 
+- THE WAR BELOW THE MOON — an eternal three-sided war in Charon's Echo,
+  invisible to the living, joinable by the dead. The KEEPERS (iron golems,
+  creakings, allay couriers) hold the yards; the RESTLESS (parched, bogged,
+  stray) rise from the active grave field; the HOLLOW WIND (vex, breeze)
+  raids both. The war is fought at the FRONT — the field currently receiving
+  burials; filled fields are settled ground forever. Living players are
+  untouchable and harmless (the war cannot see them); sniffers and allays are
+  civilians. **Payment moved to the stone**: the crossing is free, and touching
+  your grave offers the choice — pay the fare (obol), pay the toll (XP), or
+  TAKE THE OATH: enlist with the Keepers or the Restless, receive a loaned
+  phantom kit, and serve `war-service-minutes` (default 15) at the front.
+  Each enemy downed shaves `war-kill-credit-seconds` off the clock; serving
+  out is a free resurrection. Enlisted dead of opposing sides can fight each
+  other — defeat means downed (respawn at muster, `war-downed-penalty-seconds`
+  added), never death; your items were in the grave all along. `/charon oath`
+  shows your service; `/charon oath quit` pauses the clock.
+
 - THE STYGIAN ORCHARD — plant the Withered Grove in the overworld. **The Broker**,
   a trader who stopped wandering long ago, stands in Charon's Echo selling
   **Stygian Seeds** (config `orchard-seed-price`, default 32 emeralds). Plant one
