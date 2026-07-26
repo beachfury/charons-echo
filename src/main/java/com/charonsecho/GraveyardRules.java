@@ -140,6 +140,9 @@ public final class GraveyardRules {
         if (mob == null) return;
         mob.setPos(x + 0.5, h + 1, z + 0.5);
         mob.setPersistenceRequired();
+        // Keepers are POSTED: a home and a radius, so nobody can pied-piper
+        // thirty creakings into one laggy ball across the map.
+        mob.setHomeTo(new net.minecraft.core.BlockPos(x, h + 1, z), 24);
         level.addFreshEntity(mob);
     }
 
@@ -195,6 +198,16 @@ public final class GraveyardRules {
                     sb.addPlayerToTeam(mob.getScoreboardName(), keepers);
                 }
                 if (mob.getTarget() != null) {
+                    mob.setTarget(null);
+                }
+                // Post enforcement: keepers spawned before homes existed adopt
+                // their current spot; any keeper lured past its leash walks
+                // back the hard way — a quiet snap to the post.
+                if (!mob.hasHome()) {
+                    mob.setHomeTo(mob.blockPosition(), 24);
+                } else if (mob.blockPosition().distSqr(mob.getHomePosition()) > 40 * 40) {
+                    net.minecraft.core.BlockPos home = mob.getHomePosition();
+                    mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
                     mob.setTarget(null);
                 }
                 // Wardens rebuild anger at players from vibrations — wipe it so
