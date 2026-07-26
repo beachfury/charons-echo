@@ -119,31 +119,7 @@ public final class CharonCommands {
         for (GraveManager.Grave grave : graves) {
             if (slot >= 54) break;
             if (grave == crowned) continue; // already enthroned at the top
-            String date = grave.epochMillis > 0
-                    ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
-                    : "Day " + (grave.gameTime / 24000L);
-            var builder = new eu.pb4.sgui.api.elements.GuiElementBuilder(
-                    grave.book != null ? net.minecraft.world.item.Items.WRITTEN_BOOK
-                                       : net.minecraft.world.item.Items.SKELETON_SKULL)
-                    .setName(Component.literal(grave.ownerName)
-                            .withStyle(grave.claimed ? ChatFormatting.GRAY : ChatFormatting.WHITE))
-                    .addLoreLine(Component.literal(date).withStyle(ChatFormatting.DARK_GRAY))
-                    .addLoreLine(Component.literal(grave.causeLine).withStyle(ChatFormatting.GRAY));
-            if (grave.tributes > 0) {
-                builder.addLoreLine(Component.literal(grave.tributes
-                        + (grave.tributes == 1 ? " flower laid" : " flowers laid"))
-                        .withStyle(ChatFormatting.LIGHT_PURPLE));
-            }
-            if (grave.book != null) {
-                builder.addLoreLine(Component.literal("Click to read their last words")
-                        .withStyle(ChatFormatting.DARK_PURPLE));
-                builder.glow();
-                builder.setCallback((i, t, a, g) -> {
-                    g.close();
-                    GraveBooks.open(player, grave);
-                });
-            }
-            gui.setSlot(slot++, builder.build());
+            gui.setSlot(slot++, GraveUi.entry(player, grave).build());
         }
         if (slot == 0) {
             gui.setSlot(22, new eu.pb4.sgui.api.elements.GuiElementBuilder(

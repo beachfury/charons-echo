@@ -385,23 +385,7 @@ public final class Crypt {
             String gm = Instant.ofEpochMilli(grave.epochMillis).atZone(ZoneId.systemDefault())
                     .toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
             if (!gm.equals(ym)) continue;
-            final GraveManager.Grave g = grave;
-            GuiElementBuilder entry = new GuiElementBuilder(
-                    g.book != null ? Items.WRITTEN_BOOK : Items.SKELETON_SKULL)
-                    .setName(Component.literal(g.ownerName).withStyle(ChatFormatting.WHITE))
-                    .addLoreLine(Component.literal(g.causeLine == null ? "" : g.causeLine)
-                            .withStyle(ChatFormatting.GRAY));
-            if (g.tributes > 0) {
-                entry.addLoreLine(Component.literal(g.tributes
-                        + (g.tributes == 1 ? " flower laid" : " flowers laid"))
-                        .withStyle(ChatFormatting.LIGHT_PURPLE));
-            }
-            if (g.book != null) {
-                entry.glow().addLoreLine(Component.literal("Their story — click to read.")
-                        .withStyle(ChatFormatting.DARK_AQUA))
-                        .setCallback((i, t, a, gg) -> GraveBooks.open(player, g));
-            }
-            gui.setSlot(slot++, entry);
+            gui.setSlot(slot++, GraveUi.entry(player, grave));
         }
         if (slot == 0) {
             gui.setSlot(22, new GuiElementBuilder(Items.CANDLE)
@@ -442,6 +426,23 @@ public final class Crypt {
             }
             graveyard.setBlock(SHELVES[i], state, 3);
         }
+        // The month halls' shelves fill the same way — a month's weight in books.
+        MONTHS.forEach((ym, shelfPos) -> {
+            graveyard.getChunk(shelfPos.getX() >> 4, shelfPos.getZ() >> 4);
+            BlockState state = graveyard.getBlockState(shelfPos);
+            if (!state.is(Blocks.CHISELED_BOOKSHELF)) return;
+            int fallen = 0;
+            for (GraveManager.Grave g : GraveManager.all()) {
+                if (g.epochMillis <= 0) continue;
+                String gm = Instant.ofEpochMilli(g.epochMillis).atZone(ZoneId.systemDefault())
+                        .toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                if (gm.equals(ym)) fallen++;
+            }
+            for (int s = 0; s < 6; s++) {
+                state = state.setValue(slotProps.get(s), s < Math.min(fallen, 6));
+            }
+            graveyard.setBlock(shelfPos, state, 3);
+        });
     }
 
     // ---------------------------------------------------------------- the shelves
@@ -458,25 +459,7 @@ public final class Crypt {
             LocalDate graveDay = Instant.ofEpochMilli(grave.epochMillis)
                     .atZone(ZoneId.systemDefault()).toLocalDate();
             if (!graveDay.equals(day)) continue;
-            final GraveManager.Grave g = grave;
-            GuiElementBuilder entry = new GuiElementBuilder(
-                    g.book != null ? Items.WRITTEN_BOOK : Items.SKELETON_SKULL)
-                    .setName(Component.literal(g.ownerName).withStyle(ChatFormatting.WHITE))
-                    .addLoreLine(Component.literal(g.causeLine == null ? "" : g.causeLine)
-                            .withStyle(ChatFormatting.GRAY))
-                    .addLoreLine(Component.literal(g.claimed ? "at rest" : "unclaimed")
-                            .withStyle(g.claimed ? ChatFormatting.DARK_GRAY : ChatFormatting.DARK_PURPLE));
-            if (g.tributes > 0) {
-                entry.addLoreLine(Component.literal(g.tributes
-                        + (g.tributes == 1 ? " flower laid" : " flowers laid"))
-                        .withStyle(ChatFormatting.LIGHT_PURPLE));
-            }
-            if (g.book != null) {
-                entry.glow().addLoreLine(Component.literal("Their story — click to read.")
-                        .withStyle(ChatFormatting.DARK_AQUA))
-                        .setCallback((i, t, a, gg) -> GraveBooks.open(player, g));
-            }
-            gui.setSlot(slot++, entry);
+            gui.setSlot(slot++, GraveUi.entry(player, grave));
         }
         if (slot == 0) {
             gui.setSlot(13, new GuiElementBuilder(Items.CANDLE)
