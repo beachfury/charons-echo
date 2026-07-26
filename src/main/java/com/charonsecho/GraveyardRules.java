@@ -70,6 +70,22 @@ public final class GraveyardRules {
                     }
                 }
             }
+            // Foreign creatures have no place in the land of the dead: spawn
+            // eggs are refused (gamemasters may still preview what they like).
+            if (world.dimension() == CharonsEcho.GRAVEYARD_DIM
+                    && player.getItemInHand(hand).getItem()
+                            instanceof net.minecraft.world.item.SpawnEggItem) {
+                if (!(player instanceof net.minecraft.server.level.ServerPlayer sp)) {
+                    return net.minecraft.world.InteractionResult.PASS;
+                }
+                if (isGamemaster(sp)) {
+                    return net.minecraft.world.InteractionResult.PASS;
+                }
+                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                        "They do not belong here.")
+                        .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                return net.minecraft.world.InteractionResult.FAIL;
+            }
             if (!(player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem)) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
@@ -108,10 +124,13 @@ public final class GraveyardRules {
         var box = new net.minecraft.world.phys.AABB(
                 c.getX() - 21, ground - 24, c.getZ() - 21,
                 c.getX() + 21, ground + 24, c.getZ() + 21);
-        var wardens = graveyard.getEntitiesOfClass(
-                net.minecraft.world.entity.monster.warden.Warden.class, box);
-        if (wardens.isEmpty()) {
-            spawnKeeper(graveyard, net.minecraft.world.entity.EntityTypes.WARDEN,
+        // The groundskeeper is an IRON GOLEM — a weathered caretaker that
+        // paces its yard forever. (Wardens kept digging themselves home;
+        // the deep dark keeps its people.)
+        var golems = graveyard.getEntitiesOfClass(
+                net.minecraft.world.entity.animal.golem.IronGolem.class, box);
+        if (golems.isEmpty()) {
+            spawnKeeper(graveyard, net.minecraft.world.entity.EntityTypes.IRON_GOLEM,
                     c.getX() + 3, c.getZ() + 3);
         }
         var creakings = graveyard.getEntitiesOfClass(
@@ -191,7 +210,8 @@ public final class GraveyardRules {
         var players = graveyard.players();
         for (Entity e : graveyard.getAllEntities()) {
             if (!(e instanceof Mob mob)) continue;
-            if (mob.getType() == EntityTypes.WARDEN || mob.getType() == EntityTypes.CREAKING) {
+            if (mob.getType() == EntityTypes.WARDEN || mob.getType() == EntityTypes.CREAKING
+                    || mob.getType() == EntityTypes.IRON_GOLEM) {
                 // Same team → isAlliedTo() → vanilla targeting (Warden included)
                 // skips them. Target-clearing stays as a cheap backstop.
                 if (mob.getTeam() == null) {
