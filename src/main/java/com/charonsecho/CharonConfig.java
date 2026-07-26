@@ -49,8 +49,10 @@ public final class CharonConfig {
     public static volatile int warDownedPenaltySeconds = 60;
     /** Restless soldiers fielded at the front at once. */
     public static volatile int warRestlessCap = 8;
-    /** Hollow Wind raiders fielded at the front at once. */
-    public static volatile int warWindCap = 4;
+    /** Hollow Wind VEXES fielded at the front at once. */
+    public static volatile int warWindCap = 3;
+    /** Hollow Wind BREEZES fielded at once (loud — keep them scarce). */
+    public static volatile int warBreezeCap = 1;
 
     private CharonConfig() {}
 
@@ -81,6 +83,7 @@ public final class CharonConfig {
             warDownedPenaltySeconds = clamp(inted(p, "war-downed-penalty-seconds", warDownedPenaltySeconds), 0, 3600);
             warRestlessCap = clamp(inted(p, "war-restless-cap", warRestlessCap), 0, 64);
             warWindCap = clamp(inted(p, "war-wind-cap", warWindCap), 0, 64);
+            warBreezeCap = clamp(inted(p, "war-breeze-cap", warBreezeCap), 0, 64);
 
             // Always write the full set back so new keys appear for admins.
             p.setProperty("set-default-size", Integer.toString(setDefaultSize));
@@ -101,6 +104,7 @@ public final class CharonConfig {
             p.setProperty("war-downed-penalty-seconds", Integer.toString(warDownedPenaltySeconds));
             p.setProperty("war-restless-cap", Integer.toString(warRestlessCap));
             p.setProperty("war-wind-cap", Integer.toString(warWindCap));
+            p.setProperty("war-breeze-cap", Integer.toString(warBreezeCap));
             Files.createDirectories(file.getParent());
             try (OutputStream out = Files.newOutputStream(file)) {
                 p.store(out, "Charon's Echo — edit and restart to apply");

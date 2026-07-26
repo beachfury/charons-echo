@@ -205,11 +205,12 @@ public final class War {
         }
         AABB box = new AABB(c.getX() - 64, ground - 32, c.getZ() - 64,
                 c.getX() + 64, ground + 48, c.getZ() + 64);
-        int restless = 0, wind = 0, allays = 0, sniffers = 0;
+        int restless = 0, vexes = 0, breezes = 0, allays = 0, sniffers = 0;
         for (Mob mob : graveyard.getEntitiesOfClass(Mob.class, box)) {
             Faction f = factionOf(mob);
             if (f == Faction.RESTLESS) restless++;
-            else if (f == Faction.WIND) wind++;
+            else if (mob.getType() == EntityTypes.VEX) vexes++;
+            else if (mob.getType() == EntityTypes.BREEZE) breezes++;
             else if (mob.getType() == EntityTypes.ALLAY) allays++;
             else if (mob.getType() == EntityTypes.SNIFFER) sniffers++;
         }
@@ -222,8 +223,12 @@ public final class War {
             spawnSoldier(graveyard, pool[rand.nextInt(pool.length)],
                     c.getX() + rand.nextInt(35) - 17, c.getZ() + rand.nextInt(35) - 17);
         }
-        if (wind < CharonConfig.warWindCap) {
-            spawnSoldier(graveyard, rand.nextBoolean() ? EntityTypes.VEX : EntityTypes.BREEZE,
+        if (vexes < CharonConfig.warWindCap) {
+            spawnSoldier(graveyard, EntityTypes.VEX,
+                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45);
+        }
+        if (breezes < CharonConfig.warBreezeCap) {
+            spawnSoldier(graveyard, EntityTypes.BREEZE,
                     c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45);
         }
         if (allays < 1) {

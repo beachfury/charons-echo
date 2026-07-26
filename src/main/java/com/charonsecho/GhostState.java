@@ -168,6 +168,10 @@ public final class GhostState {
                 if (player.hasEffect(MobEffects.INVISIBILITY)) {
                     player.removeEffect(MobEffects.INVISIBILITY);
                 }
+                // Soldiers fall like soldiers — floating makes the fight unwinnable.
+                if (player.hasEffect(MobEffects.SLOW_FALLING)) {
+                    player.removeEffect(MobEffects.SLOW_FALLING);
+                }
             } else {
                 if (!player.getAbilities().mayfly || !player.getAbilities().invulnerable) {
                     player.getAbilities().mayfly = true;
@@ -178,7 +182,7 @@ public final class GhostState {
                     player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, -1, 0, true, false, false));
                 }
             }
-            if (!player.hasEffect(MobEffects.SLOW_FALLING)) {
+            if (!soldier && !player.hasEffect(MobEffects.SLOW_FALLING)) {
                 player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, -1, 0, true, false, false));
             }
             player.addTag(TAG); // Set-add: no-op when already present
