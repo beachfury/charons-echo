@@ -95,6 +95,54 @@ public final class GraveyardRules {
                 net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER);
     }
 
+    /**
+     * The graveyard's staff: WARDENS own the fields, CREAKINGS own the trees.
+     * Each field keeps one warden groundskeeper inside the fence and a pair of
+     * creakings lurking at its edges. Called when a field opens, and by the
+     * census tick whenever players are near an understaffed field. The keeper
+     * sweep pacifies them all — they mind the yard, not each other.
+     */
+    static void censusField(ServerLevel graveyard, int fieldIndex) {
+        net.minecraft.core.BlockPos c = GraveyardPlots.fieldCenter(fieldIndex);
+        int ground = GraveyardTerrain.groundHeight(c.getX(), c.getZ());
+        var box = new net.minecraft.world.phys.AABB(
+                c.getX() - 21, ground - 24, c.getZ() - 21,
+                c.getX() + 21, ground + 24, c.getZ() + 21);
+        var wardens = graveyard.getEntitiesOfClass(
+                net.minecraft.world.entity.monster.warden.Warden.class, box);
+        if (wardens.isEmpty()) {
+            spawnKeeper(graveyard, net.minecraft.world.entity.EntityTypes.WARDEN,
+                    c.getX() + 3, c.getZ() + 3);
+        }
+        var creakings = graveyard.getEntitiesOfClass(
+                net.minecraft.world.entity.monster.creaking.Creaking.class,
+                box.inflate(16, 0, 16));
+        for (int k = creakings.size(); k < 2; k++) {
+            int dx = (k == 0 ? -25 : 25);
+            int dz = (k == 0 ? -8 : 8);
+            spawnKeeper(graveyard, net.minecraft.world.entity.EntityTypes.CREAKING,
+                    c.getX() + dx, c.getZ() + dz);
+        }
+    }
+
+    private static void spawnKeeper(ServerLevel level,
+            net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type,
+            int x, int z) {
+        int h = GraveyardTerrain.groundHeight(x, z);
+        if (h < GraveyardTerrain.WATER_TOP) {
+            x += 7;
+            z += 7;
+            h = GraveyardTerrain.groundHeight(x, z);
+            if (h < GraveyardTerrain.WATER_TOP) return; // the dead do not swim
+        }
+        level.getChunk(x >> 4, z >> 4);
+        var mob = type.create(level, net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
+        if (mob == null) return;
+        mob.setPos(x + 0.5, h + 1, z + 0.5);
+        mob.setPersistenceRequired();
+        level.addFreshEntity(mob);
+    }
+
     private static final String KEEPERS_TEAM = "charon_keepers";
 
     private static void tick(MinecraftServer server) {
@@ -118,6 +166,19 @@ public final class GraveyardRules {
         }
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
+
+        // Staff census: re-staff any understaffed field a player is near.
+        if (server.getTickCount() % 600 == 0) {
+            for (int i = 0; i < GraveyardPlots.fieldCount(); i++) {
+                net.minecraft.core.BlockPos c = GraveyardPlots.fieldCenter(i);
+                if (graveyard.getNearestPlayer(c.getX() + 0.5,
+                        GraveyardTerrain.groundHeight(c.getX(), c.getZ()),
+                        c.getZ() + 0.5, 96, false) != null) {
+                    censusField(graveyard, i);
+                }
+            }
+        }
+
         Scoreboard sb = server.getScoreboard();
         PlayerTeam keepers = sb.getPlayerTeam(KEEPERS_TEAM);
         if (keepers == null) {

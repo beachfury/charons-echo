@@ -56,6 +56,13 @@ public final class GraveyardPlots {
     private static final java.util.List<BlockPos> FIELD_CENTERS = new java.util.ArrayList<>();
     private static java.nio.file.Path fieldsFile;
 
+    /** How many fields exist NOW — never grows the list (unlike fieldCenter). */
+    static int fieldCount() {
+        synchronized (FIELD_CENTERS) {
+            return FIELD_CENTERS.size();
+        }
+    }
+
     static BlockPos fieldCenter(int fieldIndex) {
         synchronized (FIELD_CENTERS) {
             while (FIELD_CENTERS.size() <= fieldIndex) {
@@ -318,6 +325,9 @@ public final class GraveyardPlots {
             if (level.getBlockEntity(signPos) instanceof SignBlockEntity s) sign = s;
         }
         if (sign != null) writeFieldSign(sign, fieldIndex);
+
+        // A field opens with its staff already on duty.
+        GraveyardRules.censusField(level, fieldIndex);
     }
 
     /**
