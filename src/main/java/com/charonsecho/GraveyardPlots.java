@@ -195,6 +195,27 @@ public final class GraveyardPlots {
         }
     }
 
+    /** Strict rule: any decor footprint touching the 6x6 plot blocks it forever. */
+    static boolean plotBlocked(int plotIndex) {
+        BlockPos o = plotOrigin(plotIndex);
+        return DecorScatter.decorOverlapping(o.getX(), o.getZ(),
+                o.getX() + PLOT - 1, o.getZ() + PLOT - 1);
+    }
+
+    /** A field is full when every plot is either claimed or tree-blocked. */
+    private static boolean fieldFull(int fieldIndex) {
+        java.util.Set<Integer> used = new java.util.HashSet<>();
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) {
+                used.add(g.plotIndex);
+            }
+        }
+        for (int p = fieldIndex * PER_FIELD; p < (fieldIndex + 1) * PER_FIELD; p++) {
+            if (!used.contains(p) && !plotBlocked(p)) return false;
+        }
+        return true;
+    }
+
     /** NW corner of a plot (global index) in world coords. */
     public static BlockPos plotOrigin(int plotIndex) {
         int field = plotIndex / PER_FIELD;
@@ -228,20 +249,18 @@ public final class GraveyardPlots {
      * raise the stone, and note on the gate sign when the field fills.
      */
     public static void allocate(ServerLevel graveyard, GraveManager.Grave grave) {
+        // Graves go AROUND the trees: a plot with decor standing on it is
+        // never assigned — the dead make room for what already grows.
         int idx = nextPlotIndex();
+        while (plotBlocked(idx)) idx++;
         grave.plotIndex = idx;
         ensureField(graveyard, idx / PER_FIELD);
-        // The burial claims its ground: any tree or clutter standing on the
-        // plot is removed whole before the stone rises.
-        BlockPos claimed = plotOrigin(idx);
-        DecorScatter.clearClaimed(graveyard, claimed.getX() - 1, claimed.getZ() - 1,
-                claimed.getX() + PLOT, claimed.getZ() + PLOT);
         placeHeadstone(graveyard, grave); // terraces its own footprint
         SignBlockEntity fieldSign = findFieldSign(graveyard, idx / PER_FIELD);
         if (fieldSign != null) {
             writeFieldSign(fieldSign, idx / PER_FIELD); // the soul count ticks up
         }
-        if (idx % PER_FIELD == PER_FIELD - 1) {
+        if (fieldFull(idx / PER_FIELD)) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
         GraveManager.save();

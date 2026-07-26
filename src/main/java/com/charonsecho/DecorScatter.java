@@ -210,11 +210,24 @@ public final class DecorScatter {
         }
     }
 
+    /** Does any living decor piece's footprint touch this rectangle? */
+    public static boolean decorOverlapping(int x0, int z0, int x1, int z1) {
+        for (Placement p : PLACEMENTS.values()) {
+            if (p.piece().isEmpty() || p.category().equals("consumed")) continue;
+            int w = StudioMode.widthOfCategory(p.category());
+            if (p.x() <= x1 && p.x() + w - 1 >= x0
+                    && p.z() <= z1 && p.z() + w - 1 >= z0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
-     * A burial (or the gate) claims its ground: any decor piece whose footprint
-     * touches the claimed rectangle is removed WHOLE — no half-chopped trunks,
-     * no floating canopies — and its slot is marked consumed so no rebuild ever
-     * resurrects it. The yard keeps what it takes.
+     * The GATE claims its ground: any decor piece whose footprint touches the
+     * claimed rectangle is removed WHOLE — no half-chopped trunks, no floating
+     * canopies — and its slot is marked consumed so no rebuild ever resurrects
+     * it. (Burials no longer claim: graves go AROUND the trees.)
      */
     public static void clearClaimed(ServerLevel level, int x0, int z0, int x1, int z1) {
         for (Map.Entry<Long, Placement> entry : PLACEMENTS.entrySet()) {

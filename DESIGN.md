@@ -587,6 +587,14 @@ vanilla items, growth is template pastes, all state in `world/charons_echo/orcha
 
 ## Decisions log
 
+- 2026-07-25: **Graves go AROUND the trees.** A plot with any decor footprint
+  touching it (strict rule) is never assigned — burials skip it forever; the
+  yard accommodates what already grows there. Field capacity is therefore
+  VARIABLE (however many plots remain usable); a field is full when every plot
+  is claimed or blocked, and the sign's soul count records what it truly held.
+  Only the lych gate still claims (clears) its own pad. No fixed grave count
+  per field — 36 was only ever a grid convenience.
+
 - 2026-07-25: **Builder palette ruling.** All gray and black blocks are fair game,
   including WOOL, CONCRETE POWDER, and CARPETS (dust layers, draped cloth, shadow
   lines). Full CONCRETE is excluded — machine-flat, reads modern; for dead-smooth
