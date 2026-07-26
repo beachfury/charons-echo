@@ -223,6 +223,7 @@ public final class CharonConfig {
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
+                orchardDanceMultiplier,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage);
     }
