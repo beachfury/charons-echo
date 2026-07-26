@@ -213,10 +213,12 @@ public final class War {
         }
         var rand = graveyard.getRandom();
         if (restless < CharonConfig.warRestlessCap) {
-            // The Restless rise at the field's edge — from the ground they own.
+            // The Restless rise from the graves THEMSELVES — inside the yard,
+            // between the stones. (Spawning outside left them besieging their
+            // own fence while the Keepers won by default.)
             EntityType<?>[] pool = { EntityTypes.PARCHED, EntityTypes.BOGGED, EntityTypes.STRAY };
             spawnSoldier(graveyard, pool[rand.nextInt(pool.length)],
-                    c.getX() + rand.nextInt(45) - 22, c.getZ() - 22 - rand.nextInt(12));
+                    c.getX() + rand.nextInt(35) - 17, c.getZ() + rand.nextInt(35) - 17);
         }
         if (wind < CharonConfig.warWindCap) {
             spawnSoldier(graveyard, rand.nextBoolean() ? EntityTypes.VEX : EntityTypes.BREEZE,
@@ -450,8 +452,10 @@ public final class War {
             return new BlockPos(8, GraveyardTerrain.groundHeight(8, 8) + 1, 20);
         }
         BlockPos c = GraveyardPlots.fieldCenter(front);
+        // Both muster points are INSIDE the fence — Keepers by the gate end,
+        // Restless among the north stones where their kind rises.
         int x = c.getX();
-        int z = faction == Faction.KEEPERS ? c.getZ() + 17 : c.getZ() - 26;
+        int z = faction == Faction.KEEPERS ? c.getZ() + 16 : c.getZ() - 16;
         return new BlockPos(x, GraveyardTerrain.groundHeight(x, z) + 1, z);
     }
 
@@ -463,8 +467,14 @@ public final class War {
             player.getInventory().add(phantom(new ItemStack(Items.IRON_SWORD)));
             player.getInventory().add(phantom(new ItemStack(Items.SHIELD)));
         } else {
-            player.getInventory().add(phantom(new ItemStack(Items.BOW)));
-            player.getInventory().add(phantom(new ItemStack(Items.ARROW, 64)));
+            // Infinity: the dead never run out of anything.
+            ItemStack bow = new ItemStack(Items.BOW);
+            var enchants = player.level().registryAccess()
+                    .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+            bow.enchant(enchants.getOrThrow(
+                    net.minecraft.world.item.enchantment.Enchantments.INFINITY), 1);
+            player.getInventory().add(phantom(bow));
+            player.getInventory().add(phantom(new ItemStack(Items.ARROW, 8)));
             player.getInventory().add(phantom(new ItemStack(Items.STONE_SWORD)));
         }
     }
