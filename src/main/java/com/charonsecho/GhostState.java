@@ -172,6 +172,12 @@ public final class GhostState {
                 if (player.hasEffect(MobEffects.SLOW_FALLING)) {
                     player.removeEffect(MobEffects.SLOW_FALLING);
                 }
+                // The dead do not hunger: pegged full so sprinting never fails
+                // and nobody starves mid-war.
+                if (player.getFoodData().getFoodLevel() < 20) {
+                    player.getFoodData().setFoodLevel(20);
+                    player.getFoodData().setSaturation(5.0f);
+                }
             } else {
                 if (!player.getAbilities().mayfly || !player.getAbilities().invulnerable) {
                     player.getAbilities().mayfly = true;

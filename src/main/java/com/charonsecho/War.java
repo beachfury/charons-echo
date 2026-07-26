@@ -482,21 +482,17 @@ public final class War {
     // ---------------------------------------------------------------- kit & teams
 
     private static void giveKit(ServerPlayer player, Faction faction) {
+        // Identical kit for both banners — the war is fair, whatever the side:
+        // stone sword and an Infinity bow (the dead never run out of anything).
         stripKit(player);
-        if (faction == Faction.KEEPERS) {
-            player.getInventory().add(phantom(new ItemStack(Items.IRON_SWORD)));
-            player.getInventory().add(phantom(new ItemStack(Items.SHIELD)));
-        } else {
-            // Infinity: the dead never run out of anything.
-            ItemStack bow = new ItemStack(Items.BOW);
-            var enchants = player.level().registryAccess()
-                    .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
-            bow.enchant(enchants.getOrThrow(
-                    net.minecraft.world.item.enchantment.Enchantments.INFINITY), 1);
-            player.getInventory().add(phantom(bow));
-            player.getInventory().add(phantom(new ItemStack(Items.ARROW, 8)));
-            player.getInventory().add(phantom(new ItemStack(Items.STONE_SWORD)));
-        }
+        ItemStack bow = new ItemStack(Items.BOW);
+        var enchants = player.level().registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+        bow.enchant(enchants.getOrThrow(
+                net.minecraft.world.item.enchantment.Enchantments.INFINITY), 1);
+        player.getInventory().add(phantom(new ItemStack(Items.STONE_SWORD)));
+        player.getInventory().add(phantom(bow));
+        player.getInventory().add(phantom(new ItemStack(Items.ARROW, 8)));
     }
 
     private static ItemStack phantom(ItemStack stack) {
