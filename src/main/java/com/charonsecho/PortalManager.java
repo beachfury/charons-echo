@@ -239,6 +239,11 @@ public final class PortalManager {
         player.sendSystemMessage(Component.literal(
                 "What was yours is yours again — your echo rejoins the living.")
                 .withStyle(ChatFormatting.DARK_PURPLE));
+        if (grave.book == null) {
+            player.sendSystemMessage(Component.literal(
+                    "Return one day with a written book, and your stone will keep your story.")
+                    .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+        }
         openWhereToGui(player, grave);
     }
 
