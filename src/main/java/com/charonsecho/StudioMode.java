@@ -220,7 +220,12 @@ public final class StudioMode {
     /** Base-plot category membership by name prefix (headstone_3 → headstone). */
     private static String baseCategory(String plotName) {
         for (Category c : CATEGORIES) {
-            if (plotName.startsWith(c.name() + "_") || plotName.startsWith("pale_" + c.name())) return c.name();
+            // Exact name counts too — the church plot IS its category
+            // ("church", no _N suffix); without this it exported floorless.
+            if (plotName.equals(c.name()) || plotName.startsWith(c.name() + "_")
+                    || plotName.startsWith("pale_" + c.name())) {
+                return c.name();
+            }
         }
         if (plotName.startsWith("pale_tree")) return "tree";
         return "";
