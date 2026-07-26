@@ -218,12 +218,12 @@ public final class Crypt {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
         var slotProps = java.util.List.of(
-                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_0_OCCUPIED,
-                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_1_OCCUPIED,
-                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_2_OCCUPIED,
-                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_3_OCCUPIED,
-                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_4_OCCUPIED,
-                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_5_OCCUPIED);
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_0_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_1_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_2_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_3_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_4_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_5_OCCUPIED);
         LocalDate today = LocalDate.now();
         for (int i = 0; i < 7; i++) {
             if (SHELVES[i] == null) continue;
