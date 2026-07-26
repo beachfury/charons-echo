@@ -287,6 +287,12 @@ public final class War {
                     && !(target instanceof ServerPlayer)
                     && factionOf(target) != null && factionOf(target) != mf;
             if (fightingMob) continue;
+            // A duel with a nearby soldier stands — retaliation and melee
+            // exchanges stick. Only distant player-fixation gets re-evaluated.
+            if (target instanceof ServerPlayer dueling && isActiveEnemy(mob, dueling)
+                    && mob.distanceToSqr(dueling) < 24 * 24) {
+                continue;
+            }
             LivingEntity best = null;
             double bestD = 48 * 48;
             for (Mob other : fighters) {
@@ -297,7 +303,7 @@ public final class War {
             }
             for (ServerPlayer p : soldiers) {
                 if (factionOf(p) == mf) continue;
-                double d = mob.distanceToSqr(p) * 9; // players count as 3x farther
+                double d = mob.distanceToSqr(p) * 4; // players count as 2x farther
                 if (d < bestD) { bestD = d; best = p; }
             }
             if (best == null && target instanceof ServerPlayer tp && isActiveEnemy(mob, tp)) {
