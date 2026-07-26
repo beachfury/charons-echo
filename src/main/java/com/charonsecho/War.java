@@ -309,7 +309,32 @@ public final class War {
             if (best == null && target instanceof ServerPlayer tp && isActiveEnemy(mob, tp)) {
                 continue; // nothing better around — the duel stands
             }
-            mob.setTarget(best); // null clears a stale target — also correct
+            applyTarget(mob, best);
+        }
+    }
+
+    /**
+     * Deliver a target in whatever language this mob's AI speaks: goal mobs
+     * take setTarget, BRAIN mobs (creaking, breeze) take the ATTACK_TARGET
+     * memory, and the golem — a NeutralMob — must also be made formally ANGRY
+     * before its player-attack goals will engage.
+     */
+    private static void applyTarget(Mob mob, LivingEntity target) {
+        mob.setTarget(target);
+        var attackMemory = net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET;
+        if (target == null) {
+            mob.getBrain().eraseMemory(attackMemory);
+        } else {
+            mob.getBrain().setMemory(attackMemory, target);
+        }
+        if (mob instanceof net.minecraft.world.entity.NeutralMob neutral) {
+            if (target != null) {
+                neutral.setPersistentAngerTarget(
+                        net.minecraft.world.entity.EntityReference.of(target));
+                neutral.startPersistentAngerTimer();
+            } else {
+                neutral.setPersistentAngerTarget(null);
+            }
         }
     }
 
