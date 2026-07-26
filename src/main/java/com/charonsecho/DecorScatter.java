@@ -210,6 +210,30 @@ public final class DecorScatter {
         }
     }
 
+    /**
+     * A burial (or the gate) claims its ground: any decor piece whose footprint
+     * touches the claimed rectangle is removed WHOLE — no half-chopped trunks,
+     * no floating canopies — and its slot is marked consumed so no rebuild ever
+     * resurrects it. The yard keeps what it takes.
+     */
+    public static void clearClaimed(ServerLevel level, int x0, int z0, int x1, int z1) {
+        for (Map.Entry<Long, Placement> entry : PLACEMENTS.entrySet()) {
+            Placement p = entry.getValue();
+            if (p.piece().isEmpty() || p.category().equals("consumed")) continue;
+            int w = StudioMode.widthOfCategory(p.category());
+            boolean overlaps = p.x() <= x1 && p.x() + w - 1 >= x0
+                    && p.z() <= z1 && p.z() + w - 1 >= z0;
+            if (!overlaps) continue;
+            clearSlot(level, p);
+            if (p.category().equals("big_tree")) {
+                Orchard.removeWildNear(level.dimension(),
+                        p.x() + w / 2, p.z() + w / 2, w);
+            }
+            entry.setValue(new Placement(p.x(), p.z(), "consumed", ""));
+            dirty = true;
+        }
+    }
+
     /** Clear a slot's build volume back to air above the terrain. */
     private static void clearSlot(ServerLevel level, Placement p) {
         StudioMode.Category cat = StudioMode.CATEGORIES.stream()
@@ -236,6 +260,7 @@ public final class DecorScatter {
         int placed = 0;
         for (Map.Entry<Long, Placement> entry : PLACEMENTS.entrySet()) {
             Placement p = entry.getValue();
+            if (p.category().equals("consumed")) continue; // the yard keeps what it takes
             clearSlot(level, p);
             String piece = choosePiece(level, p.category(), p.x(), p.z());
             if (!piece.isEmpty()) {

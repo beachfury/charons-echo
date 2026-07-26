@@ -765,6 +765,14 @@ public final class Orchard {
         save();
     }
 
+    /** A claimed wild tree leaves the registry (its blocks are already gone). */
+    public static void removeWildNear(ResourceKey<Level> dim, int x, int z, int radius) {
+        boolean removed = TREES.removeIf(t -> t.wild && t.dim == dim
+                && Math.abs(t.base.getX() - x) <= radius
+                && Math.abs(t.base.getZ() - z) <= radius);
+        if (removed) save();
+    }
+
     public static List<Tree> trees() {
         return List.copyOf(TREES);
     }

@@ -231,6 +231,11 @@ public final class GraveyardPlots {
         int idx = nextPlotIndex();
         grave.plotIndex = idx;
         ensureField(graveyard, idx / PER_FIELD);
+        // The burial claims its ground: any tree or clutter standing on the
+        // plot is removed whole before the stone rises.
+        BlockPos claimed = plotOrigin(idx);
+        DecorScatter.clearClaimed(graveyard, claimed.getX() - 1, claimed.getZ() - 1,
+                claimed.getX() + PLOT, claimed.getZ() + PLOT);
         placeHeadstone(graveyard, grave); // terraces its own footprint
         SignBlockEntity fieldSign = findFieldSign(graveyard, idx / PER_FIELD);
         if (fieldSign != null) {
@@ -396,6 +401,9 @@ public final class GraveyardPlots {
             }
         }
         if (low < GraveyardTerrain.WATER_TOP) return false; // the gate never stands in water
+
+        // The gate claims its ground too — no trunks through the arch.
+        DecorScatter.clearClaimed(level, x0 - 1, z0 - 1, x0 + w, z0 + d);
 
         BlockState tuff = Blocks.TUFF.defaultBlockState();
         BlockState moss = Blocks.PALE_MOSS_BLOCK.defaultBlockState();
