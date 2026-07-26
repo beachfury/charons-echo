@@ -134,8 +134,21 @@ public final class War {
         if (mf == null) return false; // civilians, the Broker, everything else
         Faction af = factionOf(attacker);
         if (af == null || af == mf) return false;
-        if (amount >= victim.getHealth() && attacker instanceof ServerPlayer ap && isActive(ap.getUUID())) {
-            credit(ap);
+        if (amount >= victim.getHealth()) {
+            // War casualties DISSOLVE — no loot, no XP, no corpse, no lag.
+            // The dead return to the dirt they rose from.
+            if (attacker instanceof ServerPlayer ap && isActive(ap.getUUID())) {
+                credit(ap);
+            }
+            if (victim.level() instanceof ServerLevel lvl) {
+                lvl.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL,
+                        victim.getX(), victim.getY() + 0.8, victim.getZ(),
+                        12, 0.3, 0.5, 0.3, 0.02);
+                lvl.playSound(null, victim.blockPosition(), SoundEvents.SOUL_ESCAPE.value(),
+                        SoundSource.AMBIENT, 0.6f, 0.8f);
+            }
+            victim.discard();
+            return false;
         }
         return true;
     }
