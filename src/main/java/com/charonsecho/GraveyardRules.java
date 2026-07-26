@@ -198,11 +198,14 @@ public final class GraveyardRules {
                     mob.setTarget(null);
                 }
                 // Wardens rebuild anger at players from vibrations — wipe it so
-                // they never escalate to hunting a visitor.
+                // they never escalate to hunting a visitor. And a CALM warden
+                // digs itself home after a quiet minute — keep its dig cooldown
+                // permanently topped up so the groundskeeper never gets the urge.
                 if (mob instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
                     for (var p : players) {
                         warden.clearAnger(p);
                     }
+                    net.minecraft.world.entity.monster.warden.WardenAi.setDigCooldown(warden);
                 }
                 mob.setPersistenceRequired();
             }
