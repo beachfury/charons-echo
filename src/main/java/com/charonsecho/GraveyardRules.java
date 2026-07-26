@@ -147,6 +147,24 @@ public final class GraveyardRules {
         }
     }
 
+    /**
+     * The war golem is imposing, not invincible: vanilla stats (100 HP,
+     * ~14 damage) are boss-tier and made the Keepers unbeatable. Config:
+     * war-golem-health / war-golem-damage. The launch knockback stays.
+     */
+    private static void tuneGolem(net.minecraft.world.entity.Mob mob) {
+        if (!(mob instanceof net.minecraft.world.entity.animal.golem.IronGolem golem)) return;
+        var health = golem.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        var damage = golem.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+        if (health != null && health.getBaseValue() != CharonConfig.warGolemHealth) {
+            health.setBaseValue(CharonConfig.warGolemHealth);
+            golem.setHealth(Math.min(golem.getHealth(), CharonConfig.warGolemHealth));
+        }
+        if (damage != null && damage.getBaseValue() != CharonConfig.warGolemDamage) {
+            damage.setBaseValue(CharonConfig.warGolemDamage);
+        }
+    }
+
     private static void spawnKeeper(ServerLevel level,
             net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.Mob> type,
             int x, int z) {
@@ -162,6 +180,7 @@ public final class GraveyardRules {
         if (mob == null) return;
         mob.setPos(x + 0.5, h + 1, z + 0.5);
         mob.setPersistenceRequired();
+        tuneGolem(mob);
         // Keepers are POSTED: a home wide enough to fight across the whole
         // yard, so nobody can pied-piper them across the map.
         mob.setHomeTo(new net.minecraft.core.BlockPos(x, h + 1, z), 48);
@@ -232,6 +251,7 @@ public final class GraveyardRules {
                         && !War.isActiveEnemy(mob, tp)) {
                     mob.setTarget(null);
                 }
+                tuneGolem(mob); // retune any golem still carrying vanilla boss stats
                 // Post enforcement: adopt-a-home for keepers from before homes
                 // existed, widen old cramped leashes, and snap ONLY the idle —
                 // a soldier with a war target fights wherever the war goes.

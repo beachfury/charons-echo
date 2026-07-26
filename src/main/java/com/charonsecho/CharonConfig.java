@@ -53,6 +53,10 @@ public final class CharonConfig {
     public static volatile int warWindCap = 3;
     /** Hollow Wind BREEZES fielded at once (loud — keep them scarce). */
     public static volatile int warBreezeCap = 1;
+    /** War golem max health (vanilla is a boss-tier 100). */
+    public static volatile int warGolemHealth = 40;
+    /** War golem attack damage (vanilla averages ~14 with a launch). */
+    public static volatile int warGolemDamage = 6;
 
     private CharonConfig() {}
 
@@ -84,6 +88,8 @@ public final class CharonConfig {
             warRestlessCap = clamp(inted(p, "war-restless-cap", warRestlessCap), 0, 64);
             warWindCap = clamp(inted(p, "war-wind-cap", warWindCap), 0, 64);
             warBreezeCap = clamp(inted(p, "war-breeze-cap", warBreezeCap), 0, 64);
+            warGolemHealth = clamp(inted(p, "war-golem-health", warGolemHealth), 10, 1024);
+            warGolemDamage = clamp(inted(p, "war-golem-damage", warGolemDamage), 1, 100);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -196,12 +202,21 @@ public final class CharonConfig {
             # Default 1.  Breezes are loud and knock everything around —
             # keep them scarce.  0 = the Wind becomes pure vex.
             war-breeze-cap=%d
+
+            # War golem max health.  Range 10-1024.  Default 40 (vanilla is a
+            # boss-tier 100).  Two soldiers' worth of health feels right.
+            war-golem-health=%d
+
+            # War golem attack damage.  Range 1-100.  Default 6 (3 hearts;
+            # vanilla averages ~14 and one-shots half the Restless).
+            # The launch knockback stays — that is the golem's signature.
+            war-golem-damage=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
-                warRestlessCap, warWindCap, warBreezeCap);
+                warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage);
     }
 
     private static int inted(Properties p, String key, int def) {
