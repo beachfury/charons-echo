@@ -162,9 +162,9 @@ public final class GraveyardRules {
         if (mob == null) return;
         mob.setPos(x + 0.5, h + 1, z + 0.5);
         mob.setPersistenceRequired();
-        // Keepers are POSTED: a home and a radius, so nobody can pied-piper
-        // thirty creakings into one laggy ball across the map.
-        mob.setHomeTo(new net.minecraft.core.BlockPos(x, h + 1, z), 24);
+        // Keepers are POSTED: a home wide enough to fight across the whole
+        // yard, so nobody can pied-piper them across the map.
+        mob.setHomeTo(new net.minecraft.core.BlockPos(x, h + 1, z), 48);
         level.addFreshEntity(mob);
     }
 
@@ -232,15 +232,17 @@ public final class GraveyardRules {
                         && !War.isActiveEnemy(mob, tp)) {
                     mob.setTarget(null);
                 }
-                // Post enforcement: keepers spawned before homes existed adopt
-                // their current spot; any keeper lured past its leash walks
-                // back the hard way — a quiet snap to the post.
+                // Post enforcement: adopt-a-home for keepers from before homes
+                // existed, widen old cramped leashes, and snap ONLY the idle —
+                // a soldier with a war target fights wherever the war goes.
                 if (!mob.hasHome()) {
-                    mob.setHomeTo(mob.blockPosition(), 24);
-                } else if (mob.blockPosition().distSqr(mob.getHomePosition()) > 40 * 40) {
+                    mob.setHomeTo(mob.blockPosition(), 48);
+                } else if (mob.getHomeRadius() < 48) {
+                    mob.setHomeTo(mob.getHomePosition(), 48);
+                } else if (mob.getTarget() == null
+                        && mob.blockPosition().distSqr(mob.getHomePosition()) > 64 * 64) {
                     net.minecraft.core.BlockPos home = mob.getHomePosition();
                     mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
-                    mob.setTarget(null);
                 }
                 // Wardens rebuild anger at players from vibrations — wipe it so
                 // they never escalate to hunting a visitor. And a CALM warden

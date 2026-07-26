@@ -154,7 +154,9 @@ public final class War {
         if (server.getTickCount() % 100 == 0) {
             musterArmies(graveyard, front);
         }
-        if (server.getTickCount() % 40 == 0) {
+        // Fast cadence: vanilla target selectors (golems especially) keep
+        // dropping externally-set targets — the war's will must outpace them.
+        if (server.getTickCount() % 10 == 0) {
             assignTargets(graveyard, front);
         }
     }
