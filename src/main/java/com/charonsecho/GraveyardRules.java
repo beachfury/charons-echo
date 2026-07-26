@@ -264,6 +264,11 @@ public final class GraveyardRules {
                             : War.frontHome(mob.blockPosition()), keeperKind ? 48 : 32);
                 } else if (keeperKind && mob.getHomeRadius() < 48) {
                     mob.setHomeTo(mob.getHomePosition(), 48);
+                } else if (!keeperKind && mob.getHomePosition()
+                        .distSqr(War.frontHome(mob.getHomePosition())) > 48 * 48) {
+                    // A soldier homed somewhere that isn't the front (adopted a
+                    // cliff, or the front moved on): re-point it at the war.
+                    mob.setHomeTo(War.frontHome(mob.getHomePosition()), 32);
                 } else if (mob.getTarget() == null) {
                     int leash = mob.getHomeRadius() + 16;
                     if (mob.blockPosition().distSqr(mob.getHomePosition()) > (long) leash * leash) {
