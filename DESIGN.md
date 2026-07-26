@@ -585,6 +585,67 @@ vanilla items, growth is template pastes, all state in `world/charons_echo/orcha
   line erodes felling by felling until a fresh vigil founds a new house. Glinting
   seeds in chests degrade the same way — relics of a dead house.
 
+## The War Below the Moon (decided 2026-07-25, not yet built)
+
+An eternal three-sided war fought in Charon's Echo — invisible to the living,
+joinable by the dead, and the THIRD way to pay Charon: coin (obol), blood
+(XP toll), or TIME (service).
+
+### Factions
+- **The Keepers** — iron golem (field groundskeeper), creaking (tree-lurkers),
+  allay (non-combatant couriers). Defend the yards.
+- **The Restless** — parched, bogged, stray. The dead who won't lie down;
+  they RISE FROM THE GRAVE FIELDS — more souls buried, more Restless.
+- **The Hollow Wind** — vex, breeze. NPC-only wildcard haunting ruins and
+  elder trees; raids both sides so the war never goes static.
+- **Civilians** — allay (cannot fight, by vanilla design) and SNIFFER, the
+  relic beast that wanders and digs — its plantings explain the groundcover's
+  ultra-rare torchflowers.
+
+### Rules of engagement
+- Scoreboard team per faction; a war tick hands fighters the nearest
+  enemy-faction target (vanilla combat AI does the rest).
+- **The war cannot see the living.** No mob ever targets a player; no damage
+  reaches a player; players cannot damage war mobs (they're invulnerable in
+  the yard — allowing it would be the safest farm in Minecraft). Battle debris
+  (arrows, bones) is the one thing the living may scavenge.
+- Spawn eggs refused in the graveyard ("They do not belong here."),
+  gamemasters exempt.
+- Caps for lag: war mobs spawn only near players, capped per area, NOT
+  persistence-flagged (despawn when abandoned). Only posted Keepers persist
+  (home + 24 radius, hard snap at 40 — no herding them across the map).
+
+### The front moves
+- The war is fought at the ACTIVE field (currently receiving burials).
+- A FILLED field is settled ground forever: Restless stop rising there, the
+  garrison thins to an honor guard (one golem, a creaking or two), quiet.
+- The battle line marches outward field by field, following the server's
+  history of deaths.
+
+### Enlistment (the third payment)
+- A ghost stays INVULNERABLE and untouchable until the moment of choice at
+  the yard: pay fare / pay toll (mourner — locked to the reclaim path, no
+  combat, today's flow) or TAKE THE OATH: join Keepers or Restless.
+- Enlisted dead get a loaned phantom kit (faction-flavored; vanishes on
+  discharge — real gear stays safe in the grave), become visible and
+  vulnerable TO THE WAR ONLY, and fight at the front.
+- **Service clock** (config): base `war-service-minutes` (~15, counts only
+  while enlisted and present), each enemy downed subtracts
+  `war-kill-credit-seconds` (~30) — service goes faster if you actually serve.
+  Serving out = automatic full resurrection at the stone, free of charge.
+- **PvP with no stakes but pride**: enlisted dead of opposing sides can fight
+  each other. Defeat = downed, respawn at the faction muster point,
+  `war-downed-penalty-seconds` (~60) added to service. Items were never at
+  risk — they're in the grave.
+- Abandoning service: revert to ordinary ghost; the clock pauses (resumes on
+  re-enlisting).
+
+### v2 (POST-JAM): territory made visible
+- Restless-held ground grows sculk veins over stones; Keepers cleanse it.
+- When a field fills, its sculk state FREEZES — the yard's final appearance
+  IS the war record: clean moss = the Keepers held; choked veins = the
+  Restless took it. Memorials that write themselves.
+
 ## Decisions log
 
 - 2026-07-25: **Graves go AROUND the trees.** A plot with any decor footprint
