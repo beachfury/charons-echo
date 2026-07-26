@@ -66,9 +66,9 @@ public final class GraveyardRules {
                     // right-click stays the epitaph read, whatever's in hand.
                     boolean isFlower = held.getItem() instanceof net.minecraft.world.item.BlockItem bi
                             && bi.getBlock().defaultBlockState()
-                                    .is(net.minecraft.tags.BlockTags.SMALL_FLOWERS);
+                                    .is(net.minecraft.tags.BlockTags.FLOWERS);
                     if (isFlower && sp.isShiftKeyDown() && !GhostState.isGhost(sp.getUUID())) {
-                        if (GraveyardPlots.layTribute((ServerLevel) world, grave, held)) {
+                        if (GraveyardPlots.layTribute((ServerLevel) world, grave, held, sp)) {
                             if (!sp.isCreative()) held.shrink(1);
                             sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                                     "You lay a flower for " + grave.ownerName + ".")

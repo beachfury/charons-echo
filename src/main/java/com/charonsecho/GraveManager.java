@@ -55,6 +55,9 @@ public final class GraveManager {
         public boolean farePaid = false;
         /** Flowers laid by the living — the only votes that count here. */
         public int tributes = 0;
+        /** One flower per mourner: who has already laid theirs. */
+        public final java.util.Set<java.util.UUID> mourners =
+                java.util.concurrent.ConcurrentHashMap.newKeySet();
         /** XP levels may be halved by Charon's toll before reclaim. */
 
         public Grave(UUID id, UUID owner, String ownerName, String dimension, BlockPos pos,
@@ -109,6 +112,10 @@ public final class GraveManager {
                 grave.epochMillis = g.getLongOr("epochMillis", 0L);
                 grave.farePaid = g.getBooleanOr("farePaid", false);
                 grave.tributes = g.getIntOr("tributes", 0);
+                long[] mourners = g.getLongArray("mourners").orElse(new long[0]);
+                for (int i = 0; i + 1 < mourners.length; i += 2) {
+                    grave.mourners.add(new java.util.UUID(mourners[i], mourners[i + 1]));
+                }
                 grave.stoneName = g.getStringOr("stoneName", "");
                 if (g.contains("book")) {
                     net.minecraft.world.item.component.WrittenBookContent.CODEC
@@ -147,6 +154,13 @@ public final class GraveManager {
                 t.putLong("epochMillis", g.epochMillis);
                 t.putBoolean("farePaid", g.farePaid);
                 t.putInt("tributes", g.tributes);
+                long[] mourners = new long[g.mourners.size() * 2];
+                int mi = 0;
+                for (java.util.UUID u : g.mourners) {
+                    mourners[mi++] = u.getMostSignificantBits();
+                    mourners[mi++] = u.getLeastSignificantBits();
+                }
+                t.putLongArray("mourners", mourners);
                 t.putString("stoneName", g.stoneName);
                 if (g.book != null) {
                     net.minecraft.world.item.component.WrittenBookContent.CODEC

@@ -222,20 +222,40 @@ public final class GraveyardPlots {
      * allows is what the living leave behind. Plots hold ~20; when full, the
      * vote still counts and the flower is simply taken by the wind.
      */
-    static boolean layTribute(ServerLevel level, GraveManager.Grave grave, net.minecraft.world.item.ItemStack held) {
+    static boolean layTribute(ServerLevel level, GraveManager.Grave grave,
+            net.minecraft.world.item.ItemStack held, net.minecraft.server.level.ServerPlayer mourner) {
         if (grave.plotIndex < 0) return false;
+        // ONE flower per mourner per grave — grief is not a spam mechanic,
+        // and the owner gets the same single vanity vote as everyone else.
+        if (!grave.mourners.add(mourner.getUUID())) {
+            mourner.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "You have already laid your flower here.")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            return false;
+        }
         grave.tributes++;
         GraveManager.save();
         BlockPos o = plotOrigin(grave.plotIndex);
         int surf = plotSurfaceY(grave.plotIndex);
         if (held.getItem() instanceof net.minecraft.world.item.BlockItem flower) {
+            var state = flower.getBlock().defaultBlockState();
+            boolean tall = state.hasProperty(net.minecraft.world.level.block.state.properties
+                    .BlockStateProperties.DOUBLE_BLOCK_HALF);
             for (int i = 0; i < PLOT * PLOT; i++) {
                 int scan = Math.floorMod(grave.tributes * 7 + i, PLOT * PLOT);
                 BlockPos spot = new BlockPos(o.getX() + scan % PLOT, surf + 1, o.getZ() + scan / PLOT);
                 if (level.getBlockState(spot).isAir()
                         && !level.getBlockState(spot.below()).isAir()
-                        && flower.getBlock().defaultBlockState().canSurvive(level, spot)) {
-                    level.setBlock(spot, flower.getBlock().defaultBlockState(), 3);
+                        && state.canSurvive(level, spot)
+                        && (!tall || level.getBlockState(spot.above()).isAir())) {
+                    level.setBlock(spot, state, 3);
+                    if (tall) {
+                        level.setBlock(spot.above(), state.setValue(
+                                net.minecraft.world.level.block.state.properties
+                                        .BlockStateProperties.DOUBLE_BLOCK_HALF,
+                                net.minecraft.world.level.block.state.properties
+                                        .DoubleBlockHalf.UPPER), 3);
+                    }
                     break;
                 }
             }
