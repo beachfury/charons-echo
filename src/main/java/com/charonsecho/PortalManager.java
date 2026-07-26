@@ -282,11 +282,12 @@ public final class PortalManager {
                         .withStyle(ChatFormatting.GRAY))
                 .setCallback((i, t, a, g) -> {
                     ServerLevel gy = (ServerLevel) player.level();
-                    gy.getChunk(0, 0);
-                    int y = gy.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, 8, 8);
-                    player.teleportTo(gy, 8.5, y, 8.5, Set.<Relative>of(), 180f, 0f, false);
+                    BlockPos at = Church.arrivalPoint();
+                    gy.getChunk(at.getX() >> 4, at.getZ() >> 4);
+                    player.teleportTo(gy, at.getX() + 0.5, at.getY(), at.getZ() + 0.5,
+                            Set.<Relative>of(), 180f, 0f, false);
                     RETURN_PORTALS.put(player.getUUID(),
-                            new ReturnPortal(new BlockPos(4, y, 8), grave.dimension, grave.pos));
+                            new ReturnPortal(at.offset(-4, 0, 0), grave.dimension, grave.pos));
                     g.close();
                 })
                 .build());

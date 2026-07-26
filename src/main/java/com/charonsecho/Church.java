@@ -37,6 +37,7 @@ public final class Church {
     private static BlockPos vendor;
     private static BlockPos lodestone;
     private static BlockPos lectern;
+    private static BlockPos arrival;
 
     private Church() {}
 
@@ -160,6 +161,22 @@ public final class Church {
         return placed ? lectern : null;
     }
 
+    /**
+     * Where visitors ARRIVE in Charon's Echo: admin-set (/charon spawn here),
+     * defaulting to the path outside the church's south door — never inside
+     * a wall.
+     */
+    public static BlockPos arrivalPoint() {
+        if (arrival != null) return arrival;
+        int z = HALF + 4;
+        return new BlockPos(0, GraveyardTerrain.groundHeight(0, z) + 1, z);
+    }
+
+    public static void setArrival(BlockPos pos) {
+        arrival = pos.immutable();
+        save();
+    }
+
     // ---- persistence (world/charons_echo/church.dat) ----
 
     public static void load(MinecraftServer server) {
@@ -167,6 +184,7 @@ public final class Church {
         vendor = null;
         lodestone = null;
         lectern = null;
+        arrival = null;
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("church.dat");
         if (!Files.exists(file)) return;
         try {
@@ -180,6 +198,9 @@ public final class Church {
             }
             if (root.getLongOr("lectern", Long.MIN_VALUE) != Long.MIN_VALUE) {
                 lectern = BlockPos.of(root.getLongOr("lectern", 0));
+            }
+            if (root.getLongOr("arrival", Long.MIN_VALUE) != Long.MIN_VALUE) {
+                arrival = BlockPos.of(root.getLongOr("arrival", 0));
             }
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to load church.dat: " + e);
@@ -195,6 +216,7 @@ public final class Church {
             if (vendor != null) root.putLong("vendor", vendor.asLong());
             if (lodestone != null) root.putLong("lodestone", lodestone.asLong());
             if (lectern != null) root.putLong("lectern", lectern.asLong());
+            if (arrival != null) root.putLong("arrival", arrival.asLong());
             NbtIo.writeCompressed(root, file);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save church.dat: " + e);

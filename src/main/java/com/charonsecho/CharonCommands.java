@@ -514,13 +514,26 @@ public final class CharonCommands {
                                 .withStyle(ChatFormatting.RED));
                         return 0;
                     }
-                    graveyard.getChunk(0, 0);
-                    int y = graveyard.getHeight(Heightmap.Types.MOTION_BLOCKING, 8, 8);
-                    player.teleportTo(graveyard, 8.5, y, 8.5, Set.<Relative>of(), 0f, 0f, false);
+                    var at = Church.arrivalPoint();
+                    graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
+                    player.teleportTo(graveyard, at.getX() + 0.5, at.getY(), at.getZ() + 0.5,
+                            Set.<Relative>of(), 180f, 0f, false);
                     player.sendSystemMessage(Component.literal("You stand on hallowed ground.")
                             .withStyle(ChatFormatting.DARK_PURPLE));
                     return 1;
                 }))
+                .then(Commands.literal("spawn").then(Commands.literal("here").executes(ctx -> {
+                    ServerPlayer player = admin(ctx);
+                    if (player == null) return 0;
+                    if (player.level().dimension() != CharonsEcho.GRAVEYARD_DIM) {
+                        return err(player, "Stand where visitors should arrive — in Charon's Echo.");
+                    }
+                    Church.setArrival(player.blockPosition());
+                    player.sendSystemMessage(Component.literal(
+                            "Visitors will arrive here from now on.")
+                            .withStyle(ChatFormatting.GREEN));
+                    return 1;
+                })))
                 .then(Commands.literal("back").executes(ctx -> {
                     ServerPlayer player = builder(ctx);
                     if (player == null) return 0;
