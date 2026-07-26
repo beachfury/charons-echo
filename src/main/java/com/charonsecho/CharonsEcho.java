@@ -53,6 +53,8 @@ public final class CharonsEcho implements ModInitializer {
         War.register();
         // The crypt's day-shelves: a rolling week of the dead.
         Crypt.register();
+        // The ledger lectern in the church.
+        Church.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
@@ -69,6 +71,7 @@ public final class CharonsEcho implements ModInitializer {
             Church.ensure(server); // the church rises with the terrain
             Crypt.load(server);
             Crypt.ensure(server);  // and the crypt is carved beneath it
+            Church.dressLedger(server); // the Book of the Dead on its lectern
             Broker.ensure(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid

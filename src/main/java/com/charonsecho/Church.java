@@ -40,6 +40,44 @@ public final class Church {
 
     private Church() {}
 
+    /** The ledger lectern: click it, read the Book of the Dead. */
+    public static void register() {
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register(
+                (player, world, hand, hit) -> {
+            if (lectern == null || !hit.getBlockPos().equals(lectern)
+                    || world.dimension() != CharonsEcho.GRAVEYARD_DIM) {
+                return net.minecraft.world.InteractionResult.PASS;
+            }
+            if (!(player instanceof net.minecraft.server.level.ServerPlayer sp)) {
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
+            CharonCommands.openLedger(sp);
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        });
+    }
+
+    /** The Book of the Dead rests ON the lectern — dressed every start. */
+    public static void dressLedger(MinecraftServer server) {
+        ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
+        if (graveyard == null || lectern == null) return;
+        graveyard.getChunk(lectern.getX() >> 4, lectern.getZ() >> 4);
+        var state = graveyard.getBlockState(lectern);
+        if (!state.is(Blocks.LECTERN)) return;
+        if (!state.getValue(net.minecraft.world.level.block.LecternBlock.HAS_BOOK)) {
+            graveyard.setBlock(lectern, state.setValue(
+                    net.minecraft.world.level.block.LecternBlock.HAS_BOOK, true), 3);
+        }
+        if (graveyard.getBlockEntity(lectern)
+                instanceof net.minecraft.world.level.block.entity.LecternBlockEntity be) {
+            var book = new net.minecraft.world.item.ItemStack(
+                    net.minecraft.world.item.Items.WRITTEN_BOOK);
+            book.set(net.minecraft.core.component.DataComponents.ITEM_NAME,
+                    net.minecraft.network.chat.Component.literal("The Book of the Dead")
+                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE));
+            be.setBook(book);
+        }
+    }
+
     public static void ensure(MinecraftServer server) {
         if (placed) return;
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);

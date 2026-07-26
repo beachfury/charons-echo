@@ -78,7 +78,7 @@ public final class CharonCommands {
 
     /** The Book of the Dead: every death, newest first; entries with interred
      *  books open them read-only. Open to ALL players. */
-    private static void openLedger(ServerPlayer player) {
+    static void openLedger(ServerPlayer player) {
         var gui = new eu.pb4.sgui.api.gui.SimpleGui(
                 net.minecraft.world.inventory.MenuType.GENERIC_9x6, player, false);
         gui.setTitle(Component.literal("The Book of the Dead"));
