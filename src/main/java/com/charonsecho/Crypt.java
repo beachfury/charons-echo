@@ -370,7 +370,7 @@ public final class Crypt {
                         side > 0 ? net.minecraft.core.Direction.WEST
                                  : net.minecraft.core.Direction.EAST), 2);
         MONTHS.put(ym, shelf.immutable());
-        System.out.println("[CharonsEcho] the crypt grows: the Hall of " + label + " opens");
+        System.out.println("[CharonsEcho] the crypt grows: the hall of " + ym + " opens");
     }
 
     /** The hall's shelf: the whole month's ledger. */
