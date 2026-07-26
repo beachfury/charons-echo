@@ -85,33 +85,123 @@ public final class CharonConfig {
             warWindCap = clamp(inted(p, "war-wind-cap", warWindCap), 0, 64);
             warBreezeCap = clamp(inted(p, "war-breeze-cap", warBreezeCap), 0, 64);
 
-            // Always write the full set back so new keys appear for admins.
-            p.setProperty("set-default-size", Integer.toString(setDefaultSize));
-            p.setProperty("set-max-size", Integer.toString(setMaxSize));
-            p.setProperty("wake-timeout-seconds", Integer.toString(wakeTimeoutSeconds));
-            p.setProperty("ghost-tether-radius", Integer.toString((int) ghostTetherRadius));
-            p.setProperty("toll-xp-percent", Integer.toString(tollXpPercent));
-            p.setProperty("orchard-seed-price", Integer.toString(orchardSeedPrice));
-            p.setProperty("orchard-tree-cap", Integer.toString(orchardTreeCap));
-            p.setProperty("orchard-stage1-ticks", Integer.toString(orchardStage1Ticks));
-            p.setProperty("orchard-stage2-ticks", Integer.toString(orchardStage2Ticks));
-            p.setProperty("orchard-fruit-face-ticks", Integer.toString(orchardFruitFaceTicks));
-            p.setProperty("orchard-fruit-seal-ticks", Integer.toString(orchardFruitSealTicks));
-            p.setProperty("orchard-dormancy-ticks", Integer.toString(orchardDormancyTicks));
-            p.setProperty("mother-absence-days", Integer.toString(motherAbsenceDays));
-            p.setProperty("war-service-minutes", Integer.toString(warServiceMinutes));
-            p.setProperty("war-kill-credit-seconds", Integer.toString(warKillCreditSeconds));
-            p.setProperty("war-downed-penalty-seconds", Integer.toString(warDownedPenaltySeconds));
-            p.setProperty("war-restless-cap", Integer.toString(warRestlessCap));
-            p.setProperty("war-wind-cap", Integer.toString(warWindCap));
-            p.setProperty("war-breeze-cap", Integer.toString(warBreezeCap));
+            // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
-            try (OutputStream out = Files.newOutputStream(file)) {
-                p.store(out, "Charon's Echo — edit and restart to apply");
-            }
+            Files.writeString(file, documentedFile());
         } catch (IOException e) {
             System.out.println("[CharonsEcho] config load failed (using defaults): " + e);
         }
+    }
+
+    /** The config file, written with a manual for every knob. */
+    private static String documentedFile() {
+        return """
+            # ============================================================
+            #  CHARON'S ECHO — edit values, then restart (or rejoin) to apply.
+            #  Comments are regenerated on every start; only values persist.
+            #  Time note: 20 ticks = 1 second. Tick-based clocks only run
+            #  while the relevant chunk is LOADED.
+            # ============================================================
+
+            # ---- The Studio (builder sets) ----
+
+            # Footprint (blocks square) a new builder set gets when no size is
+            # given to /charon set new.  Range 32-1024.  Default 96.
+            set-default-size=%d
+
+            # The largest set a builder may request.  Range 32-1024 (never
+            # below set-default-size).  Default 256.
+            set-max-size=%d
+
+            # ---- The death loop ----
+
+            # Seconds the body lies in state (the wake screen) before the
+            # ghost rises automatically.  Range 5-600.  Default 60.
+            # Longer gives friends more time to lay an obol on the body.
+            wake-timeout-seconds=%d
+
+            # Leash radius (blocks) around the death site while a ghost is
+            # still in the living world.  Range 8-256.  Default 24.
+            ghost-tether-radius=%d
+
+            # Charon's toll: percent of the grave's XP levels taken when a
+            # dead player pays with memory instead of an obol.
+            # Range 0-100.  Default 50.  0 makes death nearly free —
+            # the obol and the war stop mattering.
+            toll-xp-percent=%d
+
+            # ---- The Stygian Orchard ----
+
+            # The Broker's price for one Stygian Seed, in emeralds.
+            # Range 1-4096.  Default 32.  Keep it above the cost of crafting
+            # one obol — a tree pays out forever.
+            orchard-seed-price=%d
+
+            # Planted trees one player may have at once.  Range 1-64.
+            # Default 3.  Raising this multiplies obol income per player.
+            orchard-tree-cap=%d
+
+            # Loaded ticks from seedling to the small tree.
+            # Default 48000 (about 40 real minutes near the tree).
+            orchard-stage1-ticks=%d
+
+            # Loaded ticks from small tree to the grown tree.
+            # Default 72000 (about 60 real minutes).  Stage1 + stage2 is the
+            # full growing time — and the length of a vigil, for those who
+            # keep one.
+            orchard-stage2-ticks=%d
+
+            # Loaded ticks for EACH of the five sculk faces to close over a
+            # growing fruit.  Default 2400 (about 2 minutes per face).
+            orchard-fruit-face-ticks=%d
+
+            # Loaded ticks a fully sealed fruit takes to ripen into the
+            # glowing froglight.  Default 6000 (about 5 minutes).
+            orchard-fruit-seal-ticks=%d
+
+            # Loaded ticks a tree rests after a FULL harvest before budding
+            # again.  Default 24000 (about 20 minutes).  At defaults a tree
+            # yields roughly one fruit batch per 35 minutes.
+            orchard-dormancy-ticks=%d
+
+            # Real-world days the mother tree's owner may stay offline before
+            # the elder line dies.  Range 1-3650.  Default 30.
+            mother-absence-days=%d
+
+            # ---- The War Below the Moon ----
+
+            # Minutes of war service that earn a free resurrection.
+            # Range 1-1440.  Default 15.  Should feel slower than paying but
+            # faster than re-grinding the XP toll — that is the balance point.
+            war-service-minutes=%d
+
+            # Seconds shaved off the service clock for each enemy downed.
+            # Range 0-3600.  Default 30.  0 = flat sentence, fighting optional.
+            war-kill-credit-seconds=%d
+
+            # Seconds ADDED when an enlisted player is downed.  Range 0-3600.
+            # Default 60.  This is what makes the war's PvP mean something.
+            war-downed-penalty-seconds=%d
+
+            # Restless soldiers (parched/bogged/stray) fielded at the front
+            # at once.  Range 0-64.  Default 8.  The biggest lever on battle
+            # size and mob count — lower this first if the front causes lag.
+            war-restless-cap=%d
+
+            # Hollow Wind VEXES at the front at once.  Range 0-64.  Default 3.
+            # 0 removes vexes entirely.
+            war-wind-cap=%d
+
+            # Hollow Wind BREEZES at the front at once.  Range 0-64.
+            # Default 1.  Breezes are loud and knock everything around —
+            # keep them scarce.  0 = the Wind becomes pure vex.
+            war-breeze-cap=%d
+            """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
+                (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
+                orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
+                orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
+                warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
+                warRestlessCap, warWindCap, warBreezeCap);
     }
 
     private static int inted(Properties p, String key, int def) {
