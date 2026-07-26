@@ -280,11 +280,13 @@ public final class War {
         for (Mob mob : fighters) {
             Faction mf = factionOf(mob);
             LivingEntity target = mob.getTarget();
-            boolean valid = target != null && target.isAlive()
-                    && (target instanceof ServerPlayer tp
-                            ? isActiveEnemy(mob, tp)
-                            : factionOf(target) != null && factionOf(target) != mf);
-            if (valid) continue;
+            // A mob already fighting the war proper is left alone. A mob whose
+            // instincts grabbed a PLAYER gets re-evaluated — the armies prefer
+            // each other; soldiers are a target of opportunity, not a magnet.
+            boolean fightingMob = target != null && target.isAlive()
+                    && !(target instanceof ServerPlayer)
+                    && factionOf(target) != null && factionOf(target) != mf;
+            if (fightingMob) continue;
             LivingEntity best = null;
             double bestD = 48 * 48;
             for (Mob other : fighters) {
@@ -295,8 +297,11 @@ public final class War {
             }
             for (ServerPlayer p : soldiers) {
                 if (factionOf(p) == mf) continue;
-                double d = mob.distanceToSqr(p);
+                double d = mob.distanceToSqr(p) * 9; // players count as 3x farther
                 if (d < bestD) { bestD = d; best = p; }
+            }
+            if (best == null && target instanceof ServerPlayer tp && isActiveEnemy(mob, tp)) {
+                continue; // nothing better around — the duel stands
             }
             mob.setTarget(best); // null clears a stale target — also correct
         }
