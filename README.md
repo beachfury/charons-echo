@@ -68,6 +68,24 @@ clock for a free resurrection. Enlisted players of opposing banners can fight
 each other — defeat costs service time, never items. Filled fields become
 settled ground; the front marches on.
 
+## In the works / coming soon
+
+- **The hand-built crypt** — the current stairwell and halls are carved by
+  code; a full hand-built crypt kit (stairwell, week room, month halls, seals)
+  will replace them piece by piece.
+- **Fences and ruins** — hand-built fence sections will replace the plain
+  pale-oak fence around grave fields (the system is already wired), and ruins
+  of the folk who came before will join the scattered wilds.
+- **The war leaves marks** — contested ground will show who holds it: sculk
+  creeping over Restless-held yards, Keepers cleansing it — and when a field
+  fills, its final state freezes as the war's permanent record.
+- **A moonlit sky** — an optional skybox with real moon phases over the
+  eternal night.
+- **More of everything** — headstones, trees, gates, and whole style families
+  (sets) grow over time; server builders can author their own in the Studio
+  today.
+- **A Minecraft 26.1.2 build** and formal Bedrock/Geyser verification.
+
 ## Requirements
 
 - Minecraft **26.2** (Fabric)
