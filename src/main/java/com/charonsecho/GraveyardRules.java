@@ -252,17 +252,26 @@ public final class GraveyardRules {
                     mob.setTarget(null);
                 }
                 tuneGolem(mob); // retune any golem still carrying vanilla boss stats
-                // Post enforcement: adopt-a-home for keepers from before homes
-                // existed, widen old cramped leashes, and snap ONLY the idle —
-                // a soldier with a war target fights wherever the war goes.
+                // Post enforcement, and snap ONLY the idle — a soldier with a
+                // war target fights wherever the war goes. KEEPERS return to
+                // their own posts; everyone else returns to THE FRONT (which
+                // also rescues wanderers stuck down cliffs and vales).
+                boolean keeperKind = mob.getType() == EntityTypes.IRON_GOLEM
+                        || mob.getType() == EntityTypes.CREAKING
+                        || mob.getType() == EntityTypes.WARDEN;
                 if (!mob.hasHome()) {
-                    mob.setHomeTo(mob.blockPosition(), 48);
-                } else if (mob.getHomeRadius() < 48) {
+                    mob.setHomeTo(keeperKind ? mob.blockPosition()
+                            : War.frontHome(mob.blockPosition()), keeperKind ? 48 : 32);
+                } else if (keeperKind && mob.getHomeRadius() < 48) {
                     mob.setHomeTo(mob.getHomePosition(), 48);
-                } else if (mob.getTarget() == null
-                        && mob.blockPosition().distSqr(mob.getHomePosition()) > 64 * 64) {
-                    net.minecraft.core.BlockPos home = mob.getHomePosition();
-                    mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+                } else if (mob.getTarget() == null) {
+                    int leash = mob.getHomeRadius() + 16;
+                    if (mob.blockPosition().distSqr(mob.getHomePosition()) > (long) leash * leash) {
+                        net.minecraft.core.BlockPos home = keeperKind
+                                ? mob.getHomePosition()
+                                : War.frontHome(mob.getHomePosition());
+                        mob.teleportTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+                    }
                 }
                 // Wardens rebuild anger at players from vibrations — wipe it so
                 // they never escalate to hunting a visitor. And a CALM warden

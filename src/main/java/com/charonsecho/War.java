@@ -231,33 +231,43 @@ public final class War {
             else if (mob.getType() == EntityTypes.SNIFFER) sniffers++;
         }
         var rand = graveyard.getRandom();
+        BlockPos home = new BlockPos(c.getX(), ground + 1, c.getZ());
         if (restless < CharonConfig.warRestlessCap) {
             // The Restless rise from the graves THEMSELVES — inside the yard,
             // between the stones. (Spawning outside left them besieging their
             // own fence while the Keepers won by default.)
             EntityType<?>[] pool = { EntityTypes.PARCHED, EntityTypes.BOGGED, EntityTypes.STRAY };
             spawnSoldier(graveyard, pool[rand.nextInt(pool.length)],
-                    c.getX() + rand.nextInt(35) - 17, c.getZ() + rand.nextInt(35) - 17);
+                    c.getX() + rand.nextInt(35) - 17, c.getZ() + rand.nextInt(35) - 17, home);
         }
         if (vexes < CharonConfig.warWindCap) {
             spawnSoldier(graveyard, EntityTypes.VEX,
-                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45);
+                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45, home);
         }
         if (breezes < CharonConfig.warBreezeCap) {
             spawnSoldier(graveyard, EntityTypes.BREEZE,
-                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45);
+                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45, home);
         }
         if (allays < 1) {
             spawnSoldier(graveyard, EntityTypes.ALLAY, c.getX() + rand.nextInt(20) - 10,
-                    c.getZ() + rand.nextInt(20) - 10);
+                    c.getZ() + rand.nextInt(20) - 10, home);
         }
         if (sniffers < 1 && rand.nextInt(4) == 0) {
             spawnSoldier(graveyard, EntityTypes.SNIFFER, c.getX() + rand.nextInt(80) - 40,
-                    c.getZ() + 30 + rand.nextInt(20));
+                    c.getZ() + 30 + rand.nextInt(20), home);
         }
     }
 
-    private static void spawnSoldier(ServerLevel level, EntityType<?> type, int x, int z) {
+    /** Where the war lives: the front's center, or a fallback when it has none. */
+    static BlockPos frontHome(BlockPos fallback) {
+        int front = frontField();
+        if (front < 0) return fallback;
+        BlockPos c = GraveyardPlots.fieldCenter(front);
+        return new BlockPos(c.getX(),
+                GraveyardTerrain.groundHeight(c.getX(), c.getZ()) + 1, c.getZ());
+    }
+
+    private static void spawnSoldier(ServerLevel level, EntityType<?> type, int x, int z, BlockPos home) {
         int h = GraveyardTerrain.groundHeight(x, z);
         if (h < GraveyardTerrain.WATER_TOP) return;
         level.getChunk(x >> 4, z >> 4);
@@ -265,6 +275,8 @@ public final class War {
         if (!(e instanceof Mob mob)) return;
         double y = type == EntityTypes.VEX || type == EntityTypes.ALLAY ? h + 3 : h + 1;
         mob.setPos(x + 0.5, y, z + 0.5);
+        // Soldiers belong to the front — wanderers get walked back to it.
+        mob.setHomeTo(home, 32);
         // Wind spirits are TRANSIENT: like evoker vexes, they wither away
         // after a few minutes — no drifting accumulation, ever.
         if (mob instanceof net.minecraft.world.entity.monster.Vex vex) {
