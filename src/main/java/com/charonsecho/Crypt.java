@@ -260,6 +260,42 @@ public final class Crypt {
                 save();
             }
         }
+        // Idempotent: existing halls get their corridor sign (and lose the
+        // old inside one) — signs belong OUTSIDE the door.
+        MONTHS.forEach((ym, shelf) -> hallSign(graveyard, ym, shelf));
+    }
+
+    /**
+     * The hall's nameplate: a WALL SIGN in the spine corridor beside the
+     * doorway — read the month before you enter, like a hallway of years.
+     */
+    private static void hallSign(ServerLevel graveyard, String ym, BlockPos shelf) {
+        int side = shelf.getX() > spineX ? 1 : -1;
+        int zRoom = shelf.getZ();
+        // Sweep the legacy inside sign if one stands where the old carve put it.
+        BlockPos oldSign = new BlockPos(spineX + side * 4, FLOOR_Y, zRoom);
+        if (graveyard.getBlockState(oldSign).is(Blocks.PALE_OAK_SIGN)) {
+            graveyard.setBlock(oldSign, Blocks.AIR.defaultBlockState(), 2);
+        }
+        BlockPos signPos = new BlockPos(spineX + side, FLOOR_Y + 2, zRoom + 2);
+        if (!graveyard.getBlockState(signPos).is(Blocks.PALE_OAK_WALL_SIGN)) {
+            graveyard.setBlock(signPos, Blocks.PALE_OAK_WALL_SIGN.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.state.properties
+                            .BlockStateProperties.HORIZONTAL_FACING,
+                            side > 0 ? net.minecraft.core.Direction.WEST
+                                     : net.minecraft.core.Direction.EAST), 2);
+        }
+        if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            String label = LocalDate.parse(ym + "-01")
+                    .format(DateTimeFormatter.ofPattern("MMMM yyyy"));
+            SignText text = new SignText()
+                    .setMessage(1, Component.literal("The Hall of"))
+                    .setMessage(2, Component.literal(label))
+                    .setHasGlowingText(true);
+            sign.setText(text, true);
+            sign.setText(text, false);
+            sign.setChanged();
+        }
     }
 
     private static void carveMonthHall(ServerLevel graveyard, String ym, int m) {
@@ -326,20 +362,8 @@ public final class Crypt {
             graveyard.setBlock(new BlockPos(c[0], FLOOR_Y + 3, c[1]),
                     Blocks.SOUL_LANTERN.defaultBlockState(), 2);
         }
-        String label = LocalDate.parse(ym + "-01")
-                .format(DateTimeFormatter.ofPattern("MMMM yyyy"));
-        BlockPos signPos = new BlockPos(side > 0 ? rx0 + 1 : rx1 - 1, FLOOR_Y, zRoom);
-        graveyard.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
-        if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(1, Component.literal("The Hall of"))
-                    .setMessage(2, Component.literal(label))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
-            sign.setChanged();
-        }
         BlockPos shelf = new BlockPos(side > 0 ? rx1 : rx0, FLOOR_Y + 1, zRoom);
+        hallSign(graveyard, ym, shelf);
         graveyard.setBlock(shelf, Blocks.CHISELED_BOOKSHELF.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.state.properties
                         .BlockStateProperties.HORIZONTAL_FACING,
