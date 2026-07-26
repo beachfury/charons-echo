@@ -51,6 +51,8 @@ public final class CharonsEcho implements ModInitializer {
         Broker.register();
         // The War Below the Moon: the third way to pay Charon.
         War.register();
+        // The crypt's day-shelves: a rolling week of the dead.
+        Crypt.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
@@ -65,6 +67,8 @@ public final class CharonsEcho implements ModInitializer {
             War.load(server);
             Church.load(server);
             Church.ensure(server); // the church rises with the terrain
+            Crypt.load(server);
+            Crypt.ensure(server);  // and the crypt is carved beneath it
             Broker.ensure(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid

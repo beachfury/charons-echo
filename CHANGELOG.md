@@ -2,6 +2,16 @@
 
 ## 0.1.0 — in development
 
+- THE CHURCH AND THE CRYPT — the church (a hand-built 32x32x48) rises once on
+  the plateau, floor flush with the ground, read from its own marker
+  vocabulary: gilded blackstone = the Broker's post, lodestone = the crypt
+  stairwell, lectern = the ledger (markers dissolve once read). Beneath it the
+  CRYPT is carved: a stairwell descending below the rivers to the WEEK ROOM,
+  where seven day-shelves hold a rolling week of the dead — click a shelf to
+  read that day's fallen and open their grave books. The year's halls lie
+  sealed beyond the north arch. (Placeholder architecture; the builder's
+  crypt kit replaces the carving when it exists.)
+
 - THE WAR BELOW THE MOON — an eternal three-sided war in Charon's Echo,
   invisible to the living, joinable by the dead. The KEEPERS (iron golems,
   creakings, allay couriers) hold the yards; the RESTLESS (parched, bogged,
