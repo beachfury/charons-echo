@@ -186,11 +186,10 @@ public final class CharonConfig {
             # Range 1-5.  Default 3.  1 disables the dance entirely.
             orchard-dance-multiplier=%d
 
-            # THE HARVEST DANCE.  Fruit hurries only for COMPANY — living
-            # players dancing at the tree: 1 dancer = nothing (fruit is
-            # income; solo grinding earns none), 2 = 1.5x, 3 = 1.75x,
-            # 4+ = 2x.  Mobs never count for fruit.  Works at wild elders.
-            # 1 = on, 0 = off.  Default 1.
+            # THE HARVEST DANCE.  Living players dancing at a fruiting tree
+            # hurry it along: 1 dancer = 1.25x, 2 = 1.5x, 3 = 1.75x,
+            # 4+ = 2x.  Mobs never count for fruit — income requires people.
+            # Works at wild elders too.  1 = on, 0 = off.  Default 1.
             orchard-fruit-dance=%d
 
             # ---- The War Below the Moon ----

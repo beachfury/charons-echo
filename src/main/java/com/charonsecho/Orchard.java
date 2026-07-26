@@ -105,8 +105,8 @@ public final class Orchard {
     private static final Map<UUID, FellJob> FELLING = new ConcurrentHashMap<>();
     /** Last sampled positions, for spotting dancers (all players, once a second). */
     private static final Map<UUID, net.minecraft.world.phys.Vec3> DANCE_LAST = new ConcurrentHashMap<>();
-    /** The harvest dance curve: dancers -> multiplier. Solo gets nothing. */
-    private static final double[] DANCE_CURVE = {1.0, 1.0, 1.5, 1.75, 2.0};
+    /** The harvest dance curve: dancers -> multiplier. Even one helps a little. */
+    private static final double[] DANCE_CURVE = {1.0, 1.25, 1.5, 1.75, 2.0};
 
     // ---- lineage ledger (the Book of the Living, one entry long) ----
     static UUID motherId;          // the one true mother seed
