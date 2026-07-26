@@ -63,6 +63,8 @@ public final class CharonsEcho implements ModInitializer {
             Orchard.load(server);
             Orchard.detectElder(server);
             War.load(server);
+            Church.load(server);
+            Church.ensure(server); // the church rises with the terrain
             Broker.ensure(server);
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid

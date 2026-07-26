@@ -67,8 +67,13 @@ public final class Broker {
     private static void doEnsure(MinecraftServer server) {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
-        int y = GraveyardTerrain.groundHeight(STAND.getX(), STAND.getZ()) + 1;
-        BlockPos at = new BlockPos(STAND.getX(), y, STAND.getZ());
+        // The Broker's post: the church's gilded blackstone vendor marker,
+        // or the bare plateau while the church has none.
+        BlockPos at = Church.vendorStand();
+        if (at == null) {
+            int y = GraveyardTerrain.groundHeight(STAND.getX(), STAND.getZ()) + 1;
+            at = new BlockPos(STAND.getX(), y, STAND.getZ());
+        }
         graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
 
         // One Broker only: keep the first found near the post, sweep the rest.
@@ -87,6 +92,10 @@ public final class Broker {
             if (Orchard.brokerId == null || !keeper.getUUID().equals(Orchard.brokerId)) {
                 Orchard.brokerId = keeper.getUUID();
                 Orchard.save();
+            }
+            // A standing Broker takes his proper post when the church offers one.
+            if (keeper.blockPosition().distSqr(at) > 9) {
+                keeper.teleportTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5);
             }
             if (traders.size() > 1) {
                 System.out.println("[CharonsEcho] the Broker swept "
