@@ -216,8 +216,11 @@ public final class War {
         if (graveyard.getNearestPlayer(c.getX() + 0.5, ground, c.getZ() + 0.5, 96, false) == null) {
             return;
         }
-        AABB box = new AABB(c.getX() - 64, ground - 32, c.getZ() - 64,
-                c.getX() + 64, ground + 48, c.getZ() + 64);
+        // The census counts in a much WIDER net than the battle needs —
+        // fliers (vexes especially) drift far; counting a small box while
+        // they wander made the spawner top up "missing" soldiers forever.
+        AABB box = new AABB(c.getX() - 128, ground - 48, c.getZ() - 128,
+                c.getX() + 128, ground + 64, c.getZ() + 128);
         int restless = 0, vexes = 0, breezes = 0, allays = 0, sniffers = 0;
         for (Mob mob : graveyard.getEntitiesOfClass(Mob.class, box)) {
             Faction f = factionOf(mob);
@@ -262,6 +265,11 @@ public final class War {
         if (!(e instanceof Mob mob)) return;
         double y = type == EntityTypes.VEX || type == EntityTypes.ALLAY ? h + 3 : h + 1;
         mob.setPos(x + 0.5, y, z + 0.5);
+        // Wind spirits are TRANSIENT: like evoker vexes, they wither away
+        // after a few minutes — no drifting accumulation, ever.
+        if (mob instanceof net.minecraft.world.entity.monster.Vex vex) {
+            vex.setLimitedLife(2400 + level.getRandom().nextInt(1200));
+        }
         // War mobs are NOT persistent — walk away and the battle fades.
         level.addFreshEntity(mob);
     }
