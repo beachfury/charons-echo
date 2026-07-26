@@ -270,25 +270,38 @@ public final class Orchard {
             seedlingCreep(level, tree);
         }
         ServerPlayer planter = level.getServer().getPlayerList().getPlayer(tree.owner);
-        if (planter != null && planter.level() == level && inVigilArea(tree, planter)) {
+        boolean present = planter != null && planter.level() == level && inVigilArea(tree, planter);
+        if (present) {
             tree.vigilTicks += ticks;
-            // THE SEED LISTENS. It is a sculk sensor: movement near a
-            // seedling — walking, jumping, dancing — feeds it vibration and
-            // hurries stage one. Stillness still counts (that is the vigil);
-            // celebration just counts faster.
-            if (tree.stage == 0 && CharonConfig.orchardDanceMultiplier > 1) {
+        }
+        // THE SEED LISTENS. It is a sculk sensor: ALL vibration feeds it —
+        // the planter dancing, other players milling, a pen of livestock
+        // shuffling. Stage one only. Absent owners still profit from the
+        // noise, but accelerated time without them DILUTES the vigil: the
+        // sensor doesn't care who feeds it; the watch demands YOU.
+        if (tree.stage == 0 && CharonConfig.orchardDanceMultiplier > 1) {
+            int bonus = 0;
+            if (present) {
                 double moved = tree.lastOwnerPos == null ? 0
                         : planter.position().distanceTo(tree.lastOwnerPos);
                 tree.lastOwnerPos = planter.position();
-                int bonus = moved > 6 ? 2 : moved > 1.5 ? 1 : 0; // blocks per second
-                bonus = Math.min(bonus, CharonConfig.orchardDanceMultiplier - 1);
-                if (bonus > 0) {
-                    tree.stageTicks += (long) ticks * bonus;
-                    tree.totalTicks += (long) ticks * bonus;
+                bonus += moved > 6 ? 2 : moved > 1.5 ? 1 : 0; // blocks per second
+            } else {
+                tree.lastOwnerPos = null;
+            }
+            int crowd = 0;
+            for (Mob nearby : level.getEntitiesOfClass(Mob.class,
+                    new net.minecraft.world.phys.AABB(tree.base).inflate(9, 6, 9))) {
+                if (nearby.getDeltaMovement().horizontalDistanceSqr() > 0.003) crowd++;
+            }
+            bonus += crowd >= 4 ? 2 : crowd >= 1 ? 1 : 0;
+            bonus = Math.min(bonus, CharonConfig.orchardDanceMultiplier - 1);
+            if (bonus > 0) {
+                tree.stageTicks += (long) ticks * bonus;
+                tree.totalTicks += (long) ticks * bonus;
+                if (present) {
                     tree.vigilTicks += (long) ticks * bonus; // presence is presence
                 }
-            } else if (tree.stage != 0) {
-                tree.lastOwnerPos = null;
             }
         }
         long need = tree.stage == 0 ? CharonConfig.orchardStage1Ticks : CharonConfig.orchardStage2Ticks;
