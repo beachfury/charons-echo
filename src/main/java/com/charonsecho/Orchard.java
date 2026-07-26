@@ -290,7 +290,8 @@ public final class Orchard {
                 tree.lastOwnerPos = null;
             }
             int crowd = 0;
-            for (Mob nearby : level.getEntitiesOfClass(Mob.class,
+            for (net.minecraft.world.entity.Mob nearby : level.getEntitiesOfClass(
+                    net.minecraft.world.entity.Mob.class,
                     new net.minecraft.world.phys.AABB(tree.base).inflate(9, 6, 9))) {
                 if (nearby.getDeltaMovement().horizontalDistanceSqr() > 0.003) crowd++;
             }
