@@ -92,6 +92,7 @@ public final class Orchard {
         List<BlockPos> anchors = new ArrayList<>(); // chain-end fruit spots, scanned once grown
         boolean anchorsScanned;
         transient long blockedWarnTicks; // throttle for the blocked-growth warning
+        transient net.minecraft.world.phys.Vec3 lastOwnerPos; // for the dance
     }
 
     private static final class FellJob {
@@ -271,6 +272,24 @@ public final class Orchard {
         ServerPlayer planter = level.getServer().getPlayerList().getPlayer(tree.owner);
         if (planter != null && planter.level() == level && inVigilArea(tree, planter)) {
             tree.vigilTicks += ticks;
+            // THE SEED LISTENS. It is a sculk sensor: movement near a
+            // seedling — walking, jumping, dancing — feeds it vibration and
+            // hurries stage one. Stillness still counts (that is the vigil);
+            // celebration just counts faster.
+            if (tree.stage == 0 && CharonConfig.orchardDanceMultiplier > 1) {
+                double moved = tree.lastOwnerPos == null ? 0
+                        : planter.position().distanceTo(tree.lastOwnerPos);
+                tree.lastOwnerPos = planter.position();
+                int bonus = moved > 6 ? 2 : moved > 1.5 ? 1 : 0; // blocks per second
+                bonus = Math.min(bonus, CharonConfig.orchardDanceMultiplier - 1);
+                if (bonus > 0) {
+                    tree.stageTicks += (long) ticks * bonus;
+                    tree.totalTicks += (long) ticks * bonus;
+                    tree.vigilTicks += (long) ticks * bonus; // presence is presence
+                }
+            } else if (tree.stage != 0) {
+                tree.lastOwnerPos = null;
+            }
         }
         long need = tree.stage == 0 ? CharonConfig.orchardStage1Ticks : CharonConfig.orchardStage2Ticks;
         if (tree.stageTicks >= need) {

@@ -40,6 +40,8 @@ public final class CharonConfig {
     public static volatile int orchardDormancyTicks = 24000;
     /** Real days the mother's owner may be absent before the line dies. */
     public static volatile int motherAbsenceDays = 30;
+    /** The seed listens: dancing near a seedling speeds stage 1 up to this multiple. */
+    public static volatile int orchardDanceMultiplier = 3;
     /** Minutes of war service that earn a free resurrection. */
     public static volatile int warServiceMinutes = 15;
     /** Seconds shaved off the service clock per enemy downed. */
@@ -81,6 +83,7 @@ public final class CharonConfig {
             orchardFruitSealTicks = clamp(inted(p, "orchard-fruit-seal-ticks", orchardFruitSealTicks), 100, 12000000);
             orchardDormancyTicks = clamp(inted(p, "orchard-dormancy-ticks", orchardDormancyTicks), 100, 12000000);
             motherAbsenceDays = clamp(inted(p, "mother-absence-days", motherAbsenceDays), 1, 3650);
+            orchardDanceMultiplier = clamp(inted(p, "orchard-dance-multiplier", orchardDanceMultiplier), 1, 5);
             warServiceMinutes = clamp(inted(p, "war-service-minutes", warServiceMinutes), 1, 1440);
             warKillCreditSeconds = clamp(inted(p, "war-kill-credit-seconds", warKillCreditSeconds), 0, 3600);
             warDownedPenaltySeconds = clamp(inted(p, "war-downed-penalty-seconds", warDownedPenaltySeconds), 0, 3600);
@@ -172,6 +175,12 @@ public final class CharonConfig {
             # Real-world days the mother tree's owner may stay offline before
             # the elder line dies.  Range 1-3650.  Default 30.
             mother-absence-days=%d
+
+            # THE SEED LISTENS.  It is a sculk sensor: moving, jumping, and
+            # dancing near a seedling feeds it vibration and speeds stage one
+            # up to this multiple (walking ~2x, hard dancing hits the cap).
+            # Range 1-5.  Default 3.  1 disables the dance entirely.
+            orchard-dance-multiplier=%d
 
             # ---- The War Below the Moon ----
 
