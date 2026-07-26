@@ -38,9 +38,14 @@ Built for the CurseForge **Minecraft ModJam 2026 — "Echoes of the Past."**
   hold a rolling week of the fallen, and the first death of every month breaks
   the seal and carves that month's hall. A year-old server has a corridor
   twelve halls deep.
-- **Grave books and flower tributes** — write your death story into your stone;
-  the living shift-click flowers onto graves (the only color in this world),
-  and the most-mourned soul is crowned **Death of the Week**.
+- **Grave books and flower tributes** — the Scrivener hands out free books;
+  write your death story into your stone. The living shift-click flowers onto
+  graves (one per mourner — the only color in this world), and the most-mourned
+  soul is crowned **Death of the Week**.
+- **Memorials, not lists** — everywhere the dead are recorded, they appear as
+  their own head, with their date, cause, grave location, and flowers. Click a
+  memorial to read their story, or (from within the graveyard) walk straight
+  to their stone.
 
 ## The Stygian Orchard
 
