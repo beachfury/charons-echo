@@ -163,7 +163,10 @@ public final class StudioMode {
             new Category("crypt_corridor", 7, 7, 8, 0, true, 212),
             new Category("crypt_seal", 5, 3, 8, 0, false, 212),
             new Category("crypt_week", 15, 15, 8, 0, true, 232),
-            new Category("crypt_room", 21, 21, 8, 0, true, 232));
+            new Category("crypt_room", 21, 21, 8, 0, true, 232),
+            // The church landmark: 1 below-grade layer so the FLOOR (dug one
+            // down in the studio) ships with the build.
+            new Category("church", 32, 32, 48, 1, true, 0));
 
     public static int widthOfCategory(String category) {
         return CATEGORIES.stream().filter(c -> c.name().equals(category))

@@ -49,19 +49,23 @@ public final class Church {
         if (template.isEmpty()) return;
 
         int ground = GraveyardTerrain.groundHeight(0, 0); // the plateau: 64
-        // Bottom layer of the build IS the floor: it replaces the plateau
-        // surface so the church sits flush, not one step proud.
-        BlockPos origin = new BlockPos(-HALF, ground, -HALF);
+        // The church's below-grade FLOOR layer (dug one down in the studio)
+        // lands AT ground, replacing the plateau surface — flush, with a
+        // proper floor. Measured, so an old floorless export still stands.
+        int below = StudioMode.belowGradeOf(template.get(), "church");
+        BlockPos origin = new BlockPos(-HALF, ground + 1 - below, -HALF);
         for (int cx = (-HALF) >> 4; cx <= (HALF - 1) >> 4; cx++) {
             for (int cz = (-HALF) >> 4; cz <= (HALF - 1) >> 4; cz++) {
                 graveyard.getChunk(cx, cz);
             }
         }
         // Clear the footprint first — a re-paste (marker fixes, updated build)
-        // must never leave crusts of the old church behind.
+        // must never leave crusts of the old church behind. With a floor
+        // shipping, the surface layer clears too (the floor replaces it).
+        int clearFrom = below > 0 ? ground : ground + 1;
         for (int x = -HALF; x < HALF; x++) {
             for (int z = -HALF; z < HALF; z++) {
-                for (int y = ground + 1; y <= ground + 50; y++) {
+                for (int y = clearFrom; y <= ground + 50; y++) {
                     graveyard.setBlock(new BlockPos(x, y, z),
                             Blocks.AIR.defaultBlockState(), 2);
                 }
