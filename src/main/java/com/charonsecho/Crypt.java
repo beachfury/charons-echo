@@ -54,6 +54,13 @@ public final class Crypt {
     private Crypt() {}
 
     public static void register() {
+        // The shelves keep their own census: refreshed every minute (which
+        // also rolls the week over at midnight) and on every burial.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (built && server.getTickCount() % 1200 == 0) {
+                refreshShelves(server);
+            }
+        });
         // Day-shelves: the ONE interactable in the crypt. Server decides;
         // client forwards (the house rule). SUCCESS also stops vanilla
         // chiseled-bookshelf slot fiddling.
@@ -196,8 +203,47 @@ public final class Crypt {
 
         built = true;
         save();
+        refreshShelves(server);
         System.out.println("[CharonsEcho] the crypt is carved: week room at "
                 + cx + "," + FLOOR_Y + "," + rz + " with 7 day-shelves");
+    }
+
+    /**
+     * The shelves FILL as players die: one visible book per soul fallen on
+     * that shelf's day, up to the six slots a shelf can hold. Refreshed on
+     * every burial and every minute (the week rolls over at midnight).
+     */
+    public static void refreshShelves(MinecraftServer server) {
+        if (!built) return;
+        ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
+        if (graveyard == null) return;
+        var slotProps = java.util.List.of(
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_0_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_1_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_2_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_3_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_4_OCCUPIED,
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.CHISELED_BOOKSHELF_SLOT_5_OCCUPIED);
+        LocalDate today = LocalDate.now();
+        for (int i = 0; i < 7; i++) {
+            if (SHELVES[i] == null) continue;
+            graveyard.getChunk(SHELVES[i].getX() >> 4, SHELVES[i].getZ() >> 4);
+            BlockState state = graveyard.getBlockState(SHELVES[i]);
+            if (!state.is(Blocks.CHISELED_BOOKSHELF)) continue;
+            LocalDate day = today.minusDays(6 - i);
+            int fallen = 0;
+            for (GraveManager.Grave g : GraveManager.all()) {
+                if (g.epochMillis <= 0) continue;
+                if (Instant.ofEpochMilli(g.epochMillis).atZone(ZoneId.systemDefault())
+                        .toLocalDate().equals(day)) {
+                    fallen++;
+                }
+            }
+            for (int s = 0; s < 6; s++) {
+                state = state.setValue(slotProps.get(s), s < Math.min(fallen, 6));
+            }
+            graveyard.setBlock(SHELVES[i], state, 3);
+        }
     }
 
     // ---------------------------------------------------------------- the shelves

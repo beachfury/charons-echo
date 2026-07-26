@@ -263,6 +263,7 @@ public final class GraveyardPlots {
         if (fieldFull(idx / PER_FIELD)) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
+        Crypt.refreshShelves(graveyard.getServer()); // today's shelf gains a book
         GraveManager.save();
     }
 
