@@ -50,6 +50,12 @@ public final class Crypt {
     private static Path file;
     private static boolean built;
     private static final BlockPos[] SHELVES = new BlockPos[7];
+    /** The spine: where the north corridor leaves the week room. */
+    private static int spineX = Integer.MIN_VALUE;
+    private static int spineZ;
+    /** Month halls carved so far: "yyyy-MM" -> that hall's ledger shelf. */
+    private static final java.util.Map<String, BlockPos> MONTHS =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     private Crypt() {}
 
@@ -69,11 +75,23 @@ public final class Crypt {
                 return InteractionResult.PASS;
             }
             int idx = shelfIndex(hit.getBlockPos());
-            if (idx < 0) return InteractionResult.PASS;
+            String month = idx < 0 ? monthOfShelf(hit.getBlockPos()) : null;
+            if (idx < 0 && month == null) return InteractionResult.PASS;
             if (!(player instanceof ServerPlayer sp)) return InteractionResult.SUCCESS;
-            openDay(sp, idx);
+            if (idx >= 0) {
+                openDay(sp, idx);
+            } else {
+                openMonth(sp, month);
+            }
             return InteractionResult.SUCCESS;
         });
+    }
+
+    private static String monthOfShelf(BlockPos pos) {
+        for (var e : MONTHS.entrySet()) {
+            if (e.getValue().equals(pos)) return e.getKey();
+        }
+        return null;
     }
 
     private static int shelfIndex(BlockPos pos) {
@@ -189,18 +207,10 @@ public final class Crypt {
             graveyard.setBlock(new BlockPos(cx + 2, FLOOR_Y + 1, zz), wall, 2);
             graveyard.setBlock(new BlockPos(cx + 2, FLOOR_Y + 2, zz), wall, 2);
         }
-        BlockPos signPos = new BlockPos(cx, FLOOR_Y + 1, z0 - 5);
-        graveyard.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
-        if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(1, Component.literal("The year's halls"))
-                    .setMessage(2, Component.literal("lie sealed beyond."))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
-            sign.setChanged();
-        }
+        sealSign(graveyard, new BlockPos(cx, FLOOR_Y, z0 - 5));
 
+        spineX = cx;
+        spineZ = z0;
         built = true;
         save();
         refreshShelves(server);
@@ -213,10 +223,174 @@ public final class Crypt {
      * that shelf's day, up to the six slots a shelf can hold. Refreshed on
      * every burial and every minute (the week rolls over at midnight).
      */
+    private static void sealSign(ServerLevel graveyard, BlockPos signPos) {
+        graveyard.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
+        if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            SignText text = new SignText()
+                    .setMessage(1, Component.literal("The year's halls"))
+                    .setMessage(2, Component.literal("lie sealed beyond."))
+                    .setHasGlowingText(true);
+            sign.setText(text, true);
+            sign.setText(text, false);
+            sign.setChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------- month halls
+
+    /**
+     * THE CRYPT GROWS WITH THE DEAD: the first death of any month breaks the
+     * seal, extends the spine north, and carves that month's hall — rooms
+     * alternating east and west, each with its month sign and a shelf that
+     * opens the whole month's ledger. The seal retreats ahead of history.
+     */
+    private static void ensureMonthRooms(MinecraftServer server) {
+        if (!built || spineX == Integer.MIN_VALUE) return;
+        ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
+        if (graveyard == null) return;
+        java.util.TreeSet<String> yms = new java.util.TreeSet<>();
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.epochMillis <= 0) continue;
+            yms.add(Instant.ofEpochMilli(g.epochMillis).atZone(ZoneId.systemDefault())
+                    .toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM")));
+        }
+        for (String ym : yms) {
+            if (!MONTHS.containsKey(ym)) {
+                carveMonthHall(graveyard, ym, MONTHS.size());
+                save();
+            }
+        }
+    }
+
+    private static void carveMonthHall(ServerLevel graveyard, String ym, int m) {
+        BlockState wall = Blocks.DEEPSLATE_BRICKS.defaultBlockState();
+        BlockState floor = Blocks.POLISHED_DEEPSLATE.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        int cx = spineX;
+        int side = (m % 2 == 0) ? 1 : -1;        // east first, then west
+        int segment = m / 2;
+        int zRoom = spineZ - 12 - segment * 12;  // this hall's spine junction
+
+        // Extend the spine down past this hall (overwrites any old seal).
+        for (int zz = spineZ - 1; zz >= zRoom - 5; zz--) {
+            for (int dx = -2; dx <= 2; dx++) {
+                graveyard.getChunk((cx + dx) >> 4, zz >> 4);
+                boolean sideWall = dx == -2 || dx == 2;
+                graveyard.setBlock(new BlockPos(cx + dx, FLOOR_Y - 1, zz), sideWall ? wall : floor, 2);
+                for (int dy = 0; dy <= 3; dy++) {
+                    graveyard.setBlock(new BlockPos(cx + dx, FLOOR_Y + dy, zz),
+                            sideWall ? wall : air, 2);
+                }
+                graveyard.setBlock(new BlockPos(cx + dx, FLOOR_Y + 4, zz), wall, 2);
+            }
+            if ((zz & 3) == 0) {
+                graveyard.setBlock(new BlockPos(cx - 1, FLOOR_Y + 3, zz),
+                        Blocks.SOUL_LANTERN.defaultBlockState(), 2);
+            }
+        }
+        // The seal, rebuilt at the new north end.
+        int sealZ = zRoom - 6;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = 0; dy <= 3; dy++) {
+                graveyard.setBlock(new BlockPos(cx + dx, FLOOR_Y + dy, sealZ),
+                        Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState(), 2);
+            }
+        }
+        sealSign(graveyard, new BlockPos(cx, FLOOR_Y, sealZ + 1));
+
+        // The hall itself: 11x11 interior off the spine.
+        int rx0 = side > 0 ? cx + 3 : cx - 13;
+        int rx1 = side > 0 ? cx + 13 : cx - 3;
+        int rz0 = zRoom - 5, rz1 = zRoom + 5;
+        for (int x = rx0 - 1; x <= rx1 + 1; x++) {
+            for (int zz = rz0 - 1; zz <= rz1 + 1; zz++) {
+                graveyard.getChunk(x >> 4, zz >> 4);
+                for (int yy = FLOOR_Y - 1; yy <= FLOOR_Y + 5; yy++) {
+                    boolean shell = x < rx0 || x > rx1 || zz < rz0 || zz > rz1
+                            || yy == FLOOR_Y - 1 || yy == FLOOR_Y + 5;
+                    graveyard.setBlock(new BlockPos(x, yy, zz),
+                            shell ? (yy == FLOOR_Y - 1 ? floor : wall) : air, 2);
+                }
+            }
+        }
+        // Doorway from the spine.
+        int doorX = side > 0 ? cx + 2 : cx - 2;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dy = 0; dy <= 2; dy++) {
+                graveyard.setBlock(new BlockPos(doorX, FLOOR_Y + dy, zRoom + dz), air, 2);
+            }
+        }
+        // Lanterns, the month sign, and the hall's ledger shelf.
+        for (int[] c : new int[][]{{rx0 + 1, rz0 + 1}, {rx1 - 1, rz0 + 1},
+                {rx0 + 1, rz1 - 1}, {rx1 - 1, rz1 - 1}}) {
+            graveyard.setBlock(new BlockPos(c[0], FLOOR_Y + 3, c[1]),
+                    Blocks.SOUL_LANTERN.defaultBlockState(), 2);
+        }
+        String label = LocalDate.parse(ym + "-01")
+                .format(DateTimeFormatter.ofPattern("MMMM yyyy"));
+        BlockPos signPos = new BlockPos(side > 0 ? rx0 + 1 : rx1 - 1, FLOOR_Y, zRoom);
+        graveyard.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
+        if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
+            SignText text = new SignText()
+                    .setMessage(1, Component.literal("The Hall of"))
+                    .setMessage(2, Component.literal(label))
+                    .setHasGlowingText(true);
+            sign.setText(text, true);
+            sign.setText(text, false);
+            sign.setChanged();
+        }
+        BlockPos shelf = new BlockPos(side > 0 ? rx1 : rx0, FLOOR_Y + 1, zRoom);
+        graveyard.setBlock(shelf, Blocks.CHISELED_BOOKSHELF.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.state.properties
+                        .BlockStateProperties.HORIZONTAL_FACING,
+                        side > 0 ? net.minecraft.core.Direction.WEST
+                                 : net.minecraft.core.Direction.EAST), 2);
+        MONTHS.put(ym, shelf.immutable());
+        System.out.println("[CharonsEcho] the crypt grows: the Hall of " + label + " opens");
+    }
+
+    /** The hall's shelf: the whole month's ledger. */
+    private static void openMonth(ServerPlayer player, String ym) {
+        String label = LocalDate.parse(ym + "-01")
+                .format(DateTimeFormatter.ofPattern("MMMM yyyy"));
+        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, player, false);
+        gui.setTitle(Component.literal("The Hall of " + label));
+        int slot = 0;
+        for (GraveManager.Grave grave : GraveManager.all()) {
+            if (grave.epochMillis <= 0 || slot >= 54) continue;
+            String gm = Instant.ofEpochMilli(grave.epochMillis).atZone(ZoneId.systemDefault())
+                    .toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            if (!gm.equals(ym)) continue;
+            final GraveManager.Grave g = grave;
+            GuiElementBuilder entry = new GuiElementBuilder(
+                    g.book != null ? Items.WRITTEN_BOOK : Items.SKELETON_SKULL)
+                    .setName(Component.literal(g.ownerName).withStyle(ChatFormatting.WHITE))
+                    .addLoreLine(Component.literal(g.causeLine == null ? "" : g.causeLine)
+                            .withStyle(ChatFormatting.GRAY));
+            if (g.tributes > 0) {
+                entry.addLoreLine(Component.literal(g.tributes
+                        + (g.tributes == 1 ? " flower laid" : " flowers laid"))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE));
+            }
+            if (g.book != null) {
+                entry.glow().addLoreLine(Component.literal("Their story — click to read.")
+                        .withStyle(ChatFormatting.DARK_AQUA))
+                        .setCallback((i, t, a, gg) -> GraveBooks.open(player, g));
+            }
+            gui.setSlot(slot++, entry);
+        }
+        if (slot == 0) {
+            gui.setSlot(22, new GuiElementBuilder(Items.CANDLE)
+                    .setName(Component.literal("The hall waits.").withStyle(ChatFormatting.DARK_GRAY)));
+        }
+        gui.open();
+    }
+
     public static void refreshShelves(MinecraftServer server) {
         if (!built) return;
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
+        ensureMonthRooms(server);
         var slotProps = java.util.List.of(
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_0_OCCUPIED,
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_1_OCCUPIED,
@@ -294,6 +468,8 @@ public final class Crypt {
 
     public static void load(MinecraftServer server) {
         built = false;
+        spineX = Integer.MIN_VALUE;
+        MONTHS.clear();
         for (int i = 0; i < 7; i++) SHELVES[i] = null;
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("crypt.dat");
         if (!Files.exists(file)) return;
@@ -303,6 +479,20 @@ public final class Crypt {
             long[] shelves = root.getLongArray("shelves").orElse(new long[0]);
             for (int i = 0; i < Math.min(7, shelves.length); i++) {
                 SHELVES[i] = BlockPos.of(shelves[i]);
+            }
+            spineX = root.getIntOr("spineX", Integer.MIN_VALUE);
+            spineZ = root.getIntOr("spineZ", 0);
+            for (net.minecraft.nbt.Tag t : root.getListOrEmpty("months")) {
+                if (t instanceof CompoundTag c) {
+                    MONTHS.put(c.getStringOr("ym", "?"), BlockPos.of(c.getLongOr("shelf", 0)));
+                }
+            }
+            // Migration: crypts carved before the halls existed derive their
+            // spine from the center day-shelf (it sits ON the spine axis).
+            if (built && spineX == Integer.MIN_VALUE && SHELVES[3] != null) {
+                spineX = SHELVES[3].getX();
+                spineZ = SHELVES[3].getZ();
+                save();
             }
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to load crypt.dat: " + e);
@@ -320,6 +510,16 @@ public final class Crypt {
                 shelves[i] = SHELVES[i] == null ? 0 : SHELVES[i].asLong();
             }
             root.putLongArray("shelves", shelves);
+            root.putInt("spineX", spineX);
+            root.putInt("spineZ", spineZ);
+            net.minecraft.nbt.ListTag months = new net.minecraft.nbt.ListTag();
+            MONTHS.forEach((ym, shelf) -> {
+                CompoundTag c = new CompoundTag();
+                c.putString("ym", ym);
+                c.putLong("shelf", shelf.asLong());
+                months.add(c);
+            });
+            root.put("months", months);
             NbtIo.writeCompressed(root, file);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save crypt.dat: " + e);
