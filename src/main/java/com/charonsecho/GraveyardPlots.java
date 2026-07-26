@@ -216,6 +216,35 @@ public final class GraveyardPlots {
         return true;
     }
 
+    /**
+     * A flower laid at a grave: counted as a tribute (the vote), and planted
+     * as a REAL flower on the plot — the only color the monochrome world
+     * allows is what the living leave behind. Plots hold ~20; when full, the
+     * vote still counts and the flower is simply taken by the wind.
+     */
+    static boolean layTribute(ServerLevel level, GraveManager.Grave grave, net.minecraft.world.item.ItemStack held) {
+        if (grave.plotIndex < 0) return false;
+        grave.tributes++;
+        GraveManager.save();
+        BlockPos o = plotOrigin(grave.plotIndex);
+        int surf = plotSurfaceY(grave.plotIndex);
+        if (held.getItem() instanceof net.minecraft.world.item.BlockItem flower) {
+            for (int i = 0; i < PLOT * PLOT; i++) {
+                int scan = Math.floorMod(grave.tributes * 7 + i, PLOT * PLOT);
+                BlockPos spot = new BlockPos(o.getX() + scan % PLOT, surf + 1, o.getZ() + scan / PLOT);
+                if (level.getBlockState(spot).isAir()
+                        && !level.getBlockState(spot.below()).isAir()
+                        && flower.getBlock().defaultBlockState().canSurvive(level, spot)) {
+                    level.setBlock(spot, flower.getBlock().defaultBlockState(), 3);
+                    break;
+                }
+            }
+        }
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.CHERRY_LEAVES,
+                o.getX() + PLOT / 2.0, surf + 1.5, o.getZ() + PLOT / 2.0, 8, 1.2, 0.5, 1.2, 0.01);
+        return true;
+    }
+
     /** NW corner of a plot (global index) in world coords. */
     public static BlockPos plotOrigin(int plotIndex) {
         int field = plotIndex / PER_FIELD;

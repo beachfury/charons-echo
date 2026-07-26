@@ -268,6 +268,11 @@ public final class Crypt {
                             .withStyle(ChatFormatting.GRAY))
                     .addLoreLine(Component.literal(g.claimed ? "at rest" : "unclaimed")
                             .withStyle(g.claimed ? ChatFormatting.DARK_GRAY : ChatFormatting.DARK_PURPLE));
+            if (g.tributes > 0) {
+                entry.addLoreLine(Component.literal(g.tributes
+                        + (g.tributes == 1 ? " flower laid" : " flowers laid"))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE));
+            }
             if (g.book != null) {
                 entry.glow().addLoreLine(Component.literal("Their story — click to read.")
                         .withStyle(ChatFormatting.DARK_AQUA))

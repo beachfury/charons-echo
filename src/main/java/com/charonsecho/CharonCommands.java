@@ -86,8 +86,39 @@ public final class CharonCommands {
         graves.removeIf(g -> g.plotIndex < 0);
         graves.sort((a, b) -> Long.compare(b.gameTime, a.gameTime));
         int slot = 0;
+
+        // DEATH OF THE WEEK: the most-mourned grave of the last seven days —
+        // decided by the flowers the living have laid.
+        long weekAgo = System.currentTimeMillis() - 7L * 86_400_000L;
+        GraveManager.Grave crowned = graves.stream()
+                .filter(g -> g.epochMillis >= weekAgo && g.tributes > 0)
+                .max(java.util.Comparator.comparingInt(g -> g.tributes))
+                .orElse(null);
+        if (crowned != null) {
+            final GraveManager.Grave c = crowned;
+            var crown = new eu.pb4.sgui.api.elements.GuiElementBuilder(
+                    net.minecraft.world.item.Items.WITHER_ROSE)
+                    .setName(Component.literal("Death of the Week: " + c.ownerName)
+                            .withStyle(ChatFormatting.GOLD))
+                    .addLoreLine(Component.literal(c.causeLine).withStyle(ChatFormatting.GRAY))
+                    .addLoreLine(Component.literal(c.tributes
+                            + (c.tributes == 1 ? " flower laid" : " flowers laid"))
+                            .withStyle(ChatFormatting.LIGHT_PURPLE))
+                    .glow();
+            if (c.book != null) {
+                crown.addLoreLine(Component.literal("Click to read their last words")
+                        .withStyle(ChatFormatting.DARK_PURPLE));
+                crown.setCallback((i, t, a, g) -> {
+                    g.close();
+                    GraveBooks.open(player, c);
+                });
+            }
+            gui.setSlot(slot++, crown.build());
+        }
+
         for (GraveManager.Grave grave : graves) {
             if (slot >= 54) break;
+            if (grave == crowned) continue; // already enthroned at the top
             String date = grave.epochMillis > 0
                     ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
                     : "Day " + (grave.gameTime / 24000L);
@@ -98,6 +129,11 @@ public final class CharonCommands {
                             .withStyle(grave.claimed ? ChatFormatting.GRAY : ChatFormatting.WHITE))
                     .addLoreLine(Component.literal(date).withStyle(ChatFormatting.DARK_GRAY))
                     .addLoreLine(Component.literal(grave.causeLine).withStyle(ChatFormatting.GRAY));
+            if (grave.tributes > 0) {
+                builder.addLoreLine(Component.literal(grave.tributes
+                        + (grave.tributes == 1 ? " flower laid" : " flowers laid"))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE));
+            }
             if (grave.book != null) {
                 builder.addLoreLine(Component.literal("Click to read their last words")
                         .withStyle(ChatFormatting.DARK_PURPLE));

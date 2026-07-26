@@ -62,6 +62,20 @@ public final class GraveyardRules {
                 if (graveOpt.isPresent()) {
                     GraveManager.Grave grave = graveOpt.get();
                     var held = sp.getItemInHand(hand);
+                    // Flower tributes: what the living leave behind — the only
+                    // color in the monochrome world, and the only votes here.
+                    boolean isFlower = held.getItem() instanceof net.minecraft.world.item.BlockItem bi
+                            && bi.getBlock().defaultBlockState()
+                                    .is(net.minecraft.tags.BlockTags.SMALL_FLOWERS);
+                    if (isFlower && !GhostState.isGhost(sp.getUUID())) {
+                        if (GraveyardPlots.layTribute((ServerLevel) world, grave, held)) {
+                            if (!sp.isCreative()) held.shrink(1);
+                            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                                    "You lay a flower for " + grave.ownerName + ".")
+                                    .withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE));
+                        }
+                        return net.minecraft.world.InteractionResult.SUCCESS;
+                    }
                     if (grave.owner.equals(sp.getUUID()) && GraveBooks.isBook(held)) {
                         return GraveBooks.intern(sp, grave, held)
                                 ? net.minecraft.world.InteractionResult.SUCCESS

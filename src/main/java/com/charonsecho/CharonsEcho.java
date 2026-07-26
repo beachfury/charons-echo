@@ -55,6 +55,8 @@ public final class CharonsEcho implements ModInitializer {
         Crypt.register();
         // The ledger lectern in the church.
         Church.register();
+        // The Scrivener: free blank books for the stories of the dead.
+        Scrivener.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());

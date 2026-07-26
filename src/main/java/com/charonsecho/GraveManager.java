@@ -53,6 +53,8 @@ public final class GraveManager {
         public net.minecraft.world.item.component.WrittenBookContent book = null;
         /** Fare already paid (shard dropped on the body during the wake). */
         public boolean farePaid = false;
+        /** Flowers laid by the living — the only votes that count here. */
+        public int tributes = 0;
         /** XP levels may be halved by Charon's toll before reclaim. */
 
         public Grave(UUID id, UUID owner, String ownerName, String dimension, BlockPos pos,
@@ -106,6 +108,7 @@ public final class GraveManager {
                 grave.plotIndex = g.getIntOr("plotIndex", -1);
                 grave.epochMillis = g.getLongOr("epochMillis", 0L);
                 grave.farePaid = g.getBooleanOr("farePaid", false);
+                grave.tributes = g.getIntOr("tributes", 0);
                 grave.stoneName = g.getStringOr("stoneName", "");
                 if (g.contains("book")) {
                     net.minecraft.world.item.component.WrittenBookContent.CODEC
@@ -143,6 +146,7 @@ public final class GraveManager {
                 t.putInt("plotIndex", g.plotIndex);
                 t.putLong("epochMillis", g.epochMillis);
                 t.putBoolean("farePaid", g.farePaid);
+                t.putInt("tributes", g.tributes);
                 t.putString("stoneName", g.stoneName);
                 if (g.book != null) {
                     net.minecraft.world.item.component.WrittenBookContent.CODEC
