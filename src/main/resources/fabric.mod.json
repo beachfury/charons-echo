@@ -7,6 +7,11 @@
   "authors": ["BeachFury"],
   "license": "MIT",
   "icon": "assets/charons_echo/icon.png",
+  "contact": {
+    "homepage": "https://github.com/beachfury/charons-echo",
+    "sources": "https://github.com/beachfury/charons-echo",
+    "issues": "https://github.com/beachfury/charons-echo/issues"
+  },
   "environment": "*",
   "entrypoints": {
     "main": ["com.charonsecho.CharonsEcho"]
