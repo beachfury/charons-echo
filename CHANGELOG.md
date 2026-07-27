@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — in development
+## 1.0.0 — the first crossing
 
 - THE CHURCH AND THE CRYPT — the church (a hand-built 32x32x48) rises once on
   the plateau, floor flush with the ground, read from its own marker
