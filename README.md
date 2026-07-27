@@ -89,8 +89,8 @@ settled ground; the front marches on.
 ## Requirements
 
 - Minecraft **26.2** (Fabric)
-- [Fabric API](https://modrinth.com/mod/fabric-api) and
-  [sgui](https://maven.nucleoid.xyz) in the mods folder
+- [Fabric API](https://modrinth.com/mod/fabric-api) — that's it;
+  [sgui](https://github.com/Patbox/sgui) is bundled inside the jar
 
 Every timer, price, cap, and war knob lives in
 `config/charons-echo.properties`, written as a documented manual.

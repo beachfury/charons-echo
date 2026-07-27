@@ -22,8 +22,9 @@ dependencies {
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Server-side GUIs (death screen, Book of the Dead, epitaph input, altar shop).
-    // Not JiJ'd on the unobf toolchain — ship sgui's jar in the server mods folder.
+    // sgui is bundled (jar-in-jar): users install ONE file + Fabric API.
     implementation "eu.pb4:sgui:${project.sgui_version}"
+    include "eu.pb4:sgui:${project.sgui_version}"
 }
 
 processResources {
