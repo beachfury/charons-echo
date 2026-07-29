@@ -8,11 +8,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-import eu.pb4.sgui.api.elements.GuiElementBuilder;
-import eu.pb4.sgui.api.gui.SimpleGui;
-
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
@@ -24,8 +20,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
@@ -373,25 +367,21 @@ public final class Crypt {
         System.out.println("[CharonsEcho] the crypt grows: the hall of " + ym + " opens");
     }
 
-    /** The hall's shelf: the whole month's ledger. */
+    /** The hall's shelf: the whole month's ledger, paged and searchable. */
     private static void openMonth(ServerPlayer player, String ym) {
         String label = LocalDate.parse(ym + "-01")
                 .format(DateTimeFormatter.ofPattern("MMMM yyyy"));
-        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, player, false);
-        gui.setTitle(Component.literal("The Hall of " + label));
-        int slot = 0;
+        var fallen = new java.util.ArrayList<GraveManager.Grave>();
         for (GraveManager.Grave grave : GraveManager.all()) {
-            if (grave.epochMillis <= 0 || slot >= 54) continue;
+            if (grave.epochMillis <= 0) continue;
             String gm = Instant.ofEpochMilli(grave.epochMillis).atZone(ZoneId.systemDefault())
                     .toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
             if (!gm.equals(ym)) continue;
-            gui.setSlot(slot++, GraveUi.entry(player, grave));
+            fallen.add(grave);
         }
-        if (slot == 0) {
-            gui.setSlot(22, new GuiElementBuilder(Items.CANDLE)
-                    .setName(Component.literal("The hall waits.").withStyle(ChatFormatting.DARK_GRAY)));
-        }
-        gui.open();
+        fallen.sort((a, b) -> Long.compare(b.gameTime, a.gameTime));
+        GraveUi.openList(player, "The Hall of " + label, fallen, null,
+                "The hall waits.", 0, null);
     }
 
     public static void refreshShelves(MinecraftServer server) {
@@ -451,24 +441,19 @@ public final class Crypt {
     private static void openDay(ServerPlayer player, int idx) {
         LocalDate day = LocalDate.now().minusDays(6 - idx);
         String label = day.format(DateTimeFormatter.ofPattern("MMM d, yyyy"));
-        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, player, false);
-        gui.setTitle(Component.literal("Fallen " + label));
-        int slot = 0;
+        var fallen = new java.util.ArrayList<GraveManager.Grave>();
         for (GraveManager.Grave grave : GraveManager.all()) {
-            if (grave.epochMillis <= 0 || slot >= 27) continue;
+            if (grave.epochMillis <= 0) continue;
             LocalDate graveDay = Instant.ofEpochMilli(grave.epochMillis)
                     .atZone(ZoneId.systemDefault()).toLocalDate();
             if (!graveDay.equals(day)) continue;
-            gui.setSlot(slot++, GraveUi.entry(player, grave));
+            fallen.add(grave);
         }
-        if (slot == 0) {
-            gui.setSlot(13, new GuiElementBuilder(Items.CANDLE)
-                    .setName(Component.literal("No one fell this day.")
-                            .withStyle(ChatFormatting.DARK_GRAY)));
-        }
+        fallen.sort((a, b) -> Long.compare(b.gameTime, a.gameTime));
         player.level().playSound(null, player.blockPosition(),
                 SoundEvents.CHISELED_BOOKSHELF_PICKUP, SoundSource.BLOCKS, 0.8f, 0.7f);
-        gui.open();
+        GraveUi.openList(player, "Fallen " + label, fallen, null,
+                "No one fell this day.", 0, null);
     }
 
     // ---------------------------------------------------------------- persistence

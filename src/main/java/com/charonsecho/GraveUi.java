@@ -1,10 +1,13 @@
 package com.charonsecho;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
+import eu.pb4.sgui.api.gui.AnvilInputGui;
 import eu.pb4.sgui.api.gui.SimpleGui;
 
 import net.minecraft.ChatFormatting;
@@ -34,11 +37,25 @@ public final class GraveUi {
 
     /** A memorial entry for any list gui. */
     public static GuiElementBuilder entry(ServerPlayer viewer, GraveManager.Grave grave) {
-        ItemStack head = new ItemStack(Items.PLAYER_HEAD);
-        head.set(DataComponents.PROFILE, ResolvableProfile.createUnresolved(grave.owner));
-        GuiElementBuilder b = GuiElementBuilder.from(head)
-                .setName(Component.literal(grave.ownerName)
-                        .withStyle(grave.claimed ? ChatFormatting.GRAY : ChatFormatting.WHITE));
+        return entry(viewer, grave, false);
+    }
+
+    /** A memorial entry; the crowned form is the Death of the Week. */
+    public static GuiElementBuilder entry(ServerPlayer viewer, GraveManager.Grave grave,
+            boolean crowned) {
+        GuiElementBuilder b;
+        if (crowned) {
+            b = new GuiElementBuilder(Items.WITHER_ROSE)
+                    .setName(Component.literal("Death of the Week: " + grave.ownerName)
+                            .withStyle(ChatFormatting.GOLD))
+                    .glow();
+        } else {
+            ItemStack head = new ItemStack(Items.PLAYER_HEAD);
+            head.set(DataComponents.PROFILE, ResolvableProfile.createUnresolved(grave.owner));
+            b = GuiElementBuilder.from(head)
+                    .setName(Component.literal(grave.ownerName)
+                            .withStyle(grave.claimed ? ChatFormatting.GRAY : ChatFormatting.WHITE));
+        }
         if (grave.epochMillis > 0) {
             b.addLoreLine(Component.literal(
                     new SimpleDateFormat("MMM d, yyyy").format(new Date(grave.epochMillis)))
@@ -67,6 +84,109 @@ public final class GraveUi {
                 .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
         b.setCallback((i, t, a, g) -> openMemorial(viewer, grave));
         return b;
+    }
+
+    // ------------------------------------------------------------ the rolls
+
+    private static final int PAGE_SIZE = 45;
+
+    /**
+     * A roll of the dead: every ledger in the mod (the Book of the Dead, the
+     * day-shelves, the month halls) opens through here — 45 souls a page,
+     * arrows to turn it, a spyglass to seek a name. The crowned grave, if the
+     * roll has one, heads page one.
+     */
+    public static void openList(ServerPlayer viewer, String title,
+            List<GraveManager.Grave> graves, GraveManager.Grave crowned,
+            String emptyText, int page, String search) {
+        List<GraveManager.Grave> shown = new ArrayList<>();
+        if (crowned != null && matches(crowned, search)) shown.add(crowned);
+        for (GraveManager.Grave g : graves) {
+            if (g == crowned) continue;
+            if (matches(g, search)) shown.add(g);
+        }
+        int pages = Math.max(1, (shown.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        final int p = Math.min(Math.max(page, 0), pages - 1);
+        final String q = search == null || search.isBlank() ? null : search;
+
+        SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x6, viewer, false);
+        gui.setTitle(Component.literal(pages > 1
+                ? title + " (" + (p + 1) + "/" + pages + ")" : title));
+        int start = p * PAGE_SIZE;
+        for (int i = start; i < Math.min(start + PAGE_SIZE, shown.size()); i++) {
+            GraveManager.Grave g = shown.get(i);
+            gui.setSlot(i - start, entry(viewer, g, g == crowned).build());
+        }
+        if (shown.isEmpty()) {
+            gui.setSlot(22, new GuiElementBuilder(Items.BONE)
+                    .setName(Component.literal(q == null ? emptyText
+                            : "No soul bears that name.").withStyle(ChatFormatting.GRAY))
+                    .build());
+        }
+
+        if (p > 0) {
+            gui.setSlot(45, new GuiElementBuilder(Items.ARROW)
+                    .setName(Component.literal("Previous page").withStyle(ChatFormatting.WHITE))
+                    .setCallback((i, t, a, g) ->
+                            openList(viewer, title, graves, crowned, emptyText, p - 1, q))
+                    .build());
+        }
+        GuiElementBuilder seek = new GuiElementBuilder(Items.SPYGLASS)
+                .setName(Component.literal("Seek a name").withStyle(ChatFormatting.AQUA));
+        if (q != null) {
+            seek.addLoreLine(Component.literal("Seeking: \"" + q + "\"")
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        seek.setCallback((i, t, a, g) ->
+                openSearch(viewer, title, graves, crowned, emptyText));
+        gui.setSlot(47, seek.build());
+        if (q != null) {
+            gui.setSlot(48, new GuiElementBuilder(Items.BARRIER)
+                    .setName(Component.literal("Show every name").withStyle(ChatFormatting.RED))
+                    .setCallback((i, t, a, g) ->
+                            openList(viewer, title, graves, crowned, emptyText, 0, null))
+                    .build());
+        }
+        gui.setSlot(49, new GuiElementBuilder(Items.PAPER)
+                .setName(Component.literal("Page " + (p + 1) + " of " + pages)
+                        .withStyle(ChatFormatting.WHITE))
+                .addLoreLine(Component.literal(shown.size()
+                        + (shown.size() == 1 ? " soul" : " souls"))
+                        .withStyle(ChatFormatting.DARK_GRAY))
+                .build());
+        if (p < pages - 1) {
+            gui.setSlot(53, new GuiElementBuilder(Items.ARROW)
+                    .setName(Component.literal("Next page").withStyle(ChatFormatting.WHITE))
+                    .setCallback((i, t, a, g) ->
+                            openList(viewer, title, graves, crowned, emptyText, p + 1, q))
+                    .build());
+        }
+        gui.open();
+    }
+
+    private static boolean matches(GraveManager.Grave grave, String search) {
+        if (search == null || search.isBlank()) return true;
+        return grave.ownerName != null
+                && grave.ownerName.toLowerCase().contains(search.trim().toLowerCase());
+    }
+
+    /** The spyglass: an anvil to type a name into, then back to the roll. */
+    private static void openSearch(ServerPlayer viewer, String title,
+            List<GraveManager.Grave> graves, GraveManager.Grave crowned, String emptyText) {
+        AnvilInputGui anvil = new AnvilInputGui(viewer, false);
+        anvil.setTitle(Component.literal("Whom do you seek?"));
+        anvil.setDefaultInputValue("");
+        anvil.setSlot(2, new GuiElementBuilder(Items.SPYGLASS)
+                .setName(Component.literal("Seek").withStyle(ChatFormatting.AQUA))
+                .addLoreLine(Component.literal("Type a name, then click.")
+                        .withStyle(ChatFormatting.DARK_GRAY))
+                .setCallback((i, t, a, g) -> {
+                    String typed = anvil.getInput();
+                    openList(viewer, title, graves, crowned, emptyText, 0,
+                            typed == null ? null : typed.trim());
+                })
+                .build());
+        anvil.open();
     }
 
     /** The memorial: read the story, or walk to the grave the short way. */

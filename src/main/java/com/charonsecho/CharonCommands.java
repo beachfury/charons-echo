@@ -75,16 +75,12 @@ public final class CharonCommands {
         return player;
     }
 
-    /** The Book of the Dead: every death, newest first; entries with interred
-     *  books open them read-only. Open to ALL players. */
+    /** The Book of the Dead: every death, newest first, paged and searchable;
+     *  the Death of the Week heads page one. Open to ALL players. */
     static void openLedger(ServerPlayer player) {
-        var gui = new eu.pb4.sgui.api.gui.SimpleGui(
-                net.minecraft.world.inventory.MenuType.GENERIC_9x6, player, false);
-        gui.setTitle(Component.literal("The Book of the Dead"));
         var graves = new java.util.ArrayList<>(GraveManager.all());
         graves.removeIf(g -> g.plotIndex < 0);
         graves.sort((a, b) -> Long.compare(b.gameTime, a.gameTime));
-        int slot = 0;
 
         // DEATH OF THE WEEK: the most-mourned grave of the last seven days —
         // decided by the flowers the living have laid.
@@ -93,40 +89,9 @@ public final class CharonCommands {
                 .filter(g -> g.epochMillis >= weekAgo && g.tributes > 0)
                 .max(java.util.Comparator.comparingInt(g -> g.tributes))
                 .orElse(null);
-        if (crowned != null) {
-            final GraveManager.Grave c = crowned;
-            var crown = new eu.pb4.sgui.api.elements.GuiElementBuilder(
-                    net.minecraft.world.item.Items.WITHER_ROSE)
-                    .setName(Component.literal("Death of the Week: " + c.ownerName)
-                            .withStyle(ChatFormatting.GOLD))
-                    .addLoreLine(Component.literal(c.causeLine).withStyle(ChatFormatting.GRAY))
-                    .addLoreLine(Component.literal(c.tributes
-                            + (c.tributes == 1 ? " flower laid" : " flowers laid"))
-                            .withStyle(ChatFormatting.LIGHT_PURPLE))
-                    .glow();
-            if (c.book != null) {
-                crown.addLoreLine(Component.literal("Click to read their last words")
-                        .withStyle(ChatFormatting.DARK_PURPLE));
-                crown.setCallback((i, t, a, g) -> {
-                    g.close();
-                    GraveBooks.open(player, c);
-                });
-            }
-            gui.setSlot(slot++, crown.build());
-        }
 
-        for (GraveManager.Grave grave : graves) {
-            if (slot >= 54) break;
-            if (grave == crowned) continue; // already enthroned at the top
-            gui.setSlot(slot++, GraveUi.entry(player, grave).build());
-        }
-        if (slot == 0) {
-            gui.setSlot(22, new eu.pb4.sgui.api.elements.GuiElementBuilder(
-                    net.minecraft.world.item.Items.BONE)
-                    .setName(Component.literal("No one has died yet.").withStyle(ChatFormatting.GRAY))
-                    .build());
-        }
-        gui.open();
+        GraveUi.openList(player, "The Book of the Dead", graves, crowned,
+                "No one has died yet.", 0, null);
     }
 
     private static int giveObols(ServerPlayer player, int count) {
