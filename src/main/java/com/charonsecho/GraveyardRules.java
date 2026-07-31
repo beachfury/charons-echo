@@ -141,14 +141,17 @@ public final class GraveyardRules {
         var box = new net.minecraft.world.phys.AABB(
                 c.getX() - 21, ground - 24, c.getZ() - 21,
                 c.getX() + 21, ground + 24, c.getZ() + 21);
-        // The groundskeeper is an IRON GOLEM — a weathered caretaker that
-        // paces its yard forever. (Wardens kept digging themselves home;
-        // the deep dark keeps its people.)
+        // The groundskeepers are IRON GOLEMS — weathered caretakers that
+        // pace their yard forever. (Wardens kept digging themselves home;
+        // the deep dark keeps its people.) war-golem-count of them: one
+        // couldn't hold the yard once the archers were armed.
         var golems = graveyard.getEntitiesOfClass(
                 net.minecraft.world.entity.animal.golem.IronGolem.class, box);
-        if (golems.isEmpty()) {
+        for (int k = golems.size(); k < CharonConfig.warGolemCount; k++) {
+            int dx = (k % 2 == 0 ? 3 : -6) + k;
+            int dz = (k % 2 == 0 ? 3 : -6) - k;
             spawnKeeper(graveyard, net.minecraft.world.entity.EntityTypes.IRON_GOLEM,
-                    c.getX() + 3, c.getZ() + 3);
+                    c.getX() + dx, c.getZ() + dz);
         }
         var creakings = graveyard.getEntitiesOfClass(
                 net.minecraft.world.entity.monster.creaking.Creaking.class,

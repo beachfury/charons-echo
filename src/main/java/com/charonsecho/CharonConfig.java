@@ -62,6 +62,8 @@ public final class CharonConfig {
     public static volatile int warGolemDamage = 6;
     /** The Restless rise armed with grave goods: 0 = bare bones, 1 = kits. */
     public static volatile int warKits = 1;
+    /** Groundskeeper golems per field — the Keepers' muscle in the war. */
+    public static volatile int warGolemCount = 2;
 
     private CharonConfig() {}
 
@@ -98,6 +100,7 @@ public final class CharonConfig {
             warGolemHealth = clamp(inted(p, "war-golem-health", warGolemHealth), 10, 1024);
             warGolemDamage = clamp(inted(p, "war-golem-damage", warGolemDamage), 1, 100);
             warKits = clamp(inted(p, "war-kits", warKits), 0, 1);
+            warGolemCount = clamp(inted(p, "war-golem-count", warGolemCount), 0, 8);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -237,6 +240,10 @@ public final class CharonConfig {
             # pieces of chain, iron, and buried gold, swords to match.
             # Nothing they wear ever drops.  1 = armed (default), 0 = bare.
             war-kits=%d
+
+            # Groundskeeper golems per field.  Range 0-8.  Default 2 —
+            # one golem couldn't hold the yard once the archers were armed.
+            war-golem-count=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
@@ -244,7 +251,7 @@ public final class CharonConfig {
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
-                warKits);
+                warKits, warGolemCount);
     }
 
     private static int inted(Properties p, String key, int def) {
