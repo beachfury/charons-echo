@@ -3,6 +3,10 @@ package com.charonsecho;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +34,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.Level;
@@ -40,35 +45,42 @@ import net.minecraft.world.phys.AABB;
 /**
  * SOUL GATES — the living raise doors to the world of the dead.
  *
- * Build a closed rectangle of GILDED BLACKSTONE (interior 2-5 wide, 3-5
- * tall, standing in any vertical plane), then touch the frame with a
- * Charon's Obol. The coin is spent, and the aperture draws breath — the
- * same SOUL breath the ghosts wear. Walk through: gates in the living
- * world carry you to the graveyard's arrival; gates in Charon's Echo
- * carry you back through the gate you last used (or to the world spawn).
- * Break the frame and the door closes.
+ * Build a closed frame of GILDED BLACKSTONE in a vertical plane — ANY
+ * shape: an arch, a ring, a crooked door. Diagonal joints seal (souls do
+ * not slip through corners). Touch the frame with a Charon's Obol: the
+ * coin is spent, and the aperture draws breath — the same SOUL breath
+ * the ghosts wear. Walk through: gates in the living world carry you to
+ * the graveyard's arrival; gates in Charon's Echo carry you back through
+ * the gate you last used (or to the world spawn). Break the frame and
+ * the door closes.
  *
- * Config soul-gates: 0 = off, 1 = gamemasters raise gates, 2 = anyone
- * (default) — the obol is the price either way.
+ * Config: soul-gates (0 off / 1 gamemasters / 2 anyone, default 2);
+ * soul-gate-min-area and soul-gate-max-area bound the aperture size.
  */
 public final class SoulGates {
 
-    /** min = interior corner (lowest y, lowest lateral); lateralX = the
-     *  frame spans the X axis (crossing travels along Z). */
-    record Gate(ResourceKey<Level> dim, BlockPos min, int width, int height, boolean lateralX) {
+    /** cells = interior air cells of the aperture; lateralX = the frame
+     *  spans the X axis (crossing travels along Z). */
+    record Gate(ResourceKey<Level> dim, List<BlockPos> cells, boolean lateralX) {
 
-        AABB interior() {
+        BlockPos anchor() { return cells.get(0); }
+
+        AABB bounds() {
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+            for (BlockPos c : cells) {
+                minX = Math.min(minX, c.getX()); maxX = Math.max(maxX, c.getX());
+                minY = Math.min(minY, c.getY()); maxY = Math.max(maxY, c.getY());
+                minZ = Math.min(minZ, c.getZ()); maxZ = Math.max(maxZ, c.getZ());
+            }
             double thin = 0.75;
-            return lateralX
-                    ? new AABB(min.getX(), min.getY(), min.getZ() + 0.5 - thin,
-                            min.getX() + width, min.getY() + height, min.getZ() + 0.5 + thin)
-                    : new AABB(min.getX() + 0.5 - thin, min.getY(), min.getZ(),
-                            min.getX() + 0.5 + thin, min.getY() + height, min.getZ() + width);
+            return new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1)
+                    .inflate(lateralX ? 0 : thin, 0, lateralX ? thin : 0);
         }
 
-        double centerX() { return lateralX ? min.getX() + width / 2.0 : min.getX() + 0.5; }
-        double centerY() { return min.getY() + height / 2.0; }
-        double centerZ() { return lateralX ? min.getZ() + 0.5 : min.getZ() + width / 2.0; }
+        double centerX() { return bounds().getCenter().x; }
+        double centerY() { return bounds().getCenter().y; }
+        double centerZ() { return bounds().getCenter().z; }
     }
 
     private static final List<Gate> GATES = new CopyOnWriteArrayList<>();
@@ -103,20 +115,21 @@ public final class SoulGates {
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.FAIL;
         }
+        Gate gate = detect(level, clicked);
+        if (gate == null) {
+            player.sendSystemMessage(Component.literal(
+                    "The frame is not whole. Close the door of gilded blackstone —"
+                    + " an opening of " + CharonConfig.soulGateMinArea + " to "
+                    + CharonConfig.soulGateMaxArea + " blocks, sealed all around.")
+                    .withStyle(ChatFormatting.GRAY));
+            return InteractionResult.FAIL;
+        }
         for (Gate g : GATES) {
-            if (g.dim() == level.dimension() && clicked.distSqr(g.min()) < 12 * 12) {
+            if (g.dim() == level.dimension() && g.cells().contains(gate.anchor())) {
                 player.sendSystemMessage(Component.literal("This gate already breathes.")
                         .withStyle(ChatFormatting.DARK_PURPLE));
                 return InteractionResult.FAIL;
             }
-        }
-        Gate gate = detect(level, clicked);
-        if (gate == null) {
-            player.sendSystemMessage(Component.literal(
-                    "The frame is not whole. A closed door of gilded blackstone —"
-                    + " two to five wide within, three to five tall.")
-                    .withStyle(ChatFormatting.GRAY));
-            return InteractionResult.FAIL;
         }
         if (!player.getAbilities().instabuild) {
             player.getItemInHand(hand).shrink(1);
@@ -124,9 +137,9 @@ public final class SoulGates {
         GATES.add(gate);
         save();
         level.sendParticles(ParticleTypes.SOUL, gate.centerX(), gate.centerY(), gate.centerZ(),
-                40, gate.lateralX() ? gate.width() / 2.0 : 0.2, gate.height() / 2.0,
-                gate.lateralX() ? 0.2 : gate.width() / 2.0, 0.04);
-        level.playSound(null, gate.min(), SoundEvents.SOUL_ESCAPE.value(),
+                40, gate.bounds().getXsize() / 2, gate.bounds().getYsize() / 2,
+                gate.bounds().getZsize() / 2, 0.04);
+        level.playSound(null, gate.anchor(), SoundEvents.SOUL_ESCAPE.value(),
                 SoundSource.AMBIENT, 1.0f, 0.7f);
         player.sendSystemMessage(Component.literal(
                 "The coin is spent. The gate draws breath.")
@@ -134,62 +147,47 @@ public final class SoulGates {
         return InteractionResult.SUCCESS;
     }
 
-    /** Nether-style frame walk from any clicked frame block. */
+    /**
+     * ANY closed shape: flood-fill the air beside the clicked frame block,
+     * 4-connected within the vertical plane. Diagonal frame joints seal —
+     * air does not pass through corners. The fill must close entirely
+     * against gilded blackstone within the configured size.
+     */
     private static Gate detect(ServerLevel level, BlockPos clicked) {
         for (boolean lateralX : new boolean[] { true, false }) {
             for (BlockPos seed : new BlockPos[] {
                     off(clicked, 1, lateralX), off(clicked, -1, lateralX),
                     clicked.above(), clicked.below() }) {
                 if (!isAir(level, seed)) continue;
-                Gate g = trace(level, seed, lateralX);
-                if (g != null) return g;
+                List<BlockPos> cells = fill(level, seed, lateralX);
+                if (cells != null) return new Gate(level.dimension(), cells, lateralX);
             }
         }
         return null;
     }
 
-    private static Gate trace(ServerLevel level, BlockPos inside, boolean lateralX) {
-        BlockPos p = inside;
-        int guard = 0;
-        while (isAir(level, p.below()) && guard++ < 6) p = p.below();
-        if (!isFrame(level, p.below())) return null;
-        guard = 0;
-        while (isAir(level, off(p, -1, lateralX)) && isFrame(level, off(p, -1, lateralX).below())
-                && guard++ < 6) {
-            p = off(p, -1, lateralX);
-        }
-        if (!isFrame(level, off(p, -1, lateralX))) return null;
-        int width = 0;
-        BlockPos scan = p;
-        while (isAir(level, scan) && width <= 5) {
-            if (!isFrame(level, scan.below())) return null;
-            width++;
-            scan = off(scan, 1, lateralX);
-        }
-        if (width < 2 || width > 5 || !isFrame(level, scan)) return null;
-        int height = 0;
-        boolean capped = false;
-        for (int dy = 0; dy <= 5; dy++) {
-            BlockPos row = p.above(dy);
-            boolean allAir = true, allFrame = true;
-            for (int l = 0; l < width; l++) {
-                BlockPos c = off(row, l, lateralX);
-                if (!isAir(level, c)) allAir = false;
-                if (!isFrame(level, c)) allFrame = false;
+    private static List<BlockPos> fill(ServerLevel level, BlockPos seed, boolean lateralX) {
+        int max = CharonConfig.soulGateMaxArea;
+        Set<BlockPos> seen = new HashSet<>();
+        List<BlockPos> cells = new ArrayList<>();
+        Deque<BlockPos> queue = new ArrayDeque<>();
+        queue.add(seed.immutable());
+        seen.add(seed.immutable());
+        while (!queue.isEmpty()) {
+            BlockPos p = queue.poll();
+            if (!isAir(level, p)) {
+                if (isFrame(level, p)) continue; // boundary — sealed here
+                return null; // dirt, leaves, anything else: the frame is not whole
             }
-            if (allAir) {
-                if (!isFrame(level, off(row, -1, lateralX))
-                        || !isFrame(level, off(row, width, lateralX))) return null;
-                height++;
-            } else if (allFrame) {
-                capped = true;
-                break;
-            } else {
-                return null;
+            cells.add(p);
+            if (cells.size() > max) return null; // the shape never closed
+            for (BlockPos n : new BlockPos[] {
+                    off(p, 1, lateralX), off(p, -1, lateralX), p.above(), p.below() }) {
+                if (seen.add(n.immutable())) queue.add(n.immutable());
             }
         }
-        if (!capped || height < 3 || height > 5) return null;
-        return new Gate(level.dimension(), p.immutable(), width, height, lateralX);
+        if (cells.size() < CharonConfig.soulGateMinArea) return null;
+        return cells;
     }
 
     private static BlockPos off(BlockPos pos, int l, boolean lateralX) {
@@ -212,7 +210,7 @@ public final class SoulGates {
         if (time % 2 != 0) return;
         for (Gate gate : GATES) {
             ServerLevel level = server.getLevel(gate.dim());
-            if (level == null || !level.isLoaded(gate.min())) continue;
+            if (level == null || !level.isLoaded(gate.anchor())) continue;
 
             // The frame keeps its shape or the door closes.
             if (time % 100 == 0 && !frameIntact(level, gate)) {
@@ -220,24 +218,33 @@ public final class SoulGates {
                 save();
                 level.sendParticles(ParticleTypes.SOUL, gate.centerX(), gate.centerY(),
                         gate.centerZ(), 30, 0.8, 1.0, 0.8, 0.05);
-                level.playSound(null, gate.min(), SoundEvents.SOUL_ESCAPE.value(),
+                level.playSound(null, gate.anchor(), SoundEvents.SOUL_ESCAPE.value(),
                         SoundSource.AMBIENT, 0.8f, 0.5f);
                 continue;
             }
 
-            level.sendParticles(ParticleTypes.SOUL,
-                    gate.centerX(), gate.centerY() + 0.3, gate.centerZ(), 3,
-                    gate.lateralX() ? gate.width() / 2.4 : 0.1, gate.height() / 2.6,
-                    gate.lateralX() ? 0.1 : gate.width() / 2.4, 0.012);
+            // The breath drifts from the aperture itself, whatever its shape.
+            RandomSource rand = level.getRandom();
+            for (int i = 0; i < 3; i++) {
+                BlockPos cell = gate.cells().get(rand.nextInt(gate.cells().size()));
+                level.sendParticles(ParticleTypes.SOUL,
+                        cell.getX() + 0.5, cell.getY() + 0.5, cell.getZ() + 0.5,
+                        1, 0.3, 0.3, 0.3, 0.012);
+            }
             if (time % 20 == 0) {
+                BlockPos low = gate.cells().get(0);
+                for (BlockPos c : gate.cells()) {
+                    if (c.getY() < low.getY()) low = c;
+                }
                 level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-                        gate.centerX(), gate.min().getY() + 0.15, gate.centerZ(), 2,
-                        gate.lateralX() ? gate.width() / 2.2 : 0.1, 0.05,
-                        gate.lateralX() ? 0.1 : gate.width() / 2.2, 0.004);
+                        gate.centerX(), low.getY() + 0.15, gate.centerZ(), 2,
+                        gate.lateralX() ? gate.bounds().getXsize() / 2.4 : 0.1, 0.05,
+                        gate.lateralX() ? 0.1 : gate.bounds().getZsize() / 2.4, 0.004);
             }
 
-            for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, gate.interior())) {
+            for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, gate.bounds())) {
                 if (GhostState.isGhost(p.getUUID())) continue;
+                if (!inAperture(gate, p)) continue;
                 Long until = COOLDOWN.get(p.getUUID());
                 if (until != null && time < until) continue;
                 COOLDOWN.put(p.getUUID(), time + 60);
@@ -246,15 +253,21 @@ public final class SoulGates {
         }
     }
 
+    /** The bounding box overshoots odd shapes — confirm a real cell. */
+    private static boolean inAperture(Gate gate, ServerPlayer p) {
+        BlockPos feet = p.blockPosition();
+        return gate.cells().contains(feet) || gate.cells().contains(feet.above());
+    }
+
     private static boolean frameIntact(ServerLevel level, Gate gate) {
-        BlockPos p = gate.min();
-        for (int l = 0; l < gate.width(); l++) {
-            if (!isFrame(level, off(p, l, gate.lateralX()).below())) return false;
-            if (!isFrame(level, off(p.above(gate.height()), l, gate.lateralX()))) return false;
-        }
-        for (int dy = 0; dy < gate.height(); dy++) {
-            if (!isFrame(level, off(p.above(dy), -1, gate.lateralX()))) return false;
-            if (!isFrame(level, off(p.above(dy), gate.width(), gate.lateralX()))) return false;
+        Set<BlockPos> cellSet = new HashSet<>(gate.cells());
+        for (BlockPos c : gate.cells()) {
+            if (!isAir(level, c)) return false; // something filled the door
+            for (BlockPos n : new BlockPos[] {
+                    off(c, 1, gate.lateralX()), off(c, -1, gate.lateralX()),
+                    c.above(), c.below() }) {
+                if (!cellSet.contains(n) && !isFrame(level, n)) return false;
+            }
         }
         return true;
     }
@@ -279,13 +292,21 @@ public final class SoulGates {
             if (back != null && GATES.contains(back) && back.dim() != CharonsEcho.GRAVEYARD_DIM) {
                 ServerLevel dest = server.getLevel(back.dim());
                 if (dest != null) {
+                    BlockPos low = back.cells().get(0);
+                    for (BlockPos c : back.cells()) {
+                        if (c.getY() < low.getY()
+                                || (c.getY() == low.getY() && back.cells().indexOf(c) >= 0
+                                        && c.getX() + c.getZ() < low.getX() + low.getZ())) {
+                            low = c;
+                        }
+                    }
                     double depth = 1.6;
-                    double tx = back.lateralX() ? back.centerX() : back.min().getX() + 0.5 + depth;
-                    double tz = back.lateralX() ? back.min().getZ() + 0.5 + depth : back.centerZ();
-                    dest.getChunk(back.min().getX() >> 4, back.min().getZ() >> 4);
-                    player.teleportTo(dest, tx, back.min().getY(), tz,
+                    double tx = back.centerX() + (back.lateralX() ? 0 : depth);
+                    double tz = back.centerZ() + (back.lateralX() ? depth : 0);
+                    dest.getChunk(low.getX() >> 4, low.getZ() >> 4);
+                    player.teleportTo(dest, tx, low.getY(), tz,
                             Set.<Relative>of(), back.lateralX() ? 0f : -90f, 0f, false);
-                    arrive(dest, back.min(), player, "The living world takes you back.");
+                    arrive(dest, low, player, "The living world takes you back.");
                     return;
                 }
             }
@@ -320,9 +341,12 @@ public final class SoulGates {
                 if (!(t instanceof CompoundTag c)) continue;
                 ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION,
                         Identifier.parse(c.getStringOr("dim", "minecraft:overworld")));
-                GATES.add(new Gate(dim, BlockPos.of(c.getLongOr("min", 0)),
-                        c.getIntOr("w", 2), c.getIntOr("h", 3),
-                        c.getBooleanOr("lx", true)));
+                List<BlockPos> cells = new ArrayList<>();
+                for (long l : c.getLongArray("cells").orElse(new long[0])) {
+                    cells.add(BlockPos.of(l));
+                }
+                if (cells.isEmpty()) continue;
+                GATES.add(new Gate(dim, cells, c.getBooleanOr("lx", true)));
             }
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to load gates.dat: " + e);
@@ -338,9 +362,11 @@ public final class SoulGates {
             for (Gate g : GATES) {
                 CompoundTag c = new CompoundTag();
                 c.putString("dim", g.dim().identifier().toString());
-                c.putLong("min", g.min().asLong());
-                c.putInt("w", g.width());
-                c.putInt("h", g.height());
+                long[] cells = new long[g.cells().size()];
+                for (int i = 0; i < cells.length; i++) {
+                    cells[i] = g.cells().get(i).asLong();
+                }
+                c.putLongArray("cells", cells);
                 c.putBoolean("lx", g.lateralX());
                 list.add(c);
             }

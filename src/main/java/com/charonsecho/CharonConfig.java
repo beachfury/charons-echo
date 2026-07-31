@@ -69,6 +69,10 @@ public final class CharonConfig {
     public static volatile int warTeams = 1;
     /** Soul Gates: 0 = off, 1 = gamemasters only, 2 = any player (default). */
     public static volatile int soulGates = 2;
+    /** Smallest aperture (interior air blocks) a Soul Gate may have. */
+    public static volatile int soulGateMinArea = 6;
+    /** Largest aperture (interior air blocks) a Soul Gate may have. */
+    public static volatile int soulGateMaxArea = 64;
 
     private CharonConfig() {}
 
@@ -108,6 +112,9 @@ public final class CharonConfig {
             warGolemCount = clamp(inted(p, "war-golem-count", warGolemCount), 0, 8);
             warTeams = clamp(inted(p, "war-teams", warTeams), 0, 1);
             soulGates = clamp(inted(p, "soul-gates", soulGates), 0, 2);
+            soulGateMinArea = clamp(inted(p, "soul-gate-min-area", soulGateMinArea), 1, 256);
+            soulGateMaxArea = clamp(inted(p, "soul-gate-max-area", soulGateMaxArea),
+                    soulGateMinArea, 1024);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -260,14 +267,21 @@ public final class CharonConfig {
 
             # ---- Soul Gates ----
 
-            # Who may raise a Soul Gate: build a closed gilded blackstone
-            # rectangle (interior 2-5 wide, 3-5 tall) and touch it with a
-            # Charon's Obol — the coin is spent, the gate opens.  Gates in
+            # Who may raise a Soul Gate: build a CLOSED frame of gilded
+            # blackstone in a vertical plane — ANY shape (arches, rings,
+            # crooked doors; diagonal joints seal) — and touch it with a
+            # Charon's Obol.  The coin is spent, the gate opens.  Gates in
             # the living world lead to the graveyard arrival; graveyard
             # gates lead back through the gate you last used.  Breaking the
             # frame closes the door.  0 = off, 1 = gamemasters only,
             # 2 = any player (default; the obol is the price).
             soul-gates=%d
+
+            # Soul Gate aperture size, in interior air blocks.  Range
+            # 1-256 / min-1024.  Defaults 6 and 64 — a humble door up to
+            # a grand mausoleum arch.  The frame around it can be any size.
+            soul-gate-min-area=%d
+            soul-gate-max-area=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
@@ -275,7 +289,8 @@ public final class CharonConfig {
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
-                warKits, warGolemCount, warTeams, soulGates);
+                warKits, warGolemCount, warTeams, soulGates,
+                soulGateMinArea, soulGateMaxArea);
     }
 
     private static int inted(Properties p, String key, int def) {
