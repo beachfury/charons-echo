@@ -75,7 +75,17 @@ public final class Scrivener {
     private static void ensure(MinecraftServer server) {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
+        // The Scrivener's desk exists only beside the church lectern — no
+        // template marker, no desk, no clerk. Strays (legacy fallback-spawn
+        // clones included) are swept until a lectern exists to stand at.
         BlockPos at = post(graveyard);
+        if (at == null) {
+            for (ZombieVillager z : graveyard.getEntitiesOfClass(ZombieVillager.class,
+                    AABB.ofSize(Vec3.atCenterOf(BlockPos.ZERO), 512, 128, 512))) {
+                z.discard();
+            }
+            return;
+        }
         graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
         // Judge nothing while the room is dark: block-loading a chunk does
         // NOT load its entities — searching too early spawned doubles.
@@ -115,19 +125,18 @@ public final class Scrivener {
         System.out.println("[CharonsEcho] the Scrivener takes his desk at " + at.toShortString());
     }
 
-    /** His desk: beside the ledger lectern, in the first open floor space. */
+    /** His desk: beside the ledger lectern, in the first open floor space.
+     *  No lectern marker, no desk — the template decides, or nobody stands. */
     private static BlockPos post(ServerLevel graveyard) {
         BlockPos lectern = Church.ledgerMarker();
-        if (lectern != null) {
-            for (Direction dir : Direction.Plane.HORIZONTAL) {
-                BlockPos side = lectern.relative(dir);
-                if (graveyard.getBlockState(side).isAir()
-                        && graveyard.getBlockState(side.above()).isAir()) {
-                    return side;
-                }
+        if (lectern == null) return null;
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            BlockPos side = lectern.relative(dir);
+            if (graveyard.getBlockState(side).isAir()
+                    && graveyard.getBlockState(side.above()).isAir()) {
+                return side;
             }
         }
-        int z = 20;
-        return new BlockPos(4, GraveyardTerrain.groundHeight(4, z) + 1, z);
+        return null;
     }
 }

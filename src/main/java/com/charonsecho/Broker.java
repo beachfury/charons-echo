@@ -29,9 +29,6 @@ import net.minecraft.world.item.Items;
  */
 public final class Broker {
 
-    /** Where he waits, on the plateau where the church will one day stand. */
-    private static final BlockPos STAND = new BlockPos(8, 0, 8);
-
     private Broker() {}
 
     private static boolean ensurePending;
@@ -69,12 +66,17 @@ public final class Broker {
     private static void doEnsure(MinecraftServer server) {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
-        // The Broker's post: the church's gilded blackstone vendor marker,
-        // or the bare plateau while the church has none.
+        // The Broker's post is the church's vendor marker — and ONLY that.
+        // No church, no post, no Broker: any strays (legacy fallback-spawn
+        // clones included) are swept until a marker exists to stand at.
         BlockPos at = Church.vendorStand();
         if (at == null) {
-            int y = GraveyardTerrain.groundHeight(STAND.getX(), STAND.getZ()) + 1;
-            at = new BlockPos(STAND.getX(), y, STAND.getZ());
+            for (WanderingTrader t : graveyard.getEntitiesOfClass(WanderingTrader.class,
+                    net.minecraft.world.phys.AABB.ofSize(
+                            net.minecraft.world.phys.Vec3.atCenterOf(BlockPos.ZERO), 512, 128, 512))) {
+                t.discard();
+            }
+            return;
         }
         graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
         // Judge nothing while the room is dark: block-loading a chunk does
