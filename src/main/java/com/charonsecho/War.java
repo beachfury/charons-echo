@@ -304,10 +304,14 @@ public final class War {
      */
     private static void dressRestless(Mob mob, net.minecraft.util.RandomSource rand) {
         if (CharonConfig.warKits == 0) return;
-        // Skeletal archers keep their bows; the parched take up swords.
+        // The parched take up swords; the skeletal archers are HANDED their
+        // bows — the war spawner skips vanilla finalize, so nothing arrives
+        // armed on its own. (Bows only: skeleton AI cannot shoot a crossbow.)
         if (mob.getType() == EntityTypes.PARCHED) {
             mob.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(
                     kitRoll(rand, Items.STONE_SWORD, Items.IRON_SWORD, Items.GOLDEN_SWORD)));
+        } else {
+            mob.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         }
         kitPiece(mob, rand, EquipmentSlot.HEAD, 0.55f,
                 Items.CHAINMAIL_HELMET, Items.IRON_HELMET, Items.GOLDEN_HELMET);
