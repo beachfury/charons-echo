@@ -140,7 +140,7 @@ public final class PortalManager {
         }
     }
 
-    /** Soul-flame spiral, broadcast to anyone nearby (no blocks). */
+    /** Soul-flame spiral wrapped in the ghosts' own breath (no blocks). */
     private static void portalParticles(ServerLevel level, BlockPos pos, int tick) {
         if (tick % 3 != 0) return;
         double angle = (tick % 40) / 40.0 * Math.PI * 2;
@@ -151,6 +151,10 @@ public final class PortalManager {
                     cx + Math.cos(a) * 0.8, pos.getY() + 0.2 + (tick % 40) / 40.0 * 2.4,
                     cz + Math.sin(a) * 0.8, 1, 0, 0.02, 0, 0.0);
         }
+        // The breath: SOUL drift around the spiral — the same particle the
+        // ghosts wear, so every door of souls reads as one thing.
+        level.sendParticles(ParticleTypes.SOUL,
+                cx, pos.getY() + 1.3, cz, 2, 0.5, 0.9, 0.5, 0.012);
     }
 
     private static void crossToGraveyard(MinecraftServer server, ServerPlayer player) {
