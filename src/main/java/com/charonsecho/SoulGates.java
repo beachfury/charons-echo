@@ -311,8 +311,13 @@ public final class SoulGates {
             double look = gate.lateralX() ? player.getLookAngle().z : player.getLookAngle().x;
             LAST_GATE.put(player.getUUID(), new Crossing(gate, look >= 0 ? 1 : -1));
             graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
+            // Arrive facing the church — it stands at the graveyard's origin,
+            // and the dead should see where they are going.
+            double dx = 0.5 - (at.getX() + 0.5);
+            double dz = 0.5 - (at.getZ() + 0.5);
+            float churchward = (float) Math.toDegrees(Math.atan2(-dx, dz));
             player.teleportTo(graveyard, at.getX() + 0.5, at.getY(), at.getZ() + 0.5,
-                    Set.<Relative>of(), player.getYRot(), 0f, false);
+                    Set.<Relative>of(), churchward, 0f, false);
             arrive(graveyard, at, player, "You step through the veil.");
         } else {
             Crossing back = LAST_GATE.get(player.getUUID());
