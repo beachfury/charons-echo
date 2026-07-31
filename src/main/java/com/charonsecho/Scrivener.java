@@ -77,11 +77,24 @@ public final class Scrivener {
         if (graveyard == null) return;
         BlockPos at = post(graveyard);
         graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
+        // Judge nothing while the room is dark: block-loading a chunk does
+        // NOT load its entities — searching too early spawned doubles.
+        if (!graveyard.areEntitiesLoaded(
+                net.minecraft.world.level.ChunkPos.pack(at.getX() >> 4, at.getZ() >> 4))) {
+            return;
+        }
         var clerks = graveyard.getEntitiesOfClass(ZombieVillager.class,
                 AABB.ofSize(Vec3.atCenterOf(at), 128, 96, 128));
+        // The nearest to the desk keeps the job — a stable choice.
         ZombieVillager keeper = null;
         for (ZombieVillager z : clerks) {
-            if (keeper == null) keeper = z; else z.discard();
+            if (keeper == null || z.blockPosition().distSqr(at)
+                    < keeper.blockPosition().distSqr(at)) {
+                keeper = z;
+            }
+        }
+        for (ZombieVillager z : clerks) {
+            if (z != keeper) z.discard();
         }
         if (keeper != null) {
             if (keeper.blockPosition().distSqr(at) > 2) {

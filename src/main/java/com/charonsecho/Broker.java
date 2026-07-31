@@ -77,18 +77,36 @@ public final class Broker {
             at = new BlockPos(STAND.getX(), y, STAND.getZ());
         }
         graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
+        // Judge nothing while the room is dark: block-loading a chunk does
+        // NOT load its entities. Searching too early found no Broker and
+        // spawned a double — every pass, forever. Wait for the entities.
+        if (!graveyard.areEntitiesLoaded(
+                net.minecraft.world.level.ChunkPos.pack(at.getX() >> 4, at.getZ() >> 4))) {
+            return;
+        }
 
-        // One Broker only: keep the first found near the post, sweep the rest.
+        // One Broker only: the recorded one if he lives, else the nearest
+        // to the post — a STABLE choice, so the kept one never flickers.
         var traders = graveyard.getEntitiesOfClass(WanderingTrader.class,
                 net.minecraft.world.phys.AABB.ofSize(
                         net.minecraft.world.phys.Vec3.atCenterOf(at), 128, 96, 128));
         WanderingTrader keeper = null;
         for (WanderingTrader t : traders) {
-            if (keeper == null) {
+            if (Orchard.brokerId != null && t.getUUID().equals(Orchard.brokerId)) {
                 keeper = t;
-            } else {
-                t.discard();
+                break;
             }
+        }
+        if (keeper == null) {
+            for (WanderingTrader t : traders) {
+                if (keeper == null || t.blockPosition().distSqr(at)
+                        < keeper.blockPosition().distSqr(at)) {
+                    keeper = t;
+                }
+            }
+        }
+        for (WanderingTrader t : traders) {
+            if (t != keeper) t.discard();
         }
         if (keeper != null) {
             if (Orchard.brokerId == null || !keeper.getUUID().equals(Orchard.brokerId)) {
