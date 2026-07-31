@@ -253,8 +253,9 @@ public final class GraveyardRules {
             if (factionTeam != null || mob.getType() == EntityTypes.WARDEN
                     || mob.getType() == EntityTypes.ALLAY || mob.getType() == EntityTypes.SNIFFER) {
                 // Every war mob joins its faction's team (allies never fight);
-                // wardens and civilians shelter with the keepers.
-                if (mob.getTeam() == null) {
+                // wardens and civilians shelter with the keepers. war-teams=0
+                // skips this entirely — replay mods choke on team packets.
+                if (CharonConfig.warTeams != 0 && mob.getTeam() == null) {
                     PlayerTeam team = factionTeam == null ? keepers : sb.getPlayerTeam(factionTeam);
                     if (team == null) {
                         team = sb.addPlayerTeam(factionTeam);

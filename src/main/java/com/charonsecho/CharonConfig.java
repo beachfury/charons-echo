@@ -64,6 +64,9 @@ public final class CharonConfig {
     public static volatile int warKits = 1;
     /** Groundskeeper golems per field — the Keepers' muscle in the war. */
     public static volatile int warGolemCount = 2;
+    /** Faction scoreboard teams: 1 = on (friendly-fire protection), 0 = off
+     *  (replay/filming compatibility — team packets break replay seeking). */
+    public static volatile int warTeams = 1;
 
     private CharonConfig() {}
 
@@ -101,6 +104,7 @@ public final class CharonConfig {
             warGolemDamage = clamp(inted(p, "war-golem-damage", warGolemDamage), 1, 100);
             warKits = clamp(inted(p, "war-kits", warKits), 0, 1);
             warGolemCount = clamp(inted(p, "war-golem-count", warGolemCount), 0, 8);
+            warTeams = clamp(inted(p, "war-teams", warTeams), 0, 1);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -244,6 +248,12 @@ public final class CharonConfig {
             # Groundskeeper golems per field.  Range 0-8.  Default 2 —
             # one golem couldn't hold the yard once the archers were armed.
             war-golem-count=%d
+
+            # Faction scoreboard teams.  1 = on (default): allies never hurt
+            # each other.  0 = off: no team packets at all — set this when
+            # recording with replay mods (team packets break replay seeking);
+            # stray arrows may start same-side brawls, which is your problem.
+            war-teams=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
@@ -251,7 +261,7 @@ public final class CharonConfig {
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
-                warKits, warGolemCount);
+                warKits, warGolemCount, warTeams);
     }
 
     private static int inted(Properties p, String key, int def) {
