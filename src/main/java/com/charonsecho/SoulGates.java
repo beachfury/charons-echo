@@ -83,9 +83,16 @@ public final class SoulGates {
         double centerZ() { return bounds().getCenter().z; }
     }
 
+    /** A remembered crossing: the gate, and WHICH SIDE the walker entered
+     *  from (sign along the plane normal) — the return drops them on that
+     *  side, facing away, mid-stride. */
+    private record Crossing(Gate gate, int sign) {}
+
     private static final List<Gate> GATES = new CopyOnWriteArrayList<>();
-    private static final Map<UUID, Gate> LAST_GATE = new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> COOLDOWN = new ConcurrentHashMap<>();
+    private static final Map<UUID, Crossing> LAST_GATE = new ConcurrentHashMap<>();
+    /** Like the death portals: a gate that carried you stays DISARMED until
+     *  you are wholly clear of every aperture — no ping-pong, ever. */
+    private static final Set<UUID> DISARMED = ConcurrentHashMap.newKeySet();
     private static Path file;
 
     private SoulGates() {}
@@ -245,12 +252,29 @@ public final class SoulGates {
             for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, gate.bounds())) {
                 if (GhostState.isGhost(p.getUUID())) continue;
                 if (!inAperture(gate, p)) continue;
-                Long until = COOLDOWN.get(p.getUUID());
-                if (until != null && time < until) continue;
-                COOLDOWN.put(p.getUUID(), time + 60);
+                if (DISARMED.contains(p.getUUID())) continue;
+                DISARMED.add(p.getUUID());
                 cross(server, level, p, gate);
             }
         }
+
+        // Re-arm the walkers who have stepped wholly clear of every gate.
+        if (time % 10 == 0 && !DISARMED.isEmpty()) {
+            for (UUID id : DISARMED) {
+                ServerPlayer p = server.getPlayerList().getPlayer(id);
+                if (p == null || !inAnyAperture(p)) {
+                    DISARMED.remove(id);
+                }
+            }
+        }
+    }
+
+    private static boolean inAnyAperture(ServerPlayer p) {
+        for (Gate gate : GATES) {
+            if (gate.dim() != p.level().dimension()) continue;
+            if (inAperture(gate, p)) return true;
+        }
+        return false;
     }
 
     /** The bounding box overshoots odd shapes — confirm a real cell. */
@@ -282,31 +306,37 @@ public final class SoulGates {
             ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
             BlockPos at = Church.arrivalPoint();
             if (graveyard == null || at == null) return;
-            LAST_GATE.put(player.getUUID(), gate);
+            // Which side did the walker enter from? The sign of their look
+            // along the plane normal — the return exits that same side.
+            double look = gate.lateralX() ? player.getLookAngle().z : player.getLookAngle().x;
+            LAST_GATE.put(player.getUUID(), new Crossing(gate, look >= 0 ? 1 : -1));
             graveyard.getChunk(at.getX() >> 4, at.getZ() >> 4);
             player.teleportTo(graveyard, at.getX() + 0.5, at.getY(), at.getZ() + 0.5,
                     Set.<Relative>of(), player.getYRot(), 0f, false);
             arrive(graveyard, at, player, "You step through the veil.");
         } else {
-            Gate back = LAST_GATE.get(player.getUUID());
-            if (back != null && GATES.contains(back) && back.dim() != CharonsEcho.GRAVEYARD_DIM) {
-                ServerLevel dest = server.getLevel(back.dim());
+            Crossing back = LAST_GATE.get(player.getUUID());
+            if (back != null && GATES.contains(back.gate())
+                    && back.gate().dim() != CharonsEcho.GRAVEYARD_DIM) {
+                Gate home = back.gate();
+                ServerLevel dest = server.getLevel(home.dim());
                 if (dest != null) {
-                    BlockPos low = back.cells().get(0);
-                    for (BlockPos c : back.cells()) {
-                        if (c.getY() < low.getY()
-                                || (c.getY() == low.getY() && back.cells().indexOf(c) >= 0
-                                        && c.getX() + c.getZ() < low.getX() + low.getZ())) {
-                            low = c;
-                        }
+                    int lowY = Integer.MAX_VALUE;
+                    for (BlockPos c : home.cells()) {
+                        lowY = Math.min(lowY, c.getY());
                     }
-                    double depth = 1.6;
-                    double tx = back.centerX() + (back.lateralX() ? 0 : depth);
-                    double tz = back.centerZ() + (back.lateralX() ? depth : 0);
-                    dest.getChunk(low.getX() >> 4, low.getZ() >> 4);
-                    player.teleportTo(dest, tx, low.getY(), tz,
-                            Set.<Relative>of(), back.lateralX() ? 0f : -90f, 0f, false);
-                    arrive(dest, low, player, "The living world takes you back.");
+                    // Exit the side you came IN from, facing away, mid-stride.
+                    double out = -back.sign() * 1.6;
+                    double tx = home.centerX() + (home.lateralX() ? 0 : out);
+                    double tz = home.centerZ() + (home.lateralX() ? out : 0);
+                    float yaw = home.lateralX()
+                            ? (out >= 0 ? 0f : 180f)
+                            : (out >= 0 ? -90f : 90f);
+                    BlockPos anchor = home.anchor();
+                    dest.getChunk(anchor.getX() >> 4, anchor.getZ() >> 4);
+                    player.teleportTo(dest, tx, lowY, tz,
+                            Set.<Relative>of(), yaw, 0f, false);
+                    arrive(dest, anchor, player, "The living world takes you back.");
                     return;
                 }
             }
