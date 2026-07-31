@@ -30,11 +30,13 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -282,8 +284,55 @@ public final class War {
         if (mob instanceof net.minecraft.world.entity.monster.Vex vex) {
             vex.setLimitedLife(2400 + level.getRandom().nextInt(1200));
         }
+        if (type == EntityTypes.PARCHED || type == EntityTypes.BOGGED
+                || type == EntityTypes.STRAY) {
+            dressRestless(mob, level.getRandom());
+        }
         // War mobs are NOT persistent — walk away and the battle fades.
         level.addFreshEntity(mob);
+    }
+
+    private static final EquipmentSlot[] KIT_SLOTS = {
+            EquipmentSlot.MAINHAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+            EquipmentSlot.LEGS, EquipmentSlot.FEET };
+
+    /**
+     * The dead rise armed with their grave goods: mismatched pieces of chain,
+     * iron, and buried gold. Partial kits on purpose — a matched set looks
+     * like an army; a helmet and one boot looks like the risen dead. Nothing
+     * they carry ever drops. Keepers fight bare: stone needs no kit.
+     */
+    private static void dressRestless(Mob mob, net.minecraft.util.RandomSource rand) {
+        if (CharonConfig.warKits == 0) return;
+        // Skeletal archers keep their bows; the parched take up swords.
+        if (mob.getType() == EntityTypes.PARCHED) {
+            mob.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(
+                    kitRoll(rand, Items.STONE_SWORD, Items.IRON_SWORD, Items.GOLDEN_SWORD)));
+        }
+        kitPiece(mob, rand, EquipmentSlot.HEAD, 0.55f,
+                Items.CHAINMAIL_HELMET, Items.IRON_HELMET, Items.GOLDEN_HELMET);
+        kitPiece(mob, rand, EquipmentSlot.CHEST, 0.45f,
+                Items.CHAINMAIL_CHESTPLATE, Items.IRON_CHESTPLATE, Items.GOLDEN_CHESTPLATE);
+        kitPiece(mob, rand, EquipmentSlot.LEGS, 0.35f,
+                Items.CHAINMAIL_LEGGINGS, Items.IRON_LEGGINGS, Items.GOLDEN_LEGGINGS);
+        kitPiece(mob, rand, EquipmentSlot.FEET, 0.40f,
+                Items.CHAINMAIL_BOOTS, Items.IRON_BOOTS, Items.GOLDEN_BOOTS);
+        for (EquipmentSlot slot : KIT_SLOTS) {
+            mob.setDropChance(slot, 0f);
+        }
+    }
+
+    private static void kitPiece(Mob mob, net.minecraft.util.RandomSource rand,
+            EquipmentSlot slot, float chance, Item chain, Item iron, Item gold) {
+        if (rand.nextFloat() >= chance) return;
+        mob.setItemSlot(slot, new ItemStack(kitRoll(rand, chain, iron, gold)));
+    }
+
+    /** Half the grave goods are humble, a third iron, the rest buried gold. */
+    private static Item kitRoll(net.minecraft.util.RandomSource rand,
+            Item common, Item iron, Item gold) {
+        float f = rand.nextFloat();
+        return f < 0.50f ? common : f < 0.85f ? iron : gold;
     }
 
     /** Hand every idle fighter the nearest enemy. Civilians are invisible to the war. */

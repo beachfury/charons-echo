@@ -60,6 +60,8 @@ public final class CharonConfig {
     public static volatile int warGolemHealth = 40;
     /** War golem attack damage (vanilla averages ~14 with a launch). */
     public static volatile int warGolemDamage = 6;
+    /** The Restless rise armed with grave goods: 0 = bare bones, 1 = kits. */
+    public static volatile int warKits = 1;
 
     private CharonConfig() {}
 
@@ -95,6 +97,7 @@ public final class CharonConfig {
             warBreezeCap = clamp(inted(p, "war-breeze-cap", warBreezeCap), 0, 64);
             warGolemHealth = clamp(inted(p, "war-golem-health", warGolemHealth), 10, 1024);
             warGolemDamage = clamp(inted(p, "war-golem-damage", warGolemDamage), 1, 100);
+            warKits = clamp(inted(p, "war-kits", warKits), 0, 1);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -229,13 +232,19 @@ public final class CharonConfig {
             # vanilla averages ~14 and one-shots half the Restless).
             # The launch knockback stays — that is the golem's signature.
             war-golem-damage=%d
+
+            # The Restless rise armed with their grave goods: mismatched
+            # pieces of chain, iron, and buried gold, swords to match.
+            # Nothing they wear ever drops.  1 = armed (default), 0 = bare.
+            war-kits=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
-                warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage);
+                warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
+                warKits);
     }
 
     private static int inted(Properties p, String key, int def) {
