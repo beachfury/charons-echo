@@ -57,6 +57,8 @@ public final class CharonsEcho implements ModInitializer {
         Church.register();
         // The Scrivener: free blank books for the stories of the dead.
         Scrivener.register();
+        // Soul Gates: the living raise gilded doors to the world of the dead.
+        SoulGates.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
@@ -71,6 +73,7 @@ public final class CharonsEcho implements ModInitializer {
             War.load(server);
             Church.load(server);
             Church.ensure(server); // the church rises with the terrain
+            SoulGates.load(server);
             Crypt.load(server);
             Crypt.ensure(server);  // and the crypt is carved beneath it
             Church.dressLedger(server); // the Book of the Dead on its lectern

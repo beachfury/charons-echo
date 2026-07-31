@@ -67,6 +67,8 @@ public final class CharonConfig {
     /** Faction scoreboard teams: 1 = on (friendly-fire protection), 0 = off
      *  (replay/filming compatibility — team packets break replay seeking). */
     public static volatile int warTeams = 1;
+    /** Soul Gates: 0 = off, 1 = gamemasters only, 2 = any player (default). */
+    public static volatile int soulGates = 2;
 
     private CharonConfig() {}
 
@@ -105,6 +107,7 @@ public final class CharonConfig {
             warKits = clamp(inted(p, "war-kits", warKits), 0, 1);
             warGolemCount = clamp(inted(p, "war-golem-count", warGolemCount), 0, 8);
             warTeams = clamp(inted(p, "war-teams", warTeams), 0, 1);
+            soulGates = clamp(inted(p, "soul-gates", soulGates), 0, 2);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -254,6 +257,17 @@ public final class CharonConfig {
             # recording with replay mods (team packets break replay seeking);
             # stray arrows may start same-side brawls, which is your problem.
             war-teams=%d
+
+            # ---- Soul Gates ----
+
+            # Who may raise a Soul Gate: build a closed gilded blackstone
+            # rectangle (interior 2-5 wide, 3-5 tall) and touch it with a
+            # Charon's Obol — the coin is spent, the gate opens.  Gates in
+            # the living world lead to the graveyard arrival; graveyard
+            # gates lead back through the gate you last used.  Breaking the
+            # frame closes the door.  0 = off, 1 = gamemasters only,
+            # 2 = any player (default; the obol is the price).
+            soul-gates=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
@@ -261,7 +275,7 @@ public final class CharonConfig {
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
-                warKits, warGolemCount, warTeams);
+                warKits, warGolemCount, warTeams, soulGates);
     }
 
     private static int inted(Properties p, String key, int def) {
