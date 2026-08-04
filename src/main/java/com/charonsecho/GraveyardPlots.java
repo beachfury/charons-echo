@@ -29,6 +29,8 @@ public final class GraveyardPlots {
 
     private static final int FIELD_PITCH = 96;  // field center-to-center
     private static final int FIELD_HALF = 20;   // 40×40 interior
+    /** Fence ring offset: +2, so edge-plot terracing (footprint+1) can never chew the fence. */
+    private static final int FENCE_OFF = 22;
     private static final int PLOT = 6;          // 6×6 plots: 4×4 stones + 2-block aisles
     private static final int COLS = 6;          // plots per row (x)
     private static final int ROWS = 6;          // rows per field (z)
@@ -107,7 +109,7 @@ public final class GraveyardPlots {
 
     /** The whole footprint (incl. fence ring) dry and ≤10 blocks of relief. */
     private static boolean fieldFits(int cx, int cz) {
-        int r = FIELD_HALF + 2;
+        int r = FENCE_OFF + 1;
         int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
         for (int x = cx - r; x <= cx + r; x++) {
             for (int z = cz - r; z <= cz + r; z++) {
@@ -322,7 +324,7 @@ public final class GraveyardPlots {
      */
     private static BlockPos gateSignPos(int fieldIndex) {
         BlockPos c = fieldCenter(fieldIndex);
-        int f = FIELD_HALF + 1, z = c.getZ() + f;
+        int f = FENCE_OFF, z = c.getZ() + f;
         for (int dx = -2; dx <= FIELD_HALF; dx++) {
             int x = c.getX() + dx;
             int h = GraveyardTerrain.groundHeight(x, z);
@@ -347,7 +349,7 @@ public final class GraveyardPlots {
      */
     private static SignBlockEntity findFieldSign(ServerLevel level, int fieldIndex) {
         BlockPos c = fieldCenter(fieldIndex);
-        int fenceZ = c.getZ() + FIELD_HALF + 1;
+        int fenceZ = c.getZ() + FENCE_OFF;
         for (int x = c.getX() - 5; x <= c.getX() + 5; x++) {
             for (int z = fenceZ - 4; z <= fenceZ + 4; z++) {
                 level.getChunk(x >> 4, z >> 4);
@@ -458,7 +460,7 @@ public final class GraveyardPlots {
         int d = StudioMode.CATEGORIES.stream().filter(cat -> cat.name().equals("gate"))
                 .mapToInt(StudioMode.Category::d).findFirst().orElse(7);
         BlockPos c = fieldCenter(fieldIndex);
-        int fenceZ = c.getZ() + FIELD_HALF + 1;
+        int fenceZ = c.getZ() + FENCE_OFF;
         int x0 = c.getX() - w / 2, z0 = fenceZ - d / 2;
 
         int pad = Integer.MIN_VALUE, low = Integer.MAX_VALUE;
@@ -497,7 +499,7 @@ public final class GraveyardPlots {
         BlockPos c = fieldCenter(fieldIndex);
         BlockState fence = Blocks.PALE_OAK_FENCE.defaultBlockState();
         BlockState lantern = Blocks.SOUL_LANTERN.defaultBlockState();
-        int f = FIELD_HALF + 1;
+        int f = FENCE_OFF;
         for (int x = c.getX() - f; x <= c.getX() + f; x++) {
             boolean southGate = Math.abs(x - c.getX()) <= gapHalf;
             fencePost(level, fence, x, c.getZ() - f);
@@ -525,7 +527,7 @@ public final class GraveyardPlots {
             net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager manager,
             java.util.List<String> straights, java.util.List<String> corners, boolean gate) {
         BlockPos c = fieldCenter(fieldIndex);
-        int f = FIELD_HALF + 1;
+        int f = FENCE_OFF;
         int west = c.getX() - f, east = c.getX() + f, north = c.getZ() - f, south = c.getZ() + f;
 
         if (!corners.isEmpty()) {

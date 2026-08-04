@@ -67,6 +67,8 @@ public final class CharonConfig {
     /** Faction scoreboard teams: 1 = on (friendly-fire protection), 0 = off
      *  (replay/filming compatibility — team packets break replay seeking). */
     public static volatile int warTeams = 1;
+    /** War marks: casualties paint the ground (sculk/cleanse). 0 = off. */
+    public static volatile int warMarks = 1;
     /** Soul Gates: 0 = off, 1 = gamemasters only, 2 = any player (default). */
     public static volatile int soulGates = 2;
     /** Smallest aperture (interior air blocks) a Soul Gate may have. */
@@ -111,6 +113,7 @@ public final class CharonConfig {
             warKits = clamp(inted(p, "war-kits", warKits), 0, 1);
             warGolemCount = clamp(inted(p, "war-golem-count", warGolemCount), 0, 8);
             warTeams = clamp(inted(p, "war-teams", warTeams), 0, 1);
+            warMarks = clamp(inted(p, "war-marks", warMarks), 0, 1);
             soulGates = clamp(inted(p, "soul-gates", soulGates), 0, 2);
             soulGateMinArea = clamp(inted(p, "soul-gate-min-area", soulGateMinArea), 1, 256);
             soulGateMaxArea = clamp(inted(p, "soul-gate-max-area", soulGateMaxArea),
@@ -265,6 +268,14 @@ public final class CharonConfig {
             # stray arrows may start same-side brawls, which is your problem.
             war-teams=%d
 
+            # The war leaves marks: every casualty paints the ground it fell
+            # on.  Fallen Keepers bloom sculk (golem graves sometimes grow a
+            # sensor); fallen Restless are cleansed back to pale ground; the
+            # Wind leaves a fleck.  Marks only touch natural open ground —
+            # never stones, builds, or tributes — and FREEZE forever when a
+            # field fills: the war's permanent record.  1 = on, 0 = off.
+            war-marks=%d
+
             # ---- Soul Gates ----
 
             # Who may raise a Soul Gate: build a CLOSED frame of gilded
@@ -289,7 +300,7 @@ public final class CharonConfig {
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
-                warKits, warGolemCount, warTeams, soulGates,
+                warKits, warGolemCount, warTeams, warMarks, soulGates,
                 soulGateMinArea, soulGateMaxArea);
     }
 

@@ -192,7 +192,7 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
      * exposed deepslate on steep slopes, sculk pooling in the deep vales and on
      * riverbeds (the Styx runs dark), rare tuff mottling, pale moss elsewhere.
      */
-    private static BlockState surfaceBlock(int x, int z, int h, boolean flooded) {
+    static BlockState surfaceBlock(int x, int z, int h, boolean flooded) {
         double sn = GraveyardTerrain.surfaceNoise(x, z);
         if (flooded) {
             return sn > 0.05 ? Blocks.SCULK.defaultBlockState() : Blocks.GRAVEL.defaultBlockState();

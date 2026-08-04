@@ -148,6 +148,12 @@ public final class War {
                         12, 0.3, 0.5, 0.3, 0.02);
                 lvl.playSound(null, victim.blockPosition(), SoundEvents.SOUL_ESCAPE.value(),
                         SoundSource.AMBIENT, 0.6f, 0.8f);
+                // The soul puff leaves a stain: the war paints the ground
+                // with its dead — sculk for fallen Keepers, pale for the
+                // cleansed Restless, a fleck for the Wind.
+                if (victim instanceof Mob mv) {
+                    WarMarks.stain(lvl, mv, mf);
+                }
             }
             victim.discard();
             return false;
