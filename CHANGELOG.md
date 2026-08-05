@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The quiet update: Charon tightens his ledgers.** The front was re-derived
+  from every grave ever dug, every tick, forever — now it is cached and only
+  re-asked when a burial moves it. Fields proven full stay proven (graves are
+  never unmade). The gravekeeper sweep walks the dimension every two seconds
+  instead of four times a second, and the whole war — sweep included — sleeps
+  while no living soul visits. The crypt's shelves refresh from ONE walk of
+  the roll instead of one per shelf. Old servers with big graveyards feel
+  this immediately; nothing about behavior changes.
 - **`/charon shrine`** — pastes the hand-built spawn shrine (authored in the
   Studio, shipped with the mod) where the gamemaster stands, rotated to face
   them. Raise one at the world spawn and one at the graveyard arrival,

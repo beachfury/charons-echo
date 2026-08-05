@@ -207,7 +207,8 @@ public final class GraveyardRules {
     private static final String KEEPERS_TEAM = "charon_keepers";
 
     private static void tick(MinecraftServer server) {
-        if (server.getTickCount() % 5 != 0) return;
+        // Once a second is plenty for a bouncer.
+        if (server.getTickCount() % 20 != 0) return;
 
         // The Studio is builders-only ground: anyone else who slips in (other
         // mods' teleports, stale logouts) is shown the door.
@@ -227,6 +228,13 @@ public final class GraveyardRules {
         }
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
+        // No visitors, no work: unloaded mobs don't tick, can't wander, and
+        // can't menace anyone. The whole sweep waits for the living. And the
+        // sweep itself runs every two seconds — it walks EVERY entity in the
+        // dimension, which is a stroll for a visitor and a marathon 4x a
+        // second (the old cadence) on a big server.
+        if (graveyard.players().isEmpty()) return;
+        if (server.getTickCount() % 40 != 0) return;
 
         // Staff census: re-staff any understaffed field a player is near.
         if (server.getTickCount() % 600 == 0) {

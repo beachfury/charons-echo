@@ -170,6 +170,10 @@ public final class War {
         if (server.getTickCount() % 20 == 0) {
             serviceTick(server, graveyard);
         }
+        // No visitors, no war: unloaded soldiers don't tick anyway, and the
+        // front (below) is O(every grave ever) to compute — the single most
+        // expensive question on an old server. It sleeps with the living gone.
+        if (graveyard.players().isEmpty()) return;
         int front = frontField();
         if (front < 0) return;
         if (server.getTickCount() % 100 == 0) {
@@ -182,8 +186,27 @@ public final class War {
         }
     }
 
-    /** The front: the newest field with graves that is not yet full. */
+    /**
+     * The front: the newest field with graves that is not yet full — CACHED,
+     * because it only ever changes when someone is buried (or a field fills),
+     * and the walk to find it touches every grave the server has ever dug.
+     */
+    private static volatile int frontCache = Integer.MIN_VALUE;
+
     static int frontField() {
+        int cached = frontCache;
+        if (cached != Integer.MIN_VALUE) return cached;
+        cached = computeFrontField();
+        frontCache = cached;
+        return cached;
+    }
+
+    /** A burial happened (or the world reloaded): the front must be re-asked. */
+    public static void invalidateFront() {
+        frontCache = Integer.MIN_VALUE;
+    }
+
+    private static int computeFrontField() {
         for (int i = GraveyardPlots.fieldCount() - 1; i >= 0; i--) {
             boolean hasGrave = false;
             for (GraveManager.Grave g : GraveManager.all()) {

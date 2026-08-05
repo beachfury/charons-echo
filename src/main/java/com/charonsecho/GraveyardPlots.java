@@ -146,6 +146,8 @@ public final class GraveyardPlots {
     // ---- field-position persistence (world/charons_echo/fields.dat) ----
 
     public static void load(net.minecraft.server.MinecraftServer server) {
+        FULL_FIELDS.clear();
+        War.invalidateFront();
         synchronized (FIELD_CENTERS) {
             FIELD_CENTERS.clear();
             fieldsFile = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
@@ -204,8 +206,14 @@ public final class GraveyardPlots {
                 o.getX() + PLOT - 1, o.getZ() + PLOT - 1);
     }
 
+    /** Fields that filled: fullness is forever (graves are never unmade),
+     *  so a field proven full never pays the census again. */
+    private static final java.util.Set<Integer> FULL_FIELDS =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** A field is full when every plot is either claimed or tree-blocked. */
     static boolean fieldFull(int fieldIndex) {
+        if (FULL_FIELDS.contains(fieldIndex)) return true;
         java.util.Set<Integer> used = new java.util.HashSet<>();
         for (GraveManager.Grave g : GraveManager.all()) {
             if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) {
@@ -215,6 +223,7 @@ public final class GraveyardPlots {
         for (int p = fieldIndex * PER_FIELD; p < (fieldIndex + 1) * PER_FIELD; p++) {
             if (!used.contains(p) && !plotBlocked(p)) return false;
         }
+        FULL_FIELDS.add(fieldIndex);
         return true;
     }
 
@@ -314,6 +323,7 @@ public final class GraveyardPlots {
         if (fieldFull(idx / PER_FIELD)) {
             markFieldFull(graveyard, idx / PER_FIELD);
         }
+        War.invalidateFront(); // a burial moves the front, nothing else does
         Crypt.refreshShelves(graveyard.getServer()); // today's shelf gains a book
         GraveManager.save();
     }

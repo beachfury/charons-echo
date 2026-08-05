@@ -396,21 +396,26 @@ public final class Crypt {
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_3_OCCUPIED,
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_4_OCCUPIED,
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.SLOT_5_OCCUPIED);
+        // ONE walk of the graves buckets every shelf at once — the old way
+        // walked the whole roll per day-shelf and again per month hall,
+        // which is a heavy habit on a server with years of dead.
         LocalDate today = LocalDate.now();
+        var dayCounts = new java.util.HashMap<LocalDate, Integer>();
+        var monthCounts = new java.util.HashMap<String, Integer>();
+        for (GraveManager.Grave g : GraveManager.all()) {
+            if (g.epochMillis <= 0) continue;
+            LocalDate day = Instant.ofEpochMilli(g.epochMillis)
+                    .atZone(ZoneId.systemDefault()).toLocalDate();
+            dayCounts.merge(day, 1, Integer::sum);
+            monthCounts.merge(day.format(DateTimeFormatter.ofPattern("yyyy-MM")),
+                    1, Integer::sum);
+        }
         for (int i = 0; i < 7; i++) {
             if (SHELVES[i] == null) continue;
             graveyard.getChunk(SHELVES[i].getX() >> 4, SHELVES[i].getZ() >> 4);
             BlockState state = graveyard.getBlockState(SHELVES[i]);
             if (!state.is(Blocks.CHISELED_BOOKSHELF)) continue;
-            LocalDate day = today.minusDays(6 - i);
-            int fallen = 0;
-            for (GraveManager.Grave g : GraveManager.all()) {
-                if (g.epochMillis <= 0) continue;
-                if (Instant.ofEpochMilli(g.epochMillis).atZone(ZoneId.systemDefault())
-                        .toLocalDate().equals(day)) {
-                    fallen++;
-                }
-            }
+            int fallen = dayCounts.getOrDefault(today.minusDays(6 - i), 0);
             for (int s = 0; s < 6; s++) {
                 state = state.setValue(slotProps.get(s), s < Math.min(fallen, 6));
             }
@@ -421,13 +426,7 @@ public final class Crypt {
             graveyard.getChunk(shelfPos.getX() >> 4, shelfPos.getZ() >> 4);
             BlockState state = graveyard.getBlockState(shelfPos);
             if (!state.is(Blocks.CHISELED_BOOKSHELF)) return;
-            int fallen = 0;
-            for (GraveManager.Grave g : GraveManager.all()) {
-                if (g.epochMillis <= 0) continue;
-                String gm = Instant.ofEpochMilli(g.epochMillis).atZone(ZoneId.systemDefault())
-                        .toLocalDate().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-                if (gm.equals(ym)) fallen++;
-            }
+            int fallen = monthCounts.getOrDefault(ym, 0);
             for (int s = 0; s < 6; s++) {
                 state = state.setValue(slotProps.get(s), s < Math.min(fallen, 6));
             }
