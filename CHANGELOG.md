@@ -1,5 +1,58 @@
 # Changelog
 
+## Unreleased
+
+- **`/charon refence <field|all>`** — existing fields keep their fences by
+  design, so upgrading them is a choice, not a surprise: the new gamemaster
+  command tears out the old ring and gate (legacy and current radii both)
+  and rebuilds with whatever the set offers today — the fence kit, the wider
+  ring.
+- **"Upgrading an existing world"** documented in the README: which
+  `world/charons_echo/` file to reset for which landmark (church, crypt,
+  gates), which commands rebuild what (`refence`, `rebuild-decor`,
+  `rebuild-graves`), the arrival-point caveat after a church re-paste — and
+  which files must never be touched (`graves.dat`, `fields.dat`: they ARE
+  the history).
+
+## 1.1.0 — the living raise gates
+
+- **SOUL GATES** — build a closed frame of gilded blackstone in a vertical
+  plane — ANY shape: an arch, a ring, a crooked door (diagonal joints seal).
+  Touch it with a Charon's Obol: the coin is spent, and the gate draws the
+  ghosts' own breath. Gates in the living world carry you to the graveyard
+  arrival; graveyard gates carry you back through the gate you last used.
+  Breaking the frame closes the door. Config: `soul-gates` (anyone by
+  default — the obol is the price), `soul-gate-min-area`,
+  `soul-gate-max-area`.
+- **THE WAR LEAVES MARKS** — every casualty paints the ground it fell on:
+  fallen Keepers bloom sculk (a golem's grave sometimes grows a sensor that
+  clicks at passing feet), fallen Restless are cleansed back to pale ground,
+  the Wind leaves a fleck. Marks never touch stones, builds, or tributes —
+  and when a field fills, its marks freeze forever: the war's permanent
+  record. Config: `war-marks`.
+- **The Restless rise armed** — mismatched grave goods: chain, iron, and
+  buried gold, swords up front and bows behind. Nothing they carry ever
+  drops. Config: `war-kits`.
+- **Two golems hold each yard** now that the archers are armed. Config:
+  `war-golem-count`.
+- **Hand-built fence kit** — new grave fields tile their fences from crafted
+  pieces instead of plain pale oak, and the fence ring stands one block
+  wider so edge graves never chew it. Plus a church touch-up, a plinth, and
+  the spawn shrine join the shipped build set.
+- **Fixes** — the Broker no longer quietly clones himself when the graveyard
+  sits unvisited (and both church NPCs hold their exact template-defined
+  posts, no fallback stands); death and return portals wear the same SOUL
+  breath as everything else that crosses; arrivals into Charon's Echo face
+  the church; `war-teams` config knob for replay-mod filming compatibility.
+
+## 1.0.1 — the yard takes up arms
+
+- **Every ledger turns its pages** — the Book of the Dead, the crypt's
+  day-shelves, and the month halls are paged (45 souls a screen) and
+  searchable: a spyglass asks whom you seek.
+- **The Death of the Week is a true memorial** — date, cause, field,
+  flowers, their story, and the walk to their grave, like every other soul.
+
 ## 1.0.0 — the first crossing
 
 - THE CHURCH AND THE CRYPT — the church (a hand-built 32x32x48) rises once on

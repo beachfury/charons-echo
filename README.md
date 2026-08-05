@@ -73,12 +73,8 @@ settled ground; the front marches on.
 - **The hand-built crypt** — the current stairwell and halls are carved by
   code; a full hand-built crypt kit (stairwell, week room, month halls, seals)
   will replace them piece by piece.
-- **Fences and ruins** — hand-built fence sections will replace the plain
-  pale-oak fence around grave fields (the system is already wired), and ruins
-  of the folk who came before will join the scattered wilds.
-- **The war leaves marks** — contested ground will show who holds it: sculk
-  creeping over Restless-held yards, Keepers cleansing it — and when a field
-  fills, its final state freezes as the war's permanent record.
+- **Ruins** — remnants of the folk who came before, joining the scattered
+  wilds.
 - **A moonlit sky** — an optional skybox with real moon phases over the
   eternal night.
 - **More of everything** — headstones, trees, gates, and whole style families
@@ -94,6 +90,25 @@ settled ground; the front marches on.
 
 Every timer, price, cap, and war knob lives in
 `config/charons-echo.properties`, written as a documented manual.
+
+## Upgrading an existing world
+
+Charon's Echo never rebuilds an existing landmark by surprise: each one is
+remembered in its own file under `world/charons_echo/`, and upgrading is a
+choice. To regenerate ONE thing after an update — always with the server
+STOPPED (singleplayer counts):
+
+| You want | Do this |
+|---|---|
+| The latest church build | Delete `world/charons_echo/church.dat` — the church re-pastes on next start and re-reads its markers. ⚠ The graveyard **arrival point** lives in this file too: after the re-paste, stand where arrivals belong and run `/charon spawn here`. |
+| The crypt re-carved (e.g. a church re-paste covered the stair mouth) | Delete `world/charons_echo/crypt.dat` — the stairwell and week room re-carve from the lodestone, and every month hall re-derives itself from the grave records. Nothing is lost. |
+| New fences on an old field | `/charon refence <field>` or `/charon refence all` (gamemaster) — tears out the old ring and gate, rebuilds with the current fence kit at the current ring. |
+| Decorations re-scattered | `/charon rebuild-decor` |
+| Headstones re-pasted | `/charon rebuild-graves` |
+| All Soul Gates closed | Delete `world/charons_echo/gates.dat` — the frames stay standing, the breath stops; re-consecrate with an obol. |
+
+**Never delete `graves.dat` or `fields.dat`.** They ARE your server's
+history — every soul, every plot, every field. There is no rebuilding those.
 
 ## For builders: the Studio
 
