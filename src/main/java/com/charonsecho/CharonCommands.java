@@ -387,6 +387,41 @@ public final class CharonCommands {
                             .withStyle(on ? ChatFormatting.YELLOW : ChatFormatting.GREEN));
                     return 1;
                 }))
+                .then(Commands.literal("refence")
+                        .then(Commands.literal("all").executes(ctx -> {
+                            ServerPlayer player = admin(ctx);
+                            if (player == null) return 0;
+                            ServerLevel graveyard = ctx.getSource().getServer()
+                                    .getLevel(CharonsEcho.GRAVEYARD_DIM);
+                            if (graveyard == null) return 0;
+                            int n = GraveyardPlots.fieldCount();
+                            for (int i = 0; i < n; i++) {
+                                GraveyardPlots.refence(graveyard, i);
+                            }
+                            player.sendSystemMessage(Component.literal(
+                                    "Re-fenced " + n + (n == 1 ? " field." : " fields."))
+                                    .withStyle(ChatFormatting.GREEN));
+                            return n;
+                        }))
+                        .then(Commands.argument("field", IntegerArgumentType.integer(1, 999))
+                                .executes(ctx -> {
+                                    ServerPlayer player = admin(ctx);
+                                    if (player == null) return 0;
+                                    ServerLevel graveyard = ctx.getSource().getServer()
+                                            .getLevel(CharonsEcho.GRAVEYARD_DIM);
+                                    if (graveyard == null) return 0;
+                                    int f = IntegerArgumentType.getInteger(ctx, "field") - 1;
+                                    if (f >= GraveyardPlots.fieldCount()) {
+                                        player.sendSystemMessage(Component.literal(
+                                                "No such field.").withStyle(ChatFormatting.RED));
+                                        return 0;
+                                    }
+                                    GraveyardPlots.refence(graveyard, f);
+                                    player.sendSystemMessage(Component.literal(
+                                            "Field " + (f + 1) + " re-fenced.")
+                                            .withStyle(ChatFormatting.GREEN));
+                                    return 1;
+                                })))
                 .then(Commands.literal("orchard")
                         .then(Commands.literal("seed").executes(ctx -> {
                             ServerPlayer player = admin(ctx);

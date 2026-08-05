@@ -344,6 +344,58 @@ public final class GraveyardPlots {
     }
 
     /**
+     * ADMIN: tear out a field's fence and gate — legacy ring and current ring
+     * both — and rebuild with whatever the set offers today (the fence kit,
+     * the wider ring). Existing worlds upgrade on command, never by surprise.
+     */
+    public static void refence(ServerLevel level, int fieldIndex) {
+        BlockPos c = fieldCenter(fieldIndex);
+        // Sweep fence furniture off both candidate rings.
+        for (int r : new int[] { FIELD_HALF + 1, FENCE_OFF }) {
+            for (int x = c.getX() - r; x <= c.getX() + r; x++) {
+                sweepFencePost(level, x, c.getZ() - r);
+                sweepFencePost(level, x, c.getZ() + r);
+            }
+            for (int z = c.getZ() - r; z <= c.getZ() + r; z++) {
+                sweepFencePost(level, c.getX() - r, z);
+                sweepFencePost(level, c.getX() + r, z);
+            }
+        }
+        // Clear the gate footprint on both south lines (old and new).
+        int w = StudioMode.widthOfCategory("gate") + 2;
+        for (int fenceZ : new int[] { c.getZ() + FIELD_HALF + 1, c.getZ() + FENCE_OFF }) {
+            for (int x = c.getX() - w / 2 - 1; x <= c.getX() + w / 2 + 1; x++) {
+                for (int z = fenceZ - 5; z <= fenceZ + 5; z++) {
+                    level.getChunk(x >> 4, z >> 4);
+                    int g = GraveyardTerrain.groundHeight(x, z);
+                    for (int y = g + 1; y <= g + 12; y++) {
+                        BlockPos p = new BlockPos(x, y, z);
+                        if (!level.getBlockState(p).isAir()) {
+                            level.setBlock(p, Blocks.AIR.defaultBlockState(), 2);
+                        }
+                    }
+                }
+            }
+        }
+        fenceField(level, fieldIndex);
+    }
+
+    /** Fences, walls, and lanterns come off the ring — nothing else does. */
+    private static void sweepFencePost(ServerLevel level, int x, int z) {
+        level.getChunk(x >> 4, z >> 4);
+        int g = GraveyardTerrain.groundHeight(x, z);
+        for (int y = g; y <= g + 5; y++) {
+            BlockPos p = new BlockPos(x, y, z);
+            BlockState state = level.getBlockState(p);
+            if (state.is(net.minecraft.tags.BlockTags.FENCES)
+                    || state.is(net.minecraft.tags.BlockTags.WALLS)
+                    || state.is(Blocks.SOUL_LANTERN) || state.is(Blocks.LANTERN)) {
+                level.setBlock(p, Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
+    }
+
+    /**
      * The sign that speaks for a field: the lych gate's hanging sign first
      * (any sign inside the gate footprint), the old standing sign as fallback.
      */
