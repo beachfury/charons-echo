@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **`/charon shrine`** — pastes the hand-built spawn shrine (authored in the
+  Studio, shipped with the mod) where the gamemaster stands, rotated to face
+  them. Raise one at the world spawn and one at the graveyard arrival,
+  consecrate its frame with an obol, and the two ends of the crossing look
+  like they were always meant to meet.
 - **`/charon refence <field|all>`** — existing fields keep their fences by
   design, so upgrading them is a choice, not a surprise: the new gamemaster
   command tears out the old ring and gate (legacy and current radii both)

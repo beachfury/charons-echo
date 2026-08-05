@@ -103,6 +103,7 @@ STOPPED (singleplayer counts):
 | The latest church build | Delete `world/charons_echo/church.dat` — the church re-pastes on next start and re-reads its markers. ⚠ The graveyard **arrival point** lives in this file too: after the re-paste, stand where arrivals belong and run `/charon spawn here`. |
 | The crypt re-carved (e.g. a church re-paste covered the stair mouth) | Delete `world/charons_echo/crypt.dat` — the stairwell and week room re-carve from the lodestone, and every month hall re-derives itself from the grave records. Nothing is lost. |
 | New fences on an old field | `/charon refence <field>` or `/charon refence all` (gamemaster) — tears out the old ring and gate, rebuilds with the current fence kit at the current ring. |
+| A spawn shrine raised | `/charon shrine` (gamemaster) — pastes the hand-built shrine where you stand, facing you. Consecrate its frame with an obol to open the gate. |
 | Decorations re-scattered | `/charon rebuild-decor` |
 | Headstones re-pasted | `/charon rebuild-graves` |
 | All Soul Gates closed | Delete `world/charons_echo/gates.dat` — the frames stay standing, the breath stops; re-consecrate with an obol. |

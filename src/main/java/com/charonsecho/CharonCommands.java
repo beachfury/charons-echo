@@ -387,6 +387,11 @@ public final class CharonCommands {
                             .withStyle(on ? ChatFormatting.YELLOW : ChatFormatting.GREEN));
                     return 1;
                 }))
+                .then(Commands.literal("shrine").executes(ctx -> {
+                    ServerPlayer player = admin(ctx);
+                    if (player == null) return 0;
+                    return Shrine.place(player);
+                }))
                 .then(Commands.literal("refence")
                         .then(Commands.literal("all").executes(ctx -> {
                             ServerPlayer player = admin(ctx);
