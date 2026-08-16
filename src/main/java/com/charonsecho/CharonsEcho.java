@@ -35,6 +35,7 @@ public final class CharonsEcho implements ModInitializer {
                 GraveyardChunkGenerator.CODEC);
 
         // The death loop: Charon takes the goods, the player rises as a ghost.
+        GraveManager.register();
         DeathHandler.register();
         DeathWake.register();
         GhostState.register();
@@ -64,6 +65,7 @@ public final class CharonsEcho implements ModInitializer {
             GraveyardTerrain.setSeed(server.overworld().getSeed());
             GraveManager.load(server);
             GraveyardPlots.load(server); // after graves: legacy-field migration reads them
+            GraveManager.rebuildSpatialIndex();
             GhostState.load(server);
             Gravekeepers.load(server);
             StudioSets.load(server);
@@ -86,11 +88,12 @@ public final class CharonsEcho implements ModInitializer {
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            GraveManager.save();
+            GraveManager.flush();
             GhostState.save();
-            DecorScatter.save();
-            Orchard.save();
+            DecorScatter.flush();
+            Orchard.flush();
             War.save();
+            CharonStorage.flush();
         });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) ->

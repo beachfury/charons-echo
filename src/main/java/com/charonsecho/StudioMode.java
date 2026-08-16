@@ -462,10 +462,9 @@ public final class StudioMode {
         DYNAMIC.clear();
         dynamicFile = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("charons_echo").resolve("studio_plots.dat");
-        if (!java.nio.file.Files.exists(dynamicFile)) return;
+        if (!CharonStorage.hasData(dynamicFile)) return;
         try {
-            var root = net.minecraft.nbt.NbtIo.readCompressed(dynamicFile,
-                    net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+            var root = CharonStorage.read(dynamicFile);
             for (var t : root.getListOrEmpty("plots")) {
                 if (!(t instanceof net.minecraft.nbt.CompoundTag c)) continue;
                 StudioPlot plot = new StudioPlot(
@@ -550,7 +549,7 @@ public final class StudioMode {
             }
             var root = new net.minecraft.nbt.CompoundTag();
             root.put("plots", list);
-            net.minecraft.nbt.NbtIo.writeCompressed(root, dynamicFile);
+            CharonStorage.write(dynamicFile, root);
         } catch (java.io.IOException e) {
             System.out.println("[CharonsEcho] failed to save studio_plots.dat: " + e);
         }

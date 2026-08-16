@@ -9,8 +9,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
@@ -56,9 +54,9 @@ public final class Gravekeepers {
     public static void load(MinecraftServer server) {
         KEEPERS.clear();
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("keepers.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             for (Tag t : root.getListOrEmpty("keepers")) {
                 try {
                     KEEPERS.add(UUID.fromString(t.asString().orElse("")));
@@ -79,7 +77,7 @@ public final class Gravekeepers {
             }
             CompoundTag root = new CompoundTag();
             root.put("keepers", list);
-            NbtIo.writeCompressed(root, file);
+            CharonStorage.write(file, root);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save keepers.dat: " + e);
         }

@@ -40,11 +40,7 @@ public final class GraveyardPlots {
 
     /** Next unused global plot index (ignoring suitability). */
     public static int nextPlotIndex() {
-        int max = -1;
-        for (GraveManager.Grave g : GraveManager.all()) {
-            if (g.plotIndex > max) max = g.plotIndex;
-        }
-        return max + 1;
+        return GraveManager.nextPlotIndex();
     }
 
 
@@ -56,6 +52,8 @@ public final class GraveyardPlots {
      * character.
      */
     private static final java.util.List<BlockPos> FIELD_CENTERS = new java.util.ArrayList<>();
+    private static final java.util.Map<Long, java.util.List<Integer>> FIELDS_BY_CHUNK =
+            new java.util.HashMap<>();
     private static java.nio.file.Path fieldsFile;
 
     /** How many fields exist NOW — never grows the list (unlike fieldCenter). */
@@ -68,7 +66,10 @@ public final class GraveyardPlots {
     static BlockPos fieldCenter(int fieldIndex) {
         synchronized (FIELD_CENTERS) {
             while (FIELD_CENTERS.size() <= fieldIndex) {
-                FIELD_CENTERS.add(findFieldSpot(FIELD_CENTERS.size()));
+                int next = FIELD_CENTERS.size();
+                BlockPos center = findFieldSpot(next);
+                FIELD_CENTERS.add(center);
+                indexField(next, center);
                 saveFields();
             }
             return FIELD_CENTERS.get(fieldIndex);
@@ -136,6 +137,38 @@ public final class GraveyardPlots {
         return false;
     }
 
+    /** Fields within range of current visitors, using the center-chunk index. */
+    static java.util.Set<Integer> fieldsNearPlayers(ServerLevel level, int radius) {
+        java.util.Set<Integer> result = new java.util.HashSet<>();
+        int chunkRadius = Math.floorDiv(radius, 16) + 2;
+        long radiusSq = (long) radius * radius;
+        synchronized (FIELD_CENTERS) {
+            for (var player : level.players()) {
+                int pcx = player.blockPosition().getX() >> 4;
+                int pcz = player.blockPosition().getZ() >> 4;
+                for (int cx = pcx - chunkRadius; cx <= pcx + chunkRadius; cx++) {
+                    for (int cz = pcz - chunkRadius; cz <= pcz + chunkRadius; cz++) {
+                        var candidates = FIELDS_BY_CHUNK.get(new net.minecraft.world.level.ChunkPos(cx, cz).pack());
+                        if (candidates == null) continue;
+                        for (int field : candidates) {
+                            BlockPos center = FIELD_CENTERS.get(field);
+                            long dx = center.getX() - player.blockPosition().getX();
+                            long dz = center.getZ() - player.blockPosition().getZ();
+                            if (dx * dx + dz * dz <= radiusSq) result.add(field);
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private static void indexField(int index, BlockPos center) {
+        long chunk = new net.minecraft.world.level.ChunkPos(
+                center.getX() >> 4, center.getZ() >> 4).pack();
+        FIELDS_BY_CHUNK.computeIfAbsent(chunk, ignored -> new java.util.ArrayList<>()).add(index);
+    }
+
     private static boolean farFromOtherFields(int cx, int cz) {
         for (BlockPos c : FIELD_CENTERS) {
             if (Math.max(Math.abs(c.getX() - cx), Math.abs(c.getZ() - cz)) < 60) return false;
@@ -150,15 +183,18 @@ public final class GraveyardPlots {
         War.invalidateFront();
         synchronized (FIELD_CENTERS) {
             FIELD_CENTERS.clear();
+            FIELDS_BY_CHUNK.clear();
             fieldsFile = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                     .resolve("charons_echo").resolve("fields.dat");
             try {
-                if (java.nio.file.Files.exists(fieldsFile)) {
-                    var root = net.minecraft.nbt.NbtIo.readCompressed(fieldsFile,
-                            net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+                if (CharonStorage.hasData(fieldsFile)) {
+                    var root = CharonStorage.read(fieldsFile);
                     for (var t : root.getListOrEmpty("fields")) {
                         if (t instanceof net.minecraft.nbt.CompoundTag c) {
-                            FIELD_CENTERS.add(new BlockPos(c.getIntOr("x", 0), 0, c.getIntOr("z", 0)));
+                            BlockPos center = new BlockPos(c.getIntOr("x", 0), 0, c.getIntOr("z", 0));
+                            int index = FIELD_CENTERS.size();
+                            FIELD_CENTERS.add(center);
+                            indexField(index, center);
                         }
                     }
                 }
@@ -173,7 +209,9 @@ public final class GraveyardPlots {
                     if (g.plotIndex >= 0) maxField = Math.max(maxField, g.plotIndex / PER_FIELD);
                 }
                 for (int f = 0; f <= maxField; f++) {
-                    FIELD_CENTERS.add(spiralAnchor(f));
+                    BlockPos center = spiralAnchor(f);
+                    FIELD_CENTERS.add(center);
+                    indexField(f, center);
                 }
                 if (maxField >= 0) saveFields();
             }
@@ -193,7 +231,7 @@ public final class GraveyardPlots {
             }
             var root = new net.minecraft.nbt.CompoundTag();
             root.put("fields", list);
-            net.minecraft.nbt.NbtIo.writeCompressed(root, fieldsFile);
+            CharonStorage.write(fieldsFile, root);
         } catch (java.io.IOException e) {
             System.out.println("[CharonsEcho] failed to save fields.dat: " + e);
         }
@@ -214,17 +252,15 @@ public final class GraveyardPlots {
     /** A field is full when every plot is either claimed or tree-blocked. */
     static boolean fieldFull(int fieldIndex) {
         if (FULL_FIELDS.contains(fieldIndex)) return true;
-        java.util.Set<Integer> used = new java.util.HashSet<>();
-        for (GraveManager.Grave g : GraveManager.all()) {
-            if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) {
-                used.add(g.plotIndex);
-            }
-        }
         for (int p = fieldIndex * PER_FIELD; p < (fieldIndex + 1) * PER_FIELD; p++) {
-            if (!used.contains(p) && !plotBlocked(p)) return false;
+            if (!GraveManager.plotUsed(p) && !plotBlocked(p)) return false;
         }
         FULL_FIELDS.add(fieldIndex);
         return true;
+    }
+
+    static int latestAllocatedField() {
+        return GraveManager.latestAllocatedField(PER_FIELD);
     }
 
     /**
@@ -245,7 +281,7 @@ public final class GraveyardPlots {
             return false;
         }
         grave.tributes++;
-        GraveManager.save();
+        GraveManager.saveSoon();
         BlockPos o = plotOrigin(grave.plotIndex);
         int surf = plotSurfaceY(grave.plotIndex);
         if (held.getItem() instanceof net.minecraft.world.item.BlockItem flower) {
@@ -313,7 +349,7 @@ public final class GraveyardPlots {
         // never assigned — the dead make room for what already grows.
         int idx = nextPlotIndex();
         while (plotBlocked(idx)) idx++;
-        grave.plotIndex = idx;
+        GraveManager.assignPlot(grave, idx);
         ensureField(graveyard, idx / PER_FIELD);
         placeHeadstone(graveyard, grave); // terraces its own footprint
         SignBlockEntity fieldSign = findFieldSign(graveyard, idx / PER_FIELD);

@@ -19,8 +19,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -229,9 +227,9 @@ public final class GhostState {
         server = srv;
         GHOSTS.clear();
         Path file = dataFile(srv);
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             for (Tag t : root.getListOrEmpty("ghosts")) {
                 if (!(t instanceof CompoundTag g)) continue;
                 BlockPos anchor = new BlockPos(g.getIntOr("x", 0), g.getIntOr("y", 64), g.getIntOr("z", 0));
@@ -265,7 +263,7 @@ public final class GhostState {
             });
             CompoundTag root = new CompoundTag();
             root.put("ghosts", list);
-            NbtIo.writeCompressed(root, file);
+            CharonStorage.write(file, root);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save ghosts.dat: " + e);
         }

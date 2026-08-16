@@ -3,11 +3,14 @@ package com.charonsecho;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -41,15 +44,17 @@ public final class PortalManager {
     record ReturnPortal(BlockPos portalPos, String targetDim, BlockPos target) {}
 
     /** Players (living, post-reclaim) with a return portal waiting. */
-    private static final Map<UUID, ReturnPortal> RETURN_PORTALS = new ConcurrentHashMap<>();
+    private static final Map<UUID, ReturnPortal> RETURN_PORTALS = new HashMap<>();
+    /** A failed relog lookup is remembered until the player leaves. */
+    private static final Set<UUID> RETURN_RESOLVED = new HashSet<>();
 
     /**
      * Portals spawn DISARMED and only activate once the player has been more
      * than ~2 blocks away — you can never be teleported by a portal you
      * didn't deliberately walk into.
      */
-    private static final Set<UUID> DEATH_ARMED = ConcurrentHashMap.newKeySet();
-    private static final Set<UUID> RETURN_ARMED = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> DEATH_ARMED = new HashSet<>();
+    private static final Set<UUID> RETURN_ARMED = new HashSet<>();
 
     /** Called when a ghost rises: their death portal starts disarmed. */
     public static void resetArming(UUID uuid) {
@@ -84,6 +89,13 @@ public final class PortalManager {
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(PortalManager::tick);
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID id = handler.getPlayer().getUUID();
+            RETURN_PORTALS.remove(id);
+            RETURN_RESOLVED.remove(id);
+            DEATH_ARMED.remove(id);
+            RETURN_ARMED.remove(id);
+        });
     }
 
     private static void tick(MinecraftServer server) {
@@ -113,12 +125,11 @@ public final class PortalManager {
             // The living (post-reclaim): the return portal in the graveyard.
             if (player.level().dimension() != CharonsEcho.GRAVEYARD_DIM) continue;
             ReturnPortal ret = RETURN_PORTALS.get(player.getUUID());
-            if (ret == null && data == null) {
+            if (ret == null && data == null && RETURN_RESOLVED.add(player.getUUID())) {
                 // Relogged (or wandered in) after reclaiming: rebuild the way
                 // home from the latest claimed grave — nobody is ever stranded.
-                ret = GraveManager.all().stream()
-                        .filter(g -> g.owner.equals(player.getUUID()) && g.claimed && g.plotIndex >= 0)
-                        .reduce((a, b) -> b)
+                ret = GraveManager.latestClaimed(player.getUUID())
+                        .filter(g -> g.plotIndex >= 0)
                         .map(g -> new ReturnPortal(
                                 GraveyardPlots.arrivalPos(g.plotIndex).offset(0, 0, 2),
                                 g.dimension, g.pos))
@@ -142,11 +153,11 @@ public final class PortalManager {
 
     /** Soul-flame spiral wrapped in the ghosts' own breath (no blocks). */
     private static void portalParticles(ServerLevel level, BlockPos pos, int tick) {
-        if (tick % 3 != 0) return;
+        if (tick % 4 != 0) return;
         double angle = (tick % 40) / 40.0 * Math.PI * 2;
         double cx = pos.getX() + 0.5, cz = pos.getZ() + 0.5;
-        for (int i = 0; i < 3; i++) {
-            double a = angle + i * (Math.PI * 2 / 3);
+        for (int i = 0; i < 2; i++) {
+            double a = angle + i * Math.PI;
             level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
                     cx + Math.cos(a) * 0.8, pos.getY() + 0.2 + (tick % 40) / 40.0 * 2.4,
                     cz + Math.sin(a) * 0.8, 1, 0, 0.02, 0, 0.0);
@@ -154,7 +165,7 @@ public final class PortalManager {
         // The breath: SOUL drift around the spiral — the same particle the
         // ghosts wear, so every door of souls reads as one thing.
         level.sendParticles(ParticleTypes.SOUL,
-                cx, pos.getY() + 1.3, cz, 2, 0.5, 0.9, 0.5, 0.012);
+                cx, pos.getY() + 1.3, cz, 1, 0.5, 0.9, 0.5, 0.012);
     }
 
     private static void crossToGraveyard(MinecraftServer server, ServerPlayer player) {
@@ -230,8 +241,7 @@ public final class PortalManager {
         // Resurrection restores the body whole — nobody rejoins the living starving.
         player.getFoodData().setFoodLevel(20);
         player.getFoodData().setSaturation(5.0f);
-        grave.claimed = true;
-        GraveManager.save();
+        GraveManager.markClaimed(grave);
         GraveyardPlots.markAtRest(graveyard, grave);
 
         // Touching the stone IS the resurrection: the ghost ends here, alive
@@ -305,6 +315,7 @@ public final class PortalManager {
 
     private static void returnHome(MinecraftServer server, ServerPlayer player, ReturnPortal ret) {
         RETURN_PORTALS.remove(player.getUUID());
+        RETURN_RESOLVED.remove(player.getUUID());
         ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION,
                 Identifier.parse(ret.targetDim()));
         ServerLevel target = server.getLevel(dimKey);
@@ -349,7 +360,7 @@ public final class PortalManager {
                 if (y <= level.getMinY() || y >= level.getMinY() + level.getHeight() - 2) continue;
                 BlockPos feet = new BlockPos(start.getX(), y, start.getZ());
                 BlockPos floor = feet.below();
-                if (level.getBlockState(floor).isSolid()
+                if (level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)
                         && level.getBlockState(feet).isAir()
                         && level.getBlockState(feet.above()).isAir()
                         && level.getFluidState(feet).isEmpty()) {

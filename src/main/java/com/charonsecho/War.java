@@ -17,8 +17,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -62,6 +60,7 @@ public final class War {
     public enum Faction { KEEPERS, RESTLESS, WIND }
 
     private static final String PHANTOM_MARKER = "charons_echo_phantom";
+    static final String MOB_MARKER = "charons_echo_managed";
     private static final String TEAM_RESTLESS = "charon_restless";
     private static final String TEAM_WIND = "charon_wind";
     private static final String TEAM_KEEPERS = "charon_keepers"; // shared with the staff
@@ -207,16 +206,8 @@ public final class War {
     }
 
     private static int computeFrontField() {
-        for (int i = GraveyardPlots.fieldCount() - 1; i >= 0; i--) {
-            boolean hasGrave = false;
-            for (GraveManager.Grave g : GraveManager.all()) {
-                if (g.plotIndex >= 0 && g.plotIndex / 36 == i) { hasGrave = true; break; }
-            }
-            if (hasGrave) {
-                return GraveyardPlots.fieldFull(i) ? -1 : i;
-            }
-        }
-        return -1;
+        int latest = GraveyardPlots.latestAllocatedField();
+        return latest < 0 || GraveyardPlots.fieldFull(latest) ? -1 : latest;
     }
 
     private static void serviceTick(MinecraftServer server, ServerLevel graveyard) {
@@ -252,9 +243,10 @@ public final class War {
         // they wander made the spawner top up "missing" soldiers forever.
         AABB box = new AABB(c.getX() - 128, ground - 48, c.getZ() - 128,
                 c.getX() + 128, ground + 64, c.getZ() + 128);
-        int restless = 0, vexes = 0, breezes = 0, allays = 0, sniffers = 0;
+        int restless = 0, vexes = 0, breezes = 0, allays = 0, sniffers = 0, combatants = 0;
         for (Mob mob : graveyard.getEntitiesOfClass(Mob.class, box)) {
             Faction f = factionOf(mob);
+            if (f != null) combatants++;
             if (f == Faction.RESTLESS) restless++;
             else if (mob.getType() == EntityTypes.VEX) vexes++;
             else if (mob.getType() == EntityTypes.BREEZE) breezes++;
@@ -263,27 +255,29 @@ public final class War {
         }
         var rand = graveyard.getRandom();
         BlockPos home = new BlockPos(c.getX(), ground + 1, c.getZ());
-        if (restless < CharonConfig.warRestlessCap) {
+        int budget = Math.max(0, CharonConfig.warMobCap - combatants);
+        if (budget > 0 && restless < CharonConfig.warRestlessCap) {
             // The Restless rise from the graves THEMSELVES — inside the yard,
             // between the stones. (Spawning outside left them besieging their
             // own fence while the Keepers won by default.)
             EntityType<?>[] pool = { EntityTypes.PARCHED, EntityTypes.BOGGED, EntityTypes.STRAY };
-            spawnSoldier(graveyard, pool[rand.nextInt(pool.length)],
-                    c.getX() + rand.nextInt(35) - 17, c.getZ() + rand.nextInt(35) - 17, home);
+            if (spawnSoldier(graveyard, pool[rand.nextInt(pool.length)],
+                    c.getX() + rand.nextInt(35) - 17,
+                    c.getZ() + rand.nextInt(35) - 17, home)) budget--;
         }
-        if (vexes < CharonConfig.warWindCap) {
-            spawnSoldier(graveyard, EntityTypes.VEX,
-                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45, home);
+        if (budget > 0 && vexes < CharonConfig.warWindCap) {
+            if (spawnSoldier(graveyard, EntityTypes.VEX,
+                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45, home)) budget--;
         }
-        if (breezes < CharonConfig.warBreezeCap) {
-            spawnSoldier(graveyard, EntityTypes.BREEZE,
-                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45, home);
+        if (budget > 0 && breezes < CharonConfig.warBreezeCap) {
+            if (spawnSoldier(graveyard, EntityTypes.BREEZE,
+                    c.getX() + rand.nextInt(90) - 45, c.getZ() + rand.nextInt(90) - 45, home)) budget--;
         }
-        if (allays < 1) {
-            spawnSoldier(graveyard, EntityTypes.ALLAY, c.getX() + rand.nextInt(20) - 10,
-                    c.getZ() + rand.nextInt(20) - 10, home);
+        if (budget > 0 && allays < 1) {
+            if (spawnSoldier(graveyard, EntityTypes.ALLAY, c.getX() + rand.nextInt(20) - 10,
+                    c.getZ() + rand.nextInt(20) - 10, home)) budget--;
         }
-        if (sniffers < 1 && rand.nextInt(4) == 0) {
+        if (budget > 0 && sniffers < 1 && rand.nextInt(4) == 0) {
             spawnSoldier(graveyard, EntityTypes.SNIFFER, c.getX() + rand.nextInt(80) - 40,
                     c.getZ() + 30 + rand.nextInt(20), home);
         }
@@ -298,12 +292,12 @@ public final class War {
                 GraveyardTerrain.groundHeight(c.getX(), c.getZ()) + 1, c.getZ());
     }
 
-    private static void spawnSoldier(ServerLevel level, EntityType<?> type, int x, int z, BlockPos home) {
+    private static boolean spawnSoldier(ServerLevel level, EntityType<?> type, int x, int z, BlockPos home) {
         int h = GraveyardTerrain.groundHeight(x, z);
-        if (h < GraveyardTerrain.WATER_TOP) return;
+        if (h < GraveyardTerrain.WATER_TOP) return false;
         level.getChunk(x >> 4, z >> 4);
         Entity e = type.create(level, EntitySpawnReason.NATURAL);
-        if (!(e instanceof Mob mob)) return;
+        if (!(e instanceof Mob mob)) return false;
         double y = type == EntityTypes.VEX || type == EntityTypes.ALLAY ? h + 3 : h + 1;
         mob.setPos(x + 0.5, y, z + 0.5);
         // Soldiers belong to the front — wanderers get walked back to it.
@@ -317,8 +311,10 @@ public final class War {
                 || type == EntityTypes.STRAY) {
             dressRestless(mob, level.getRandom());
         }
+        mob.addTag(MOB_MARKER);
         // War mobs are NOT persistent — walk away and the battle fades.
         level.addFreshEntity(mob);
+        return true;
     }
 
     private static final EquipmentSlot[] KIT_SLOTS = {
@@ -369,6 +365,8 @@ public final class War {
     }
 
     /** Hand every idle fighter the nearest enemy. Civilians are invisible to the war. */
+    private static int targetCursor;
+
     private static void assignTargets(ServerLevel graveyard, int front) {
         BlockPos c = GraveyardPlots.fieldCenter(front);
         int ground = GraveyardTerrain.groundHeight(c.getX(), c.getZ());
@@ -379,7 +377,12 @@ public final class War {
         List<ServerPlayer> soldiers = graveyard.players().stream()
                 .filter(p -> isActive(p.getUUID())).toList();
 
-        for (Mob mob : fighters) {
+        if (fighters.isEmpty()) return;
+        int work = Math.min(16, fighters.size());
+        int start = Math.floorMod(targetCursor, fighters.size());
+        targetCursor = (start + work) % fighters.size();
+        for (int processed = 0; processed < work; processed++) {
+            Mob mob = fighters.get((start + processed) % fighters.size());
             Faction mf = factionOf(mob);
             LivingEntity target = mob.getTarget();
             // A mob already fighting the war proper is left alone. A mob whose
@@ -711,9 +714,9 @@ public final class War {
         ENLISTED.clear();
         file = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("charons_echo").resolve("war.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             for (Tag t : root.getListOrEmpty("enlisted")) {
                 if (!(t instanceof CompoundTag c)) continue;
                 Enlistment en = new Enlistment();
@@ -743,7 +746,7 @@ public final class War {
             });
             CompoundTag root = new CompoundTag();
             root.put("enlisted", list);
-            NbtIo.writeCompressed(root, file);
+            CharonStorage.write(file, root);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save war.dat: " + e);
         }

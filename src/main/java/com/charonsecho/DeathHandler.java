@@ -107,8 +107,7 @@ public final class DeathHandler {
             player.experienceProgress = g.xpProgress;
             player.getFoodData().setFoodLevel(20);
             player.getFoodData().setSaturation(5.0f);
-            g.claimed = true;
-            GraveManager.save();
+            GraveManager.markClaimed(g);
         });
         if (GhostState.isGhost(player.getUUID())) {
             GhostState.remove(player);

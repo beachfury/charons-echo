@@ -11,8 +11,6 @@ import java.time.format.DateTimeFormatter;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -463,9 +461,9 @@ public final class Crypt {
         MONTHS.clear();
         for (int i = 0; i < 7; i++) SHELVES[i] = null;
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("crypt.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             built = root.getBooleanOr("built", false);
             long[] shelves = root.getLongArray("shelves").orElse(new long[0]);
             for (int i = 0; i < Math.min(7, shelves.length); i++) {
@@ -511,7 +509,7 @@ public final class Crypt {
                 months.add(c);
             });
             root.put("months", months);
-            NbtIo.writeCompressed(root, file);
+            CharonStorage.write(file, root);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save crypt.dat: " + e);
         }

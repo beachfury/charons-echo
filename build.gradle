@@ -2,7 +2,7 @@ plugins {
     id 'net.fabricmc.fabric-loom' version '1.17.12'
 }
 
-// Jar is stamped with the Minecraft version, e.g. charons-echo-0.1.0+26.2.jar
+// Jar is stamped with the Minecraft version, e.g. charons-echo-1.1.1+26.2.jar
 version = "${project.mod_version}+${project.minecraft_version}"
 group = 'com.charonsecho'
 
@@ -25,6 +25,17 @@ dependencies {
     // sgui is bundled (jar-in-jar): users install ONE file + Fabric API.
     implementation "eu.pb4:sgui:${project.sgui_version}"
     include "eu.pb4:sgui:${project.sgui_version}"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+
+test {
+    useJUnitPlatform()
+    workingDir = layout.buildDirectory.dir('test-run').get().asFile
+    doFirst {
+        workingDir.mkdirs()
+    }
 }
 
 processResources {
@@ -38,6 +49,7 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
     it.options.release = 25
+    it.options.compilerArgs.add('-Xlint:deprecation')
 }
 
 java {

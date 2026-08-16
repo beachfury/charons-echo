@@ -1,22 +1,22 @@
 package com.charonsecho;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -46,79 +46,146 @@ public final class DecorScatter {
     private static final int BIG_CELL = 96;
 
     public record Placement(int x, int z, String category, String piece) {}
+    private record Slot(int x, int z, int cell, boolean big) {}
 
     /** Chunks already processed (packed ChunkPos) and what was placed where. */
-    private static final Set<Long> DECORATED = ConcurrentHashMap.newKeySet();
-    private static final Map<Long, Placement> PLACEMENTS = new ConcurrentHashMap<>();
-    private static final ConcurrentLinkedQueue<Long> PENDING = new ConcurrentLinkedQueue<>();
+    private static final Set<Long> DECORATED = new HashSet<>();
+    private static final Map<Long, Placement> PLACEMENTS = new HashMap<>();
+    private static final Deque<Long> PENDING = new ArrayDeque<>();
+    private static final Set<Long> QUEUED = new HashSet<>();
     private static Path file;
     private static boolean dirty = false;
+    private static Long currentKey;
+    private static List<Slot> currentSlots = List.of();
+    private static int currentSlot;
 
     private DecorScatter() {}
 
     public static void register() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+            PENDING.clear();
+            QUEUED.clear();
+            currentKey = null;
+            currentSlots = List.of();
+            currentSlot = 0;
+            dirty = false;
+        });
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk, newlyGenerated) -> {
             if (level.dimension() != CharonsEcho.GRAVEYARD_DIM) return;
             long key = chunk.getPos().pack();
-            if (!DECORATED.contains(key)) {
-                PENDING.add(key); // decorate on a later tick — never during load
+            if (!DECORATED.contains(key) && QUEUED.add(key)) {
+                PENDING.addLast(key); // decorate on a later tick — never during load
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(DecorScatter::tick);
     }
 
     private static void tick(MinecraftServer server) {
-        if (PENDING.isEmpty()) {
-            if (dirty && server.getTickCount() % 200 == 0) {
-                save();
-                dirty = false;
-            }
-            return;
+        if (dirty && server.getTickCount() % 200 == 0) {
+            save();
+            dirty = false;
         }
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
-        for (int i = 0; i < 4; i++) { // a few chunks per tick keeps the pace smooth
-            Long key = PENDING.poll();
-            if (key == null) break;
-            if (DECORATED.contains(key)) continue;
-            if (!graveyard.hasChunk(ChunkPos.unpack(key).x(), ChunkPos.unpack(key).z())) continue;
-            decorateChunk(graveyard, ChunkPos.unpack(key));
-            DECORATED.add(key);
+        if (currentKey == null) {
+            while (!PENDING.isEmpty()) {
+                Long key = PENDING.pollFirst();
+                if (key == null) return;
+                if (DECORATED.contains(key)) {
+                    QUEUED.remove(key);
+                    continue;
+                }
+                ChunkPos cp = ChunkPos.unpack(key);
+                if (!graveyard.hasChunk(cp.x(), cp.z())) {
+                    QUEUED.remove(key);
+                    continue;
+                }
+                currentKey = key;
+                currentSlots = candidateSlots(cp);
+                currentSlot = 0;
+                break;
+            }
+        }
+        if (currentKey == null) return;
+
+        ChunkPos currentChunk = ChunkPos.unpack(currentKey);
+        if (!graveyard.hasChunk(currentChunk.x(), currentChunk.z())) {
+            QUEUED.remove(currentKey);
+            currentKey = null;
+            currentSlots = List.of();
+            return;
+        }
+
+        long deadline = System.nanoTime() + 1_500_000L;
+        boolean pasted = false;
+        int evaluated = 0;
+        while (currentSlot < currentSlots.size() && !pasted
+                && (evaluated == 0 || System.nanoTime() < deadline)) {
+            Slot slot = currentSlots.get(currentSlot++);
+            pasted = trySlot(graveyard, slot.x(), slot.z(), slot.cell(), slot.big());
+            evaluated++;
+        }
+        if (currentSlot >= currentSlots.size()) {
+            DECORATED.add(currentKey);
+            QUEUED.remove(currentKey);
             dirty = true;
+            currentKey = null;
+            currentSlots = List.of();
+            currentSlot = 0;
         }
     }
 
-    /** Place every slot whose anchor falls inside this chunk. */
-    private static void decorateChunk(ServerLevel level, ChunkPos cp) {
+    /** Deterministic slots whose anchors fall inside this chunk. */
+    private static List<Slot> candidateSlots(ChunkPos cp) {
         int minX = cp.getMinBlockX(), minZ = cp.getMinBlockZ();
-        for (int x = minX; x < minX + 16; x++) {
-            for (int z = minZ; z < minZ + 16; z++) {
-                trySlot(level, x, z, SMALL_CELL, false);
-                trySlot(level, x, z, BIG_CELL, true);
+        List<Slot> slots = new ArrayList<>();
+        collectCandidateSlots(slots, minX, minZ, SMALL_CELL, false);
+        collectCandidateSlots(slots, minX, minZ, BIG_CELL, true);
+        return slots;
+    }
+
+    /** Evaluate only the jittered cell anchors that can fall in this chunk. */
+    private static void collectCandidateSlots(List<Slot> slots, int minX, int minZ,
+            int cell, boolean big) {
+        int maxX = minX + 15, maxZ = minZ + 15;
+        for (int cx = Math.floorDiv(minX, cell); cx <= Math.floorDiv(maxX, cell); cx++) {
+            for (int cz = Math.floorDiv(minZ, cell); cz <= Math.floorDiv(maxZ, cell); cz++) {
+                long h = mix(cx, cz, big ? 77L : 33L);
+                int x = cx * cell + (int) Math.floorMod(h, cell);
+                int z = cz * cell + (int) Math.floorMod(h >> 16, cell);
+                if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+                    slots.add(new Slot(x, z, cell, big));
+                }
             }
         }
     }
 
     /** If (x,z) is the jittered candidate of its cell, evaluate and place. */
-    private static void trySlot(ServerLevel level, int x, int z, int cell, boolean big) {
+    private static boolean trySlot(ServerLevel level, int x, int z, int cell, boolean big) {
         int cx = Math.floorDiv(x, cell), cz = Math.floorDiv(z, cell);
         long h = mix(cx, cz, big ? 77L : 33L);
         int jx = (int) Math.floorMod(h, cell), jz = (int) Math.floorMod(h >> 16, cell);
-        if (cx * cell + jx != x || cz * cell + jz != z) return;
+        if (cx * cell + jx != x || cz * cell + jz != z) return false;
 
         // Density: not every cell hosts a piece.
         double roll = (Math.floorMod(h >> 32, 1000)) / 1000.0;
-        if (roll > (big ? 0.35 : 0.55)) return;
+        if (roll > (big ? 0.35 : 0.55)) return false;
 
         String category = pickCategory(h, big);
-        if (!suitable(level, x, z, category)) return;
+        if (!suitable(level, x, z, category)) return false;
 
         long slotKey = (((long) x) << 32) | (z & 0xFFFFFFFFL);
+        // A prior partial run may already have pasted this exact slot. Its
+        // placement ledger makes the resumed chunk idempotent.
+        if (PLACEMENTS.containsKey(slotKey)) return false;
         String piece = choosePiece(level, category, x, z);
         PLACEMENTS.put(slotKey, new Placement(x, z, category, piece));
+        dirty = true;
         if (!piece.isEmpty()) {
             paste(level, x, z, piece, category);
+            return true;
         }
+        return false;
     }
 
     private static String pickCategory(long h, boolean big) {
@@ -296,9 +363,9 @@ public final class DecorScatter {
         // them and they'd never decorate. Already-decorated keys are skipped
         // in tick() anyway.
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("decor.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             for (long l : root.getLongArray("decorated").orElse(new long[0])) {
                 DECORATED.add(l);
             }
@@ -316,7 +383,6 @@ public final class DecorScatter {
     public static void save() {
         if (file == null) return;
         try {
-            Files.createDirectories(file.getParent());
             CompoundTag root = new CompoundTag();
             root.putLongArray("decorated", DECORATED.stream().mapToLong(Long::longValue).toArray());
             ListTag list = new ListTag();
@@ -329,9 +395,17 @@ public final class DecorScatter {
                 list.add(t);
             }
             root.put("placements", list);
-            NbtIo.writeCompressed(root, file);
-        } catch (IOException e) {
-            System.out.println("[CharonsEcho] failed to save decor.dat: " + e);
+            CharonStorage.write(file, root);
+            dirty = false;
+        } catch (RuntimeException e) {
+            System.out.println("[CharonsEcho] failed to snapshot decor.dat: " + e);
+        }
+    }
+
+    public static void flush() {
+        if (dirty) {
+            save();
+            dirty = false;
         }
     }
 

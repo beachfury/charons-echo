@@ -1,6 +1,41 @@
 # Changelog
 
-## Unreleased
+## 1.1.1 — the ledgers run quiet
+
+- **Long-lived servers no longer pay for their whole history every tick.**
+  Graves now have direct indexes by ID, owner, claimed state, plot, and nearby
+  chunk. Relogged visitors rebuild a way home with one lookup, including a
+  remembered "no grave" result, instead of searching every grave every tick.
+  Plot allocation, full-field checks, grave interaction, and the war front use
+  the same indexes without copying the complete ledger.
+- **World ledgers save without stopping the world.** Repeated mutations are
+  batched, expensive item encoding is reused, compression and disk writes run
+  on one ordered background writer, and shutdown waits for it. Every ledger is
+  written through a temporary file and keeps a last-known-good `.bak`; reads
+  are size-bounded and automatically recover from the backup when the primary
+  file is damaged.
+- **Soul Gates now work where players are.** Gate bounds, centers, lowest
+  cells, aperture membership, and covered chunks are cached. Only gates in or
+  near player chunks animate or test crossings, frame validation is staggered,
+  and the breath uses far fewer particle packets without changing travel.
+- **The graveyard tracks its own staff and soldiers.** A one-time migration
+  adopts old entities, after which entity lifecycle events replace repeated
+  whole-dimension scans. Only fields near visitors receive a census. War mobs
+  are no longer accidentally made persistent, target assignment is processed
+  in bounded rotating batches, and the new `war-mob-cap` (default 32) places a
+  shared ceiling over the active battle.
+- **Exploration and orchards have bounded workloads.** Decoration computes
+  only the deterministic slots that can actually fall in a chunk, evaluates
+  queued work inside a 1.5 ms budget between checks, pastes at most one
+  structure per tick, deduplicates its queue, and saves even during continuous
+  exploration. Orchard mob-dance queries are cached and
+  staggered. Graveyard generation reuses a padded height grid instead of
+  recalculating neighboring terrain noise for every surface decision.
+- Wake obol searches now run twice a second instead of every tick, portal
+  particle traffic is reduced, and copy-on-write collections were removed
+  from the hot server-thread-only state.
+- Added regression tests for grave indexing, save coalescing, atomic ledger
+  replacement, and damaged-file backup recovery.
 
 - **The quiet update: Charon tightens his ledgers.** The front was re-derived
   from every grave ever dug, every tick, forever — now it is cached and only

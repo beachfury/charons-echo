@@ -12,8 +12,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -194,9 +192,9 @@ public final class StudioSets {
     public static void load(MinecraftServer server) {
         SETS.clear();
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("sets.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             for (Tag t : root.getListOrEmpty("sets")) {
                 if (!(t instanceof CompoundTag c)) continue;
                 SetInfo s = new SetInfo(
@@ -244,7 +242,7 @@ public final class StudioSets {
             }
             CompoundTag root = new CompoundTag();
             root.put("sets", list);
-            NbtIo.writeCompressed(root, file);
+            CharonStorage.write(file, root);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save sets.dat: " + e);
         }

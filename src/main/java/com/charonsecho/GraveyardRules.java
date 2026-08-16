@@ -1,6 +1,13 @@
 package com.charonsecho;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
+
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -21,9 +28,26 @@ import net.minecraft.world.scores.Scoreboard;
  */
 public final class GraveyardRules {
 
+    /** Loaded Charon-owned mobs only; entity lifecycle events keep this small. */
+    private static final Map<UUID, Mob> MANAGED_MOBS = new HashMap<>();
+    private static boolean legacyIndexNeeded = true;
+
     private GraveyardRules() {}
 
     public static void register() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+            MANAGED_MOBS.clear();
+            legacyIndexNeeded = true;
+        });
+        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if (level.dimension() == CharonsEcho.GRAVEYARD_DIM
+                    && entity instanceof Mob mob && entity.entityTags().contains(War.MOB_MARKER)) {
+                MANAGED_MOBS.put(entity.getUUID(), mob);
+            }
+        });
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) ->
+                MANAGED_MOBS.remove(entity.getUUID()));
+
         // The graveyard's one law of violence: the war may harm only itself.
         // Living players untouchable and harmless; civilians sacred; the
         // enlisted dead fight enemy factions only (War decides the matrix).
@@ -196,6 +220,7 @@ public final class GraveyardRules {
         var mob = type.create(level, net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
         if (mob == null) return;
         mob.setPos(x + 0.5, h + 1, z + 0.5);
+        mob.addTag(War.MOB_MARKER);
         mob.setPersistenceRequired();
         tuneGolem(mob);
         // Keepers are POSTED: a home wide enough to fight across the whole
@@ -238,14 +263,21 @@ public final class GraveyardRules {
 
         // Staff census: re-staff any understaffed field a player is near.
         if (server.getTickCount() % 600 == 0) {
-            for (int i = 0; i < GraveyardPlots.fieldCount(); i++) {
-                net.minecraft.core.BlockPos c = GraveyardPlots.fieldCenter(i);
-                if (graveyard.getNearestPlayer(c.getX() + 0.5,
-                        GraveyardTerrain.groundHeight(c.getX(), c.getZ()),
-                        c.getZ() + 0.5, 96, false) != null) {
-                    censusField(graveyard, i);
+            for (int field : GraveyardPlots.fieldsNearPlayers(graveyard, 96)) {
+                censusField(graveyard, field);
+            }
+        }
+
+        // One migration walk adopts mobs saved by releases before the marker
+        // existed. Normal sweeps below never walk the whole dimension again.
+        if (legacyIndexNeeded) {
+            for (Entity entity : graveyard.getAllEntities()) {
+                if (entity instanceof Mob mob && legacyManagedType(mob)) {
+                    mob.addTag(War.MOB_MARKER);
+                    MANAGED_MOBS.put(mob.getUUID(), mob);
                 }
             }
+            legacyIndexNeeded = false;
         }
 
         Scoreboard sb = server.getScoreboard();
@@ -255,8 +287,13 @@ public final class GraveyardRules {
             keepers.setAllowFriendlyFire(false);
         }
         var players = graveyard.players();
-        for (Entity e : graveyard.getAllEntities()) {
-            if (!(e instanceof Mob mob)) continue;
+        Iterator<Map.Entry<UUID, Mob>> managed = MANAGED_MOBS.entrySet().iterator();
+        while (managed.hasNext()) {
+            Mob mob = managed.next().getValue();
+            if (mob.isRemoved() || mob.level() != graveyard) {
+                managed.remove();
+                continue;
+            }
             String factionTeam = War.teamFor(mob);
             if (factionTeam != null || mob.getType() == EntityTypes.WARDEN
                     || mob.getType() == EntityTypes.ALLAY || mob.getType() == EntityTypes.SNIFFER) {
@@ -314,7 +351,12 @@ public final class GraveyardRules {
                     }
                     net.minecraft.world.entity.monster.warden.WardenAi.setDigCooldown(warden);
                 }
-                mob.setPersistenceRequired();
+                // Posted staff and civilians persist. Battle soldiers do not:
+                // walking away lets the war fade instead of accumulating mobs.
+                if (keeperKind || mob.getType() == EntityTypes.ALLAY
+                        || mob.getType() == EntityTypes.SNIFFER) {
+                    mob.setPersistenceRequired();
+                }
             }
         }
 
@@ -328,5 +370,10 @@ public final class GraveyardRules {
                 p.removeEffect(net.minecraft.world.effect.MobEffects.BLINDNESS);
             }
         }
+    }
+
+    private static boolean legacyManagedType(Mob mob) {
+        return War.factionOf(mob) != null || mob.getType() == EntityTypes.WARDEN
+                || mob.getType() == EntityTypes.ALLAY || mob.getType() == EntityTypes.SNIFFER;
     }
 }

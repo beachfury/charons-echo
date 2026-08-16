@@ -48,7 +48,7 @@ public final class GraveBooks {
                     player.getName().getString(), 0, pages, true);
         }
         grave.book = content;
-        GraveManager.save();
+        GraveManager.saveSoon();
         held.shrink(1);
 
         ServerLevel level = (ServerLevel) player.level();

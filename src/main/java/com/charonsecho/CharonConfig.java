@@ -56,6 +56,8 @@ public final class CharonConfig {
     public static volatile int warWindCap = 3;
     /** Hollow Wind BREEZES fielded at once (loud — keep them scarce). */
     public static volatile int warBreezeCap = 1;
+    /** Hard ceiling for all combatants around the active front. */
+    public static volatile int warMobCap = 32;
     /** War golem max health (vanilla is a boss-tier 100). */
     public static volatile int warGolemHealth = 40;
     /** War golem attack damage (vanilla averages ~14 with a launch). */
@@ -108,6 +110,7 @@ public final class CharonConfig {
             warRestlessCap = clamp(inted(p, "war-restless-cap", warRestlessCap), 0, 64);
             warWindCap = clamp(inted(p, "war-wind-cap", warWindCap), 0, 64);
             warBreezeCap = clamp(inted(p, "war-breeze-cap", warBreezeCap), 0, 64);
+            warMobCap = clamp(inted(p, "war-mob-cap", warMobCap), 4, 128);
             warGolemHealth = clamp(inted(p, "war-golem-health", warGolemHealth), 10, 1024);
             warGolemDamage = clamp(inted(p, "war-golem-damage", warGolemDamage), 1, 100);
             warKits = clamp(inted(p, "war-kits", warKits), 0, 1);
@@ -244,6 +247,13 @@ public final class CharonConfig {
             # keep them scarce.  0 = the Wind becomes pure vex.
             war-breeze-cap=%d
 
+            # Hard ceiling for ALL combatants around the active front,
+            # including Keepers. Individual faction caps still apply below
+            # this shared budget. Range 4-128. Default 32. This prevents an
+            # accidentally generous configuration from creating an
+            # unbounded targeting workload.
+            war-mob-cap=%d
+
             # War golem max health.  Range 10-1024.  Default 40 (vanilla is a
             # boss-tier 100).  Two soldiers' worth of health feels right.
             war-golem-health=%d
@@ -299,7 +309,8 @@ public final class CharonConfig {
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
                 orchardDanceMultiplier, orchardFruitDance,
                 warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
-                warRestlessCap, warWindCap, warBreezeCap, warGolemHealth, warGolemDamage,
+                warRestlessCap, warWindCap, warBreezeCap, warMobCap,
+                warGolemHealth, warGolemDamage,
                 warKits, warGolemCount, warTeams, warMarks, soulGates,
                 soulGateMinArea, soulGateMaxArea);
     }

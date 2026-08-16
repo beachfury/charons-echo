@@ -4,15 +4,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.ChatFormatting;
@@ -21,8 +22,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -85,14 +84,16 @@ public final class Orchard {
         boolean motherTree;
         UUID lineage;            // lineage id of the seed it grew from (null = plain)
         boolean wild;            // graveyard scatter tree: fruits, never fells
-        Set<Long> blocks = ConcurrentHashMap.newKeySet(); // recorded tree blocks (y >= base.y)
-        List<Fruit> fruits = new CopyOnWriteArrayList<>();
+        Set<Long> blocks = new HashSet<>(); // recorded tree blocks (y >= base.y)
+        List<Fruit> fruits = new ArrayList<>();
         boolean dormant;
         long dormantTicks;
         List<BlockPos> anchors = new ArrayList<>(); // chain-end fruit spots, scanned once grown
         boolean anchorsScanned;
         transient long blockedWarnTicks; // throttle for the blocked-growth warning
         transient net.minecraft.world.phys.Vec3 lastOwnerPos; // for the dance
+        transient int movingMobBonus;
+        transient long nextMobSampleTick;
     }
 
     private static final class FellJob {
@@ -101,10 +102,10 @@ public final class Orchard {
         FellJob(Tree tree) { this.tree = tree; }
     }
 
-    private static final List<Tree> TREES = new CopyOnWriteArrayList<>();
-    private static final Map<UUID, FellJob> FELLING = new ConcurrentHashMap<>();
+    private static final List<Tree> TREES = new ArrayList<>();
+    private static final Map<UUID, FellJob> FELLING = new HashMap<>();
     /** Last sampled positions, for spotting dancers (all players, once a second). */
-    private static final Map<UUID, net.minecraft.world.phys.Vec3> DANCE_LAST = new ConcurrentHashMap<>();
+    private static final Map<UUID, net.minecraft.world.phys.Vec3> DANCE_LAST = new HashMap<>();
     /** The harvest dance curve: dancers -> multiplier. Even one helps a little. */
     private static final double[] DANCE_CURVE = {1.0, 1.25, 1.5, 1.75, 2.0};
 
@@ -119,6 +120,7 @@ public final class Orchard {
     static UUID brokerId;          // the Broker entity (see Broker)
 
     private static Path file;
+    private static boolean dirty;
     private static String elderTemplateName = ""; // big tree with the most chains
 
     private Orchard() {}
@@ -129,6 +131,8 @@ public final class Orchard {
         UseBlockCallback.EVENT.register(Orchard::onUseBlock);
         PlayerBlockBreakEvents.BEFORE.register(Orchard::onBreak);
         ServerTickEvents.END_SERVER_TICK.register(Orchard::tick);
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                DANCE_LAST.remove(handler.getPlayer().getUUID()));
     }
 
     /** The big tree with the most chains is the elder; the other is common. */
@@ -227,18 +231,22 @@ public final class Orchard {
 
     private static void tick(MinecraftServer server) {
         // Felling rituals run every tick; growth breathes every 20.
-        for (Map.Entry<UUID, FellJob> e : FELLING.entrySet()) {
+        Iterator<Map.Entry<UUID, FellJob>> jobs = FELLING.entrySet().iterator();
+        while (jobs.hasNext()) {
+            Map.Entry<UUID, FellJob> e = jobs.next();
             FellJob job = e.getValue();
             ServerLevel level = server.getLevel(job.tree.dim);
-            if (level == null) { FELLING.remove(e.getKey()); continue; }
+            if (level == null) { jobs.remove(); continue; }
             if (job.ticksLeft % 10 == 0) {
                 shudder(level, job.tree);
             }
             if (--job.ticksLeft <= 0) {
-                FELLING.remove(e.getKey());
+                jobs.remove();
                 collapse(level, job.tree);
             }
         }
+
+        if (dirty && server.getTickCount() % 100 == 0) queueSnapshot();
 
         if (server.getTickCount() % 20 != 0) return;
         long now = System.currentTimeMillis();
@@ -316,13 +324,19 @@ public final class Orchard {
             } else {
                 tree.lastOwnerPos = null;
             }
-            int crowd = 0;
-            for (net.minecraft.world.entity.Mob nearby : level.getEntitiesOfClass(
-                    net.minecraft.world.entity.Mob.class,
-                    new net.minecraft.world.phys.AABB(tree.base).inflate(9, 6, 9))) {
-                if (nearby.getDeltaMovement().horizontalDistanceSqr() > 0.003) crowd++;
+            long nowTick = level.getServer().getTickCount();
+            if (nowTick >= tree.nextMobSampleTick) {
+                int crowd = 0;
+                for (net.minecraft.world.entity.Mob nearby : level.getEntitiesOfClass(
+                        net.minecraft.world.entity.Mob.class,
+                        new net.minecraft.world.phys.AABB(tree.base).inflate(9, 6, 9))) {
+                    if (nearby.getDeltaMovement().horizontalDistanceSqr() > 0.003) crowd++;
+                }
+                tree.movingMobBonus = crowd >= 4 ? 2 : crowd >= 1 ? 1 : 0;
+                tree.nextMobSampleTick = nowTick + 100
+                        + Math.floorMod(tree.id.hashCode(), 20);
             }
-            bonus += crowd >= 4 ? 2 : crowd >= 1 ? 1 : 0;
+            bonus += tree.movingMobBonus;
             bonus = Math.min(bonus, CharonConfig.orchardDanceMultiplier - 1);
             if (bonus > 0) {
                 tree.stageTicks += (long) ticks * bonus;
@@ -912,12 +926,14 @@ public final class Orchard {
     public static void load(MinecraftServer server) {
         TREES.clear();
         FELLING.clear();
+        DANCE_LAST.clear();
+        dirty = false;
         motherId = null; motherOwner = null; motherOwnerName = "";
         motherLastSeen = 0; lineAlive = false; motherTreeId = null; brokerId = null;
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("orchard.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             if (root.getStringOr("motherId", "").length() > 0) {
                 motherId = UUID.fromString(root.getStringOr("motherId", ""));
                 motherOwner = UUID.fromString(root.getStringOr("motherOwner", ""));
@@ -974,9 +990,12 @@ public final class Orchard {
     }
 
     public static void save() {
-        if (file == null) return;
+        if (file != null) dirty = true;
+    }
+
+    private static void queueSnapshot() {
+        if (file == null || !dirty) return;
         try {
-            Files.createDirectories(file.getParent());
             CompoundTag root = new CompoundTag();
             if (motherId != null) {
                 root.putString("motherId", motherId.toString());
@@ -1024,10 +1043,15 @@ public final class Orchard {
                 list.add(c);
             }
             root.put("trees", list);
-            NbtIo.writeCompressed(root, file);
-        } catch (IOException e) {
-            System.out.println("[CharonsEcho] failed to save orchard.dat: " + e);
+            CharonStorage.write(file, root);
+            dirty = false;
+        } catch (RuntimeException e) {
+            System.out.println("[CharonsEcho] failed to snapshot orchard.dat: " + e);
         }
+    }
+
+    public static void flush() {
+        if (dirty) queueSnapshot();
     }
 
     private static void clearRecorded(ServerLevel level, Tree tree) {

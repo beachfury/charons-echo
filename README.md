@@ -27,6 +27,9 @@ Built for the CurseForge **Minecraft ModJam 2026 — "Echoes of the Past."**
 
 - **Server-side only** — vanilla Java clients and Bedrock players (via Geyser)
   join with no client mod and no resource pack.
+- **Local singleplayer is supported** — install the same jar in the local
+  Fabric profile. Minecraft's integrated server runs the mod; no separate
+  client-side companion is involved.
 - **A unique graveyard per world** — monochrome hills seeded from your world:
   pale moss, gravel scree, sculk vales, a winding river, hand-built withered
   trees, and grave fields that spiral outward as the dead accumulate, each
@@ -84,12 +87,30 @@ settled ground; the front marches on.
 
 ## Requirements
 
+- Charon's Echo **1.1.1**
 - Minecraft **26.2** (Fabric)
 - [Fabric API](https://modrinth.com/mod/fabric-api) — that's it;
   [sgui](https://github.com/Patbox/sgui) is bundled inside the jar
 
 Every timer, price, cap, and war knob lives in
 `config/charons-echo.properties`, written as a documented manual.
+
+## Performance and world safety
+
+Charon's active systems sleep when nobody is using them. Soul Gates breathe
+only near players, graveyard staff are tracked instead of rediscovered by a
+dimension-wide scan, war targeting is spread across ticks, orchard mob checks
+are sampled, and new-chunk decoration uses a time-budgeted queue that pastes
+at most one structure per tick.
+
+World ledgers are batched, compressed away from the server tick, and replaced
+atomically. Before replacing a ledger the mod preserves its previous good copy
+beside it as `*.dat.bak`; if the primary file is damaged, the backup is read
+automatically. Shutdown waits for queued ledger writes to finish.
+
+Large-server owners should keep `war-mob-cap` at its default of 32 unless they
+have profiled the active front. This shared ceiling prevents the individual
+faction settings from accidentally creating an excessive battle.
 
 ## Upgrading an existing world
 
@@ -108,8 +129,9 @@ STOPPED (singleplayer counts):
 | Headstones re-pasted | `/charon rebuild-graves` |
 | All Soul Gates closed | Delete `world/charons_echo/gates.dat` — the frames stay standing, the breath stops; re-consecrate with an obol. |
 
-**Never delete `graves.dat` or `fields.dat`.** They ARE your server's
-history — every soul, every plot, every field. There is no rebuilding those.
+**Never delete `graves.dat`, `fields.dat`, or their `.bak` files.** They ARE
+your server's history — every soul, every plot, every field. There is no
+rebuilding those. The backups are automatic recovery copies, not old clutter.
 
 ## For builders: the Studio
 

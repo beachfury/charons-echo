@@ -1,29 +1,28 @@
 package com.charonsecho;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -61,11 +60,23 @@ public final class SoulGates {
 
     /** cells = interior air cells of the aperture; lateralX = the frame
      *  spans the X axis (crossing travels along Z). */
-    record Gate(ResourceKey<Level> dim, List<BlockPos> cells, boolean lateralX) {
+    static final class Gate {
+        private final ResourceKey<Level> dim;
+        private final List<BlockPos> cells;
+        private final Set<BlockPos> cellSet;
+        private final boolean lateralX;
+        private final AABB bounds;
+        private final double centerX;
+        private final double centerY;
+        private final double centerZ;
+        private final int lowY;
+        private final List<Long> chunks;
 
-        BlockPos anchor() { return cells.get(0); }
-
-        AABB bounds() {
+        Gate(ResourceKey<Level> dim, List<BlockPos> cells, boolean lateralX) {
+            this.dim = dim;
+            this.cells = List.copyOf(cells);
+            this.cellSet = Set.copyOf(cells);
+            this.lateralX = lateralX;
             int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
             for (BlockPos c : cells) {
@@ -74,13 +85,32 @@ public final class SoulGates {
                 minZ = Math.min(minZ, c.getZ()); maxZ = Math.max(maxZ, c.getZ());
             }
             double thin = 0.75;
-            return new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1)
+            this.bounds = new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1)
                     .inflate(lateralX ? 0 : thin, 0, lateralX ? thin : 0);
+            this.centerX = bounds.getCenter().x;
+            this.centerY = bounds.getCenter().y;
+            this.centerZ = bounds.getCenter().z;
+            this.lowY = minY;
+            List<Long> covered = new ArrayList<>();
+            for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
+                for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+                    covered.add(new net.minecraft.world.level.ChunkPos(cx, cz).pack());
+                }
+            }
+            this.chunks = List.copyOf(covered);
         }
 
-        double centerX() { return bounds().getCenter().x; }
-        double centerY() { return bounds().getCenter().y; }
-        double centerZ() { return bounds().getCenter().z; }
+        ResourceKey<Level> dim() { return dim; }
+        List<BlockPos> cells() { return cells; }
+        Set<BlockPos> cellSet() { return cellSet; }
+        boolean lateralX() { return lateralX; }
+        BlockPos anchor() { return cells.get(0); }
+        AABB bounds() { return bounds; }
+        double centerX() { return centerX; }
+        double centerY() { return centerY; }
+        double centerZ() { return centerZ; }
+        int lowY() { return lowY; }
+        List<Long> chunks() { return chunks; }
     }
 
     /** A remembered crossing: the gate, and WHICH SIDE the walker entered
@@ -88,11 +118,13 @@ public final class SoulGates {
      *  side, facing away, mid-stride. */
     private record Crossing(Gate gate, int sign) {}
 
-    private static final List<Gate> GATES = new CopyOnWriteArrayList<>();
-    private static final Map<UUID, Crossing> LAST_GATE = new ConcurrentHashMap<>();
+    private static final List<Gate> GATES = new ArrayList<>();
+    private static final Map<ResourceKey<Level>, Map<Long, List<Gate>>> GATES_BY_CHUNK =
+            new HashMap<>();
+    private static final Map<UUID, Crossing> LAST_GATE = new HashMap<>();
     /** Like the death portals: a gate that carried you stays DISARMED until
      *  you are wholly clear of every aperture — no ping-pong, ever. */
-    private static final Set<UUID> DISARMED = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> DISARMED = new HashSet<>();
     private static Path file;
 
     private SoulGates() {}
@@ -108,6 +140,11 @@ public final class SoulGates {
             return consecrate(sp, level, hit.getBlockPos(), hand);
         });
         ServerTickEvents.END_SERVER_TICK.register(SoulGates::tick);
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            UUID id = handler.getPlayer().getUUID();
+            LAST_GATE.remove(id);
+            DISARMED.remove(id);
+        });
     }
 
     // ------------------------------------------------------------ consecration
@@ -141,7 +178,7 @@ public final class SoulGates {
         if (!player.getAbilities().instabuild) {
             player.getItemInHand(hand).shrink(1);
         }
-        GATES.add(gate);
+        addGate(gate);
         save();
         level.sendParticles(ParticleTypes.SOUL, gate.centerX(), gate.centerY(), gate.centerZ(),
                 40, gate.bounds().getXsize() / 2, gate.bounds().getYsize() / 2,
@@ -215,13 +252,15 @@ public final class SoulGates {
         if (GATES.isEmpty()) return;
         long time = server.getTickCount();
         if (time % 2 != 0) return;
-        for (Gate gate : GATES) {
+        Set<Gate> active = activeGates(server);
+        for (Gate gate : active) {
             ServerLevel level = server.getLevel(gate.dim());
             if (level == null || !level.isLoaded(gate.anchor())) continue;
 
             // The frame keeps its shape or the door closes.
-            if (time % 100 == 0 && !frameIntact(level, gate)) {
-                GATES.remove(gate);
+            if (Math.floorMod(time / 2 + gate.anchor().asLong(), 50) == 0
+                    && !frameIntact(level, gate)) {
+                removeGate(gate);
                 save();
                 level.sendParticles(ParticleTypes.SOUL, gate.centerX(), gate.centerY(),
                         gate.centerZ(), 30, 0.8, 1.0, 0.8, 0.05);
@@ -231,20 +270,18 @@ public final class SoulGates {
             }
 
             // The breath drifts from the aperture itself, whatever its shape.
-            RandomSource rand = level.getRandom();
-            for (int i = 0; i < 3; i++) {
-                BlockPos cell = gate.cells().get(rand.nextInt(gate.cells().size()));
-                level.sendParticles(ParticleTypes.SOUL,
-                        cell.getX() + 0.5, cell.getY() + 0.5, cell.getZ() + 0.5,
-                        1, 0.3, 0.3, 0.3, 0.012);
+            if (time % 5 == 0) {
+                RandomSource rand = level.getRandom();
+                for (int i = 0; i < 2; i++) {
+                    BlockPos cell = gate.cells().get(rand.nextInt(gate.cells().size()));
+                    level.sendParticles(ParticleTypes.SOUL,
+                            cell.getX() + 0.5, cell.getY() + 0.5, cell.getZ() + 0.5,
+                            1, 0.3, 0.3, 0.3, 0.012);
+                }
             }
             if (time % 20 == 0) {
-                BlockPos low = gate.cells().get(0);
-                for (BlockPos c : gate.cells()) {
-                    if (c.getY() < low.getY()) low = c;
-                }
                 level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-                        gate.centerX(), low.getY() + 0.15, gate.centerZ(), 2,
+                        gate.centerX(), gate.lowY() + 0.15, gate.centerZ(), 2,
                         gate.lateralX() ? gate.bounds().getXsize() / 2.4 : 0.1, 0.05,
                         gate.lateralX() ? 0.1 : gate.bounds().getZsize() / 2.4, 0.004);
             }
@@ -260,18 +297,44 @@ public final class SoulGates {
 
         // Re-arm the walkers who have stepped wholly clear of every gate.
         if (time % 10 == 0 && !DISARMED.isEmpty()) {
-            for (UUID id : DISARMED) {
+            Iterator<UUID> walkers = DISARMED.iterator();
+            while (walkers.hasNext()) {
+                UUID id = walkers.next();
                 ServerPlayer p = server.getPlayerList().getPlayer(id);
                 if (p == null || !inAnyAperture(p)) {
-                    DISARMED.remove(id);
+                    walkers.remove();
                 }
             }
         }
     }
 
+    /** Only gates in or near a player's current chunk breathe and test crossings. */
+    private static Set<Gate> activeGates(MinecraftServer server) {
+        Set<Gate> active = new LinkedHashSet<>();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            Map<Long, List<Gate>> dimension = GATES_BY_CHUNK.get(player.level().dimension());
+            if (dimension == null) continue;
+            int pcx = player.blockPosition().getX() >> 4;
+            int pcz = player.blockPosition().getZ() >> 4;
+            for (int cx = pcx - 3; cx <= pcx + 3; cx++) {
+                for (int cz = pcz - 3; cz <= pcz + 3; cz++) {
+                    List<Gate> candidates = dimension.get(
+                            new net.minecraft.world.level.ChunkPos(cx, cz).pack());
+                    if (candidates != null) active.addAll(candidates);
+                }
+            }
+        }
+        return active;
+    }
+
     private static boolean inAnyAperture(ServerPlayer p) {
-        for (Gate gate : GATES) {
-            if (gate.dim() != p.level().dimension()) continue;
+        Map<Long, List<Gate>> dimension = GATES_BY_CHUNK.get(p.level().dimension());
+        if (dimension == null) return false;
+        BlockPos at = p.blockPosition();
+        List<Gate> candidates = dimension.get(new net.minecraft.world.level.ChunkPos(
+                at.getX() >> 4, at.getZ() >> 4).pack());
+        if (candidates == null) return false;
+        for (Gate gate : candidates) {
             if (inAperture(gate, p)) return true;
         }
         return false;
@@ -280,17 +343,16 @@ public final class SoulGates {
     /** The bounding box overshoots odd shapes — confirm a real cell. */
     private static boolean inAperture(Gate gate, ServerPlayer p) {
         BlockPos feet = p.blockPosition();
-        return gate.cells().contains(feet) || gate.cells().contains(feet.above());
+        return gate.cellSet().contains(feet) || gate.cellSet().contains(feet.above());
     }
 
     private static boolean frameIntact(ServerLevel level, Gate gate) {
-        Set<BlockPos> cellSet = new HashSet<>(gate.cells());
         for (BlockPos c : gate.cells()) {
             if (!isAir(level, c)) return false; // something filled the door
             for (BlockPos n : new BlockPos[] {
                     off(c, 1, gate.lateralX()), off(c, -1, gate.lateralX()),
                     c.above(), c.below() }) {
-                if (!cellSet.contains(n) && !isFrame(level, n)) return false;
+                if (!gate.cellSet().contains(n) && !isFrame(level, n)) return false;
             }
         }
         return true;
@@ -366,12 +428,13 @@ public final class SoulGates {
 
     public static void load(MinecraftServer server) {
         GATES.clear();
+        GATES_BY_CHUNK.clear();
         LAST_GATE.clear();
         file = server.getWorldPath(LevelResource.ROOT)
                 .resolve("charons_echo").resolve("gates.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             for (Tag t : root.getListOrEmpty("gates")) {
                 if (!(t instanceof CompoundTag c)) continue;
                 ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION,
@@ -381,7 +444,7 @@ public final class SoulGates {
                     cells.add(BlockPos.of(l));
                 }
                 if (cells.isEmpty()) continue;
-                GATES.add(new Gate(dim, cells, c.getBooleanOr("lx", true)));
+                addGate(new Gate(dim, cells, c.getBooleanOr("lx", true)));
             }
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to load gates.dat: " + e);
@@ -391,7 +454,6 @@ public final class SoulGates {
     private static void save() {
         if (file == null) return;
         try {
-            Files.createDirectories(file.getParent());
             CompoundTag root = new CompoundTag();
             ListTag list = new ListTag();
             for (Gate g : GATES) {
@@ -406,9 +468,31 @@ public final class SoulGates {
                 list.add(c);
             }
             root.put("gates", list);
-            NbtIo.writeCompressed(root, file);
-        } catch (IOException e) {
-            System.out.println("[CharonsEcho] failed to save gates.dat: " + e);
+            CharonStorage.write(file, root);
+        } catch (RuntimeException e) {
+            System.out.println("[CharonsEcho] failed to snapshot gates.dat: " + e);
         }
+    }
+
+    private static void addGate(Gate gate) {
+        GATES.add(gate);
+        Map<Long, List<Gate>> dimension = GATES_BY_CHUNK.computeIfAbsent(
+                gate.dim(), ignored -> new HashMap<>());
+        for (long chunk : gate.chunks()) {
+            dimension.computeIfAbsent(chunk, ignored -> new ArrayList<>()).add(gate);
+        }
+    }
+
+    private static void removeGate(Gate gate) {
+        GATES.remove(gate);
+        Map<Long, List<Gate>> dimension = GATES_BY_CHUNK.get(gate.dim());
+        if (dimension == null) return;
+        for (long chunk : gate.chunks()) {
+            List<Gate> gates = dimension.get(chunk);
+            if (gates == null) continue;
+            gates.remove(gate);
+            if (gates.isEmpty()) dimension.remove(chunk);
+        }
+        if (dimension.isEmpty()) GATES_BY_CHUNK.remove(gate.dim());
     }
 }

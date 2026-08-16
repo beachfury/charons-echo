@@ -68,12 +68,31 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
         Heightmap oceanFloor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
         Heightmap worldSurface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
 
+        // One padded height grid supplies the column and all four neighbors.
+        // Previously every surface/river decision re-ran the terrain noise.
+        int[][] heights = new int[18][18];
+        for (int gx = -1; gx <= 16; gx++) {
+            for (int gz = -1; gz <= 16; gz++) {
+                heights[gx + 1][gz + 1] = GraveyardTerrain.groundHeight(
+                        baseX + gx, baseZ + gz);
+            }
+        }
+
         for (int dx = 0; dx < 16; dx++) {
             for (int dz = 0; dz < 16; dz++) {
                 int x = baseX + dx, z = baseZ + dz;
-                int h = GraveyardTerrain.groundHeight(x, z);
+                int h = heights[dx + 1][dz + 1];
                 boolean flooded = h < GraveyardTerrain.WATER_TOP;
-                BlockState surf = surfaceBlock(x, z, h, flooded);
+                int slope = Math.max(
+                        Math.max(Math.abs(h - heights[dx][dz + 1]),
+                                 Math.abs(h - heights[dx + 2][dz + 1])),
+                        Math.max(Math.abs(h - heights[dx + 1][dz]),
+                                 Math.abs(h - heights[dx + 1][dz + 2])));
+                boolean waterBeside = heights[dx][dz + 1] < GraveyardTerrain.WATER_TOP
+                        || heights[dx + 2][dz + 1] < GraveyardTerrain.WATER_TOP
+                        || heights[dx + 1][dz] < GraveyardTerrain.WATER_TOP
+                        || heights[dx + 1][dz + 2] < GraveyardTerrain.WATER_TOP;
+                BlockState surf = surfaceBlock(x, z, h, flooded, slope);
 
                 for (int y = 0; y <= Math.max(h, flooded ? GraveyardTerrain.WATER_TOP : h); y++) {
                     BlockState state;
@@ -91,7 +110,7 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
                 // Groundcover: species-by-species patch noise, then the old
                 // moss-carpet tufts as the fallback filler.
                 if (!flooded) {
-                    BlockState plant = groundcover(x, z, h, surf);
+                    BlockState plant = groundcover(x, z, h, surf, waterBeside);
                     if (plant != null) {
                         pos.set(x, h + 1, z);
                         chunk.setBlockState(pos, plant);
@@ -113,7 +132,8 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
      * patch noise + per-block hash; color exceptions (fireflies, torchflower,
      * wither roses) are rare and meaningful.
      */
-    private static BlockState groundcover(int x, int z, int h, BlockState surf) {
+    private static BlockState groundcover(int x, int z, int h, BlockState surf,
+            boolean waterBeside) {
         double roll = GraveyardTerrain.blockHash(x, z);
         boolean onMoss = surf.is(Blocks.PALE_MOSS_BLOCK);
 
@@ -130,7 +150,7 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
         if (!onMoss) return null;
 
         // Firefly bushes trace the water's edge.
-        if (roll < 0.35 && waterAdjacent(x, z)) {
+        if (roll < 0.35 && waterBeside) {
             return Blocks.FIREFLY_BUSH.defaultBlockState();
         }
         // Sculk veins bleed outward past the vale pools — densest at the band
@@ -179,29 +199,25 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
         return t < 0 ? 0 : Math.min(t, 1.0);
     }
 
-    /** Any cardinal neighbor column flooded → this is a bank. */
-    private static boolean waterAdjacent(int x, int z) {
-        return GraveyardTerrain.groundHeight(x + 1, z) < GraveyardTerrain.WATER_TOP
-                || GraveyardTerrain.groundHeight(x - 1, z) < GraveyardTerrain.WATER_TOP
-                || GraveyardTerrain.groundHeight(x, z + 1) < GraveyardTerrain.WATER_TOP
-                || GraveyardTerrain.groundHeight(x, z - 1) < GraveyardTerrain.WATER_TOP;
-    }
-
     /**
      * Surface material mix — Pale Garden above, Deep Dark seeping up from below:
      * exposed deepslate on steep slopes, sculk pooling in the deep vales and on
      * riverbeds (the Styx runs dark), rare tuff mottling, pale moss elsewhere.
      */
     static BlockState surfaceBlock(int x, int z, int h, boolean flooded) {
-        double sn = GraveyardTerrain.surfaceNoise(x, z);
-        if (flooded) {
-            return sn > 0.05 ? Blocks.SCULK.defaultBlockState() : Blocks.GRAVEL.defaultBlockState();
-        }
         int slope = Math.max(
                 Math.max(Math.abs(h - GraveyardTerrain.groundHeight(x + 1, z)),
                          Math.abs(h - GraveyardTerrain.groundHeight(x - 1, z))),
                 Math.max(Math.abs(h - GraveyardTerrain.groundHeight(x, z + 1)),
                          Math.abs(h - GraveyardTerrain.groundHeight(x, z - 1))));
+        return surfaceBlock(x, z, h, flooded, slope);
+    }
+
+    private static BlockState surfaceBlock(int x, int z, int h, boolean flooded, int slope) {
+        double sn = GraveyardTerrain.surfaceNoise(x, z);
+        if (flooded) {
+            return sn > 0.05 ? Blocks.SCULK.defaultBlockState() : Blocks.GRAVEL.defaultBlockState();
+        }
         if (slope >= 3) return Blocks.DEEPSLATE.defaultBlockState();
         if (h <= 56 && sn > 0.10) return Blocks.SCULK.defaultBlockState();
         if (sn < -0.72) return Blocks.TUFF.defaultBlockState();

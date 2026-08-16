@@ -2,7 +2,7 @@ package com.charonsecho;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 import eu.pb4.sgui.api.gui.SimpleGui;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
@@ -36,7 +36,7 @@ public final class DeathWake {
 
     private record Wake(UUID graveId, int startedTick) {}
 
-    private static final Map<UUID, Wake> WAKES = new ConcurrentHashMap<>();
+    private static final Map<UUID, Wake> WAKES = new HashMap<>();
 
     private DeathWake() {}
 
@@ -109,14 +109,14 @@ public final class DeathWake {
             if (wake == null) continue;
 
             // A body lying in state, marked by gentle soul smoke.
-            if (player.tickCount % 8 == 0 && player.level() instanceof ServerLevel level) {
+            if (player.tickCount % 10 == 0 && player.level() instanceof ServerLevel level) {
                 level.sendParticles(ParticleTypes.SCULK_SOUL,
                         player.getX(), player.getY() + 0.4, player.getZ(),
                         2, 0.3, 0.1, 0.3, 0.01);
             }
 
             // Obol donation: one dropped within a few blocks pays the fare.
-            GraveManager.byId(wake.graveId()).ifPresent(grave -> {
+            if (player.tickCount % 10 == 0) GraveManager.byId(wake.graveId()).ifPresent(grave -> {
                 if (!grave.farePaid && player.level() instanceof ServerLevel level) {
                     AABB box = AABB.ofSize(player.position().add(0, 0.5, 0), 7, 5, 7);
                     for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, box)) {
@@ -124,7 +124,7 @@ public final class DeathWake {
                             item.getItem().shrink(1);
                             if (item.getItem().isEmpty()) item.discard();
                             grave.farePaid = true;
-                            GraveManager.save();
+                            GraveManager.saveSoon();
                             level.sendParticles(ParticleTypes.SOUL,
                                     player.getX(), player.getY() + 1, player.getZ(),
                                     20, 0.4, 0.6, 0.4, 0.02);

@@ -6,8 +6,6 @@ import java.nio.file.Path;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -186,9 +184,9 @@ public final class Church {
         lectern = null;
         arrival = null;
         file = server.getWorldPath(LevelResource.ROOT).resolve("charons_echo").resolve("church.dat");
-        if (!Files.exists(file)) return;
+        if (!CharonStorage.hasData(file)) return;
         try {
-            CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
+            CompoundTag root = CharonStorage.read(file);
             placed = root.getBooleanOr("placed", false);
             if (root.getLongOr("vendor", Long.MIN_VALUE) != Long.MIN_VALUE) {
                 vendor = BlockPos.of(root.getLongOr("vendor", 0));
@@ -217,7 +215,7 @@ public final class Church {
             if (lodestone != null) root.putLong("lodestone", lodestone.asLong());
             if (lectern != null) root.putLong("lectern", lectern.asLong());
             if (arrival != null) root.putLong("arrival", arrival.asLong());
-            NbtIo.writeCompressed(root, file);
+            CharonStorage.write(file, root);
         } catch (IOException e) {
             System.out.println("[CharonsEcho] failed to save church.dat: " + e);
         }
