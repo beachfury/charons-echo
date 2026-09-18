@@ -51,7 +51,9 @@ public final class GhostState {
     }
 
     /** anchor = where the body fell; portal = the soul-fire portal, offset so
-     *  the risen ghost must deliberately walk into it. */
+     *  the risen ghost must deliberately walk into it — or NULL when no
+     *  reachable spot existed (or instant-ferry is on): Charon ferries the
+     *  ghost across directly instead. */
     public record GhostData(String dimension, BlockPos anchor, BlockPos portal) {}
 
     public static GhostData get(UUID uuid) {
@@ -103,7 +105,8 @@ public final class GhostState {
 
     public static void apply(ServerPlayer player, BlockPos anchor) {
         ServerLevel level = (ServerLevel) player.level();
-        BlockPos portal = PortalManager.findPortalSpot(level, anchor);
+        BlockPos portal = CharonConfig.instantFerry != 0 ? null
+                : PortalManager.findPortalSpot(level, anchor);
         PortalManager.resetArming(player.getUUID());
         GHOSTS.put(player.getUUID(),
                 new GhostData(level.dimension().identifier().toString(), anchor, portal));
@@ -233,8 +236,9 @@ public final class GhostState {
             for (Tag t : root.getListOrEmpty("ghosts")) {
                 if (!(t instanceof CompoundTag g)) continue;
                 BlockPos anchor = new BlockPos(g.getIntOr("x", 0), g.getIntOr("y", 64), g.getIntOr("z", 0));
-                BlockPos portal = new BlockPos(g.getIntOr("px", anchor.getX() + 3),
-                        g.getIntOr("py", anchor.getY()), g.getIntOr("pz", anchor.getZ()));
+                BlockPos portal = g.getInt("px").isEmpty() ? null
+                        : new BlockPos(g.getIntOr("px", 0),
+                                g.getIntOr("py", anchor.getY()), g.getIntOr("pz", anchor.getZ()));
                 GHOSTS.put(UUID.fromString(g.getStringOr("uuid", new UUID(0, 0).toString())),
                         new GhostData(g.getStringOr("dimension", "minecraft:overworld"), anchor, portal));
             }
@@ -256,9 +260,11 @@ public final class GhostState {
                 t.putInt("x", data.anchor().getX());
                 t.putInt("y", data.anchor().getY());
                 t.putInt("z", data.anchor().getZ());
-                t.putInt("px", data.portal().getX());
-                t.putInt("py", data.portal().getY());
-                t.putInt("pz", data.portal().getZ());
+                if (data.portal() != null) {
+                    t.putInt("px", data.portal().getX());
+                    t.putInt("py", data.portal().getY());
+                    t.putInt("pz", data.portal().getZ());
+                }
                 list.add(t);
             });
             CompoundTag root = new CompoundTag();

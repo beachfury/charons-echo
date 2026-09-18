@@ -337,8 +337,16 @@ public final class CharonCommands {
                             return 1;
                         })
                         .then(Commands.argument("player", EntityArgument.player()).executes(ctx -> {
-                            ServerPlayer self = admin(ctx);
-                            if (self == null) return 0;
+                            // The console and RCON are always trusted — server
+                            // owners must be able to rescue a soul without
+                            // logging in. In-game it takes a gamemaster.
+                            if (ctx.getSource().getEntity() instanceof ServerPlayer self
+                                    && !GraveyardRules.isGamemaster(self)) {
+                                ctx.getSource().sendSystemMessage(Component.literal(
+                                        "Only the Ferryman's masters may do that.")
+                                        .withStyle(ChatFormatting.RED));
+                                return 0;
+                            }
                             ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
                             if (!DeathHandler.revive(target)) {
                                 ctx.getSource().sendSystemMessage(Component.literal(
@@ -346,6 +354,10 @@ public final class CharonCommands {
                                         + target.getName().getString() + ".").withStyle(ChatFormatting.RED));
                                 return 0;
                             }
+                            ctx.getSource().sendSystemMessage(Component.literal(
+                                    target.getName().getString()
+                                    + " rejoins the living — grave restored.")
+                                    .withStyle(ChatFormatting.DARK_PURPLE));
                             return 1;
                         })))
                 .then(Commands.literal("builder")

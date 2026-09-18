@@ -63,26 +63,53 @@ public final class PortalManager {
     }
 
     /**
-     * Pick the death-portal spot: a safe column near the anchor but NEVER
-     * within 2.5 blocks of it (the ghost rises at the anchor — the portal
-     * must be a deliberate walk away).
+     * Pick the death-portal spot: a spot the ghost can actually REACH from
+     * where the body fell, but never within 2.5 blocks of it (the portal must
+     * be a deliberate walk away). Ghosts fly and drift through fluids but
+     * respect walls, so reachability is a flood of passable cells from the
+     * anchor — a heightmap surface above a cave, ocean, or lava lake is a
+     * door nobody can use. Returns null when no reachable spot exists (a
+     * sealed pocket, the void): the caller ferries the ghost directly.
      */
     public static BlockPos findPortalSpot(ServerLevel level, BlockPos anchor) {
         level.getChunk(anchor.getX() >> 4, anchor.getZ() >> 4);
-        for (int r = 3; r <= 8; r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    if (dx * dx + dz * dz < 7) continue; // < ~2.6 blocks from anchor
-                    BlockPos col = new BlockPos(anchor.getX() + dx, anchor.getY(), anchor.getZ() + dz);
-                    BlockPos safe = safeInColumn(level, col);
-                    if (safe != null) return safe;
+        final int reach = 12;
+        Set<Long> seen = new HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        for (BlockPos seed : new BlockPos[]{anchor, anchor.above()}) {
+            if (passable(level, seed) && seen.add(seed.asLong())) queue.add(seed);
+        }
+        BlockPos floating = null;
+        int minY = level.getMinY() + 1, maxY = level.getMinY() + level.getHeight() - 2;
+        while (!queue.isEmpty() && seen.size() < 6000) {
+            BlockPos pos = queue.poll();
+            int dx = pos.getX() - anchor.getX(), dy = pos.getY() - anchor.getY(),
+                    dz = pos.getZ() - anchor.getZ();
+            if (dx * dx + dy * dy + dz * dz >= 7 && passable(level, pos.above())) {
+                BlockPos floor = pos.below();
+                if (level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)
+                        && level.getBlockState(pos).isAir()
+                        && level.getBlockState(pos.above()).isAir()
+                        && level.getFluidState(pos).isEmpty()) {
+                    return pos; // breadth-first: the nearest standable spot wins
                 }
+                if (floating == null) floating = pos; // a hovering door beats no door
+            }
+            for (Direction dir : Direction.values()) {
+                BlockPos next = pos.relative(dir);
+                if (Math.abs(next.getX() - anchor.getX()) > reach
+                        || Math.abs(next.getY() - anchor.getY()) > reach
+                        || Math.abs(next.getZ() - anchor.getZ()) > reach) continue;
+                if (next.getY() < minY || next.getY() > maxY) continue;
+                if (passable(level, next) && seen.add(next.asLong())) queue.add(next);
             }
         }
-        int x = anchor.getX() + 3, z = anchor.getZ();
-        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-        return new BlockPos(x, Math.max(y, level.getMinY() + 1), z);
+        return floating;
+    }
+
+    /** A cell a flying ghost can occupy: no collision box (fluids count as open). */
+    private static boolean passable(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
     }
 
     private PortalManager() {}
@@ -104,6 +131,12 @@ public final class PortalManager {
             GhostState.GhostData data = GhostState.get(player.getUUID());
             if (data != null) {
                 String dim = player.level().dimension().identifier().toString();
+                if (dim.equals(data.dimension()) && data.portal() == null) {
+                    // A ghost with no door (nothing reachable where they fell,
+                    // or instant-ferry): Charon comes for them himself.
+                    if (player.tickCount % 20 == 0) crossToGraveyard(server, player);
+                    continue;
+                }
                 if (dim.equals(data.dimension())) {
                     // Offset from where the body fell — walking in is a
                     // deliberate act, never an accident of standing still.
@@ -168,7 +201,8 @@ public final class PortalManager {
                 cx, pos.getY() + 1.3, cz, 1, 0.5, 0.9, 0.5, 0.012);
     }
 
-    private static void crossToGraveyard(MinecraftServer server, ServerPlayer player) {
+    /** The ferry itself — also called directly when no portal could rise. */
+    static void crossToGraveyard(MinecraftServer server, ServerPlayer player) {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         var graveOpt = GraveManager.oldestUnclaimed(player.getUUID());
         if (graveyard == null || graveOpt.isEmpty()) {

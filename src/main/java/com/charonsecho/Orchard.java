@@ -1,7 +1,5 @@
 package com.charonsecho;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -849,10 +847,6 @@ public final class Orchard {
                 && Math.abs(t.base.getX() - x) <= radius
                 && Math.abs(t.base.getZ() - z) <= radius);
         if (removed) save();
-    }
-
-    public static List<Tree> trees() {
-        return List.copyOf(TREES);
     }
 
     public static Tree nearest(ServerLevel level, BlockPos pos) {

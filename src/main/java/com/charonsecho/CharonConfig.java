@@ -22,6 +22,8 @@ public final class CharonConfig {
     public static volatile int wakeTimeoutSeconds = 60;
     /** Leash radius (blocks) around the death anchor for ghosts. */
     public static volatile double ghostTetherRadius = 24.0;
+    /** Skip the ghost walk: 1 = ferry the dead the moment the wake ends. */
+    public static volatile int instantFerry = 0;
     /** Charon's toll without an obol: percent of the grave's XP taken. */
     public static volatile int tollXpPercent = 50;
     /** The Broker's price for one Stygian Seed, in emeralds. */
@@ -93,6 +95,7 @@ public final class CharonConfig {
             setMaxSize = clamp(inted(p, "set-max-size", setMaxSize), setDefaultSize, 1024);
             wakeTimeoutSeconds = clamp(inted(p, "wake-timeout-seconds", wakeTimeoutSeconds), 5, 600);
             ghostTetherRadius = clamp(inted(p, "ghost-tether-radius", (int) ghostTetherRadius), 8, 256);
+            instantFerry = clamp(inted(p, "instant-ferry", instantFerry), 0, 1);
             tollXpPercent = clamp(inted(p, "toll-xp-percent", tollXpPercent), 0, 100);
             orchardSeedPrice = clamp(inted(p, "orchard-seed-price", orchardSeedPrice), 1, 4096);
             orchardTreeCap = clamp(inted(p, "orchard-tree-cap", orchardTreeCap), 1, 64);
@@ -160,6 +163,13 @@ public final class CharonConfig {
             # Leash radius (blocks) around the death site while a ghost is
             # still in the living world.  Range 8-256.  Default 24.
             ghost-tether-radius=%d
+
+            # Skip the ghost walk entirely: the moment the wake ends, Charon
+            # ferries the dead straight to their grave in the Echo — no
+            # portal, no walk.  The wake itself (and obol donations at the
+            # body) still happen.  For packs that want death to move fast.
+            # 1 = instant ferry, 0 = the ghost walks (default).
+            instant-ferry=%d
 
             # Charon's toll: percent of the grave's XP levels taken when a
             # dead player pays with memory instead of an obol.
@@ -304,7 +314,8 @@ public final class CharonConfig {
             soul-gate-min-area=%d
             soul-gate-max-area=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
-                (int) ghostTetherRadius, tollXpPercent, orchardSeedPrice, orchardTreeCap,
+                (int) ghostTetherRadius, instantFerry,
+                tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
                 orchardDanceMultiplier, orchardFruitDance,

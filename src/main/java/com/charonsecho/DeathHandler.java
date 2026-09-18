@@ -110,6 +110,12 @@ public final class DeathHandler {
             GraveManager.markClaimed(g);
         });
         if (GhostState.isGhost(player.getUUID())) {
+            // A revived ghost loses flight and invulnerability — set them on
+            // solid ground first, not hovering over whatever killed them.
+            ServerLevel level = (ServerLevel) player.level();
+            BlockPos safe = PortalManager.findSafe(level, player.blockPosition());
+            player.teleportTo(level, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5,
+                    java.util.Set.of(), player.getYRot(), player.getXRot(), false);
             GhostState.remove(player);
         }
         player.sendSystemMessage(Component.literal("Your echo rejoins the living.")

@@ -79,7 +79,7 @@ public final class CharonsEcho implements ModInitializer {
             Crypt.load(server);
             Crypt.ensure(server);  // and the crypt is carved beneath it
             Church.dressLedger(server); // the Book of the Dead on its lectern
-            Broker.ensure(server);
+            Broker.ensure();
             DecorScatter.load(server);
             StudioMode.ensureStamped(server); // the studio always has its grid
             ServerLevel studio = server.getLevel(STUDIO_DIM);

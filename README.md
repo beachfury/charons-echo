@@ -87,13 +87,19 @@ settled ground; the front marches on.
 
 ## Requirements
 
-- Charon's Echo **1.1.1**
+- Charon's Echo **1.2.0**
 - Minecraft **26.2** (Fabric)
 - [Fabric API](https://modrinth.com/mod/fabric-api) — that's it;
   [sgui](https://github.com/Patbox/sgui) is bundled inside the jar
 
 Every timer, price, cap, and war knob lives in
-`config/charons-echo.properties`, written as a documented manual.
+`config/charons-echo.properties`, written as a documented manual. Modpacks
+that want death to move fast can set `instant-ferry=1` — the wake still
+happens, but the ghost walk is skipped and the dead arrive at their grave
+the moment it ends. Death portals only ever rise somewhere the ghost can
+actually reach; when nowhere qualifies (a sealed pocket, the void), Charon
+ferries the soul across automatically. `/charon revive <player>` works from
+the server console and RCON.
 
 ## Performance and world safety
 

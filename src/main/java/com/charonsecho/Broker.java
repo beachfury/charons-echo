@@ -59,7 +59,7 @@ public final class Broker {
     }
 
     /** Request the Broker at his post (fulfilled a few seconds after start). */
-    public static void ensure(MinecraftServer server) {
+    public static void ensure() {
         ensurePending = true;
     }
 

@@ -19,7 +19,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * The wake: for up to 60 seconds after death the body lies in state. The dead
@@ -49,10 +48,6 @@ public final class DeathWake {
                 rise(player);
             }
         });
-    }
-
-    public static boolean isLying(UUID uuid) {
-        return WAKES.containsKey(uuid);
     }
 
     public static void begin(ServerPlayer player, GraveManager.Grave grave) {
@@ -144,13 +139,24 @@ public final class DeathWake {
         }
     }
 
-    /** End the wake: the ghost rises where the body fell. */
+    /** End the wake: the ghost rises where the body fell — and if no portal
+     *  could rise there (or instant-ferry is on), Charon ferries them now. */
     static void rise(ServerPlayer player) {
         Wake wake = WAKES.remove(player.getUUID());
         if (wake == null) return;
         player.setInvulnerable(false);
         GraveManager.byId(wake.graveId()).ifPresent(grave ->
                 GhostState.apply(player, grave.pos));
+        GhostState.GhostData data = GhostState.get(player.getUUID());
+        if (data != null && data.portal() == null) {
+            if (CharonConfig.instantFerry == 0) {
+                player.sendSystemMessage(Component.literal(
+                        "No door could rise where you fell — Charon comes for you himself.")
+                        .withStyle(ChatFormatting.DARK_PURPLE));
+            }
+            PortalManager.crossToGraveyard(player.level().getServer(), player);
+            return;
+        }
         player.sendSystemMessage(Component.literal(
                 "Step into the soul-fire portal to follow your possessions.")
                 .withStyle(ChatFormatting.GRAY));

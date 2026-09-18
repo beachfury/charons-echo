@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0 — no soul left stranded
+
+- **Death portals can no longer rise somewhere you can't reach.** The portal
+  spot is now found by walking outward from where you fell, the way the ghost
+  itself moves — flying, drifting through water and lava, stopped by walls.
+  A cave death puts the door in the cave; an ocean-floor death puts it on the
+  sea bed beside you. The old fallback that could drop the portal on the
+  surface far above a cave or ocean is gone.
+- **When no door can rise, Charon comes himself.** Die somewhere with no
+  reachable portal spot at all — a sealed pocket, the void — and the moment
+  the wake ends you are ferried straight to your grave in the Echo. No more
+  stranded ghosts waiting for an admin.
+- **New config: `instant-ferry`** (default off). For packs that want death to
+  move fast: the moment the wake ends, the dead are ferried straight to their
+  grave — no portal, no ghost walk. The wake and obol donations at the body
+  still happen.
+- **`/charon revive <player>` now works from the server console and RCON** —
+  owners can rescue a soul without logging in. A revived ghost is also set on
+  the nearest solid ground first, instead of dropping out of ghost-flight
+  over whatever killed them.
+
 ## 1.1.1 — the ledgers run quiet
 
 - **Long-lived servers no longer pay for their whole history every tick.**
