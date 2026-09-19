@@ -1,5 +1,27 @@
 package com.charonsecho;
 
+import com.charonsecho.death.DeathHandler;
+import com.charonsecho.death.DeathWake;
+import com.charonsecho.death.GhostState;
+import com.charonsecho.death.GraveManager;
+import com.charonsecho.death.PortalManager;
+import com.charonsecho.gates.SoulGates;
+import com.charonsecho.graveyard.Church;
+import com.charonsecho.graveyard.Crypt;
+import com.charonsecho.graveyard.DecorScatter;
+import com.charonsecho.graveyard.GraveyardChunkGenerator;
+import com.charonsecho.graveyard.GraveyardPlots;
+import com.charonsecho.graveyard.GraveyardRules;
+import com.charonsecho.graveyard.GraveyardTerrain;
+import com.charonsecho.item.ObolRecipe;
+import com.charonsecho.npc.Broker;
+import com.charonsecho.npc.Scrivener;
+import com.charonsecho.orchard.Orchard;
+import com.charonsecho.studio.Gravekeepers;
+import com.charonsecho.studio.StudioMode;
+import com.charonsecho.studio.StudioSets;
+import com.charonsecho.war.War;
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;

@@ -23,7 +23,7 @@ import net.minecraft.nbt.NbtIo;
  * thread, then compression and disk I/O happen on one background writer.
  * Repeated writes to the same file coalesce to the newest snapshot.
  */
-final class CharonStorage {
+public final class CharonStorage {
 
     private static final long MAX_NBT_BYTES = 256L * 1024L * 1024L;
     private static final Object LOCK = new Object();
@@ -38,13 +38,13 @@ final class CharonStorage {
 
     private CharonStorage() {}
 
-    static boolean hasData(Path file) {
+    public static boolean hasData(Path file) {
         Path normalized = file.toAbsolutePath().normalize();
         return Files.exists(normalized) || Files.exists(backupOf(normalized));
     }
 
     /** Read the primary ledger, falling back to its last known-good backup. */
-    static CompoundTag read(Path file) throws IOException {
+    public static CompoundTag read(Path file) throws IOException {
         Path normalized = file.toAbsolutePath().normalize();
         try {
             return NbtIo.readCompressed(normalized, NbtAccounter.create(MAX_NBT_BYTES));
@@ -73,7 +73,7 @@ final class CharonStorage {
     }
 
     /** Queue an immutable NBT snapshot. A newer snapshot replaces pending work. */
-    static void write(Path file, CompoundTag snapshot) {
+    public static void write(Path file, CompoundTag snapshot) {
         Path normalized = file.toAbsolutePath().normalize();
         synchronized (LOCK) {
             PENDING.put(normalized, snapshot);

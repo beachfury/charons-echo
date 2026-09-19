@@ -1,5 +1,8 @@
 package com.charonsecho;
 
+import com.charonsecho.gates.SoulGates;
+import com.charonsecho.war.WarMarks;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;

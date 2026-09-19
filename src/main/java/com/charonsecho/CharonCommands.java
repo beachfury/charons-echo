@@ -1,5 +1,22 @@
 package com.charonsecho;
 
+import com.charonsecho.death.DeathHandler;
+import com.charonsecho.death.GraveManager;
+import com.charonsecho.graveyard.Church;
+import com.charonsecho.graveyard.DecorScatter;
+import com.charonsecho.graveyard.GraveUi;
+import com.charonsecho.graveyard.GraveyardPlots;
+import com.charonsecho.graveyard.GraveyardRules;
+import com.charonsecho.graveyard.Shrine;
+import com.charonsecho.item.CharonObol;
+import com.charonsecho.item.StygianItems;
+import com.charonsecho.npc.Broker;
+import com.charonsecho.orchard.Orchard;
+import com.charonsecho.studio.Gravekeepers;
+import com.charonsecho.studio.StudioMode;
+import com.charonsecho.studio.StudioSets;
+import com.charonsecho.war.War;
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -77,7 +94,7 @@ public final class CharonCommands {
 
     /** The Book of the Dead: every death, newest first, paged and searchable;
      *  the Death of the Week heads page one. Open to ALL players. */
-    static void openLedger(ServerPlayer player) {
+    public static void openLedger(ServerPlayer player) {
         var graves = new java.util.ArrayList<>(GraveManager.all());
         graves.removeIf(g -> g.plotIndex < 0);
         graves.sort((a, b) -> Long.compare(b.gameTime, a.gameTime));
