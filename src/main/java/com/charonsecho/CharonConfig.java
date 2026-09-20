@@ -49,6 +49,8 @@ public final class CharonConfig {
     public static volatile int orchardDanceMultiplier = 3;
     /** The harvest dance: group dancing speeds fruit (1 on, 0 off). */
     public static volatile int orchardFruitDance = 1;
+    /** The War Below the Moon: 1 = burning (default), 0 = peaceful graveyard. */
+    public static volatile int war = 1;
     /** Minutes of war service that earn a free resurrection. */
     public static volatile int warServiceMinutes = 15;
     /** Seconds shaved off the service clock per enemy downed. */
@@ -82,6 +84,14 @@ public final class CharonConfig {
     public static volatile int soulGateMinArea = 6;
     /** Largest aperture (interior air blocks) a Soul Gate may have. */
     public static volatile int soulGateMaxArea = 64;
+    /** Newest tolled items shown on the Vault's trophy wall. */
+    public static volatile int vaultDisplayLimit = 12;
+    /** The Keeper's ransom in Charon's Obols. */
+    public static volatile int vaultRansomObols = 2;
+    /** The Keeper's ransom in XP levels (the alternative price). */
+    public static volatile int vaultRansomLevels = 30;
+    /** Real days before an unransomed item is forfeited to Charon. */
+    public static volatile int vaultExpiryDays = 30;
 
     private CharonConfig() {}
 
@@ -110,6 +120,7 @@ public final class CharonConfig {
             motherAbsenceDays = clamp(inted(p, "mother-absence-days", motherAbsenceDays), 1, 3650);
             orchardDanceMultiplier = clamp(inted(p, "orchard-dance-multiplier", orchardDanceMultiplier), 1, 5);
             orchardFruitDance = clamp(inted(p, "orchard-fruit-dance", orchardFruitDance), 0, 1);
+            war = clamp(inted(p, "war", war), 0, 1);
             warServiceMinutes = clamp(inted(p, "war-service-minutes", warServiceMinutes), 1, 1440);
             warKillCreditSeconds = clamp(inted(p, "war-kill-credit-seconds", warKillCreditSeconds), 0, 3600);
             warDownedPenaltySeconds = clamp(inted(p, "war-downed-penalty-seconds", warDownedPenaltySeconds), 0, 3600);
@@ -127,6 +138,10 @@ public final class CharonConfig {
             soulGateMinArea = clamp(inted(p, "soul-gate-min-area", soulGateMinArea), 1, 256);
             soulGateMaxArea = clamp(inted(p, "soul-gate-max-area", soulGateMaxArea),
                     soulGateMinArea, 1024);
+            vaultDisplayLimit = clamp(inted(p, "vault-display-limit", vaultDisplayLimit), 0, 45);
+            vaultRansomObols = clamp(inted(p, "vault-ransom-obols", vaultRansomObols), 1, 64);
+            vaultRansomLevels = clamp(inted(p, "vault-ransom-levels", vaultRansomLevels), 1, 1000);
+            vaultExpiryDays = clamp(inted(p, "vault-expiry-days", vaultExpiryDays), 1, 3650);
 
             // Always write the full file back — documented, sectioned, current.
             Files.createDirectories(file.getParent());
@@ -233,6 +248,14 @@ public final class CharonConfig {
 
             # ---- The War Below the Moon ----
 
+            # The war itself.  1 = the eternal war burns at the newest field
+            # (default).  0 = a PEACEFUL graveyard: no armies muster, nothing
+            # fights, and the stone offers only the fare and the toll (no
+            # oath).  The keepers stay on as quiet groundskeepers; anyone
+            # under arms when the war goes quiet is stood down, and their
+            # service clock holds its place should the war return.
+            war=%d
+
             # Minutes of war service that earn a free resurrection.
             # Range 1-1440.  Default 15.  Should feel slower than paying but
             # faster than re-grinding the XP toll — that is the balance point.
@@ -316,17 +339,49 @@ public final class CharonConfig {
             # a grand mausoleum arch.  The frame around it can be any size.
             soul-gate-min-area=%d
             soul-gate-max-area=%d
+
+            # ---- Charon's Vault ----
+
+            # The Vault opens when a gamemaster posts the Vault Keeper: place
+            # a gilded blackstone block in the graveyard, CROUCH, and touch
+            # it with a Charon's Obol (the coin is spent; an upright touch
+            # tries to open a Soul Gate instead).  The Keeper stands on the
+            # plinth; the wall behind him displays the newest tolled items.
+            # With a Keeper posted, the stone offers a fourth way back: PAY
+            # IN KIND — Charon takes the most valuable item from the grave
+            # (material tier, then rarity, enchantments, and stack weight)
+            # and hangs it in the Vault; everything else returns to you.
+            # Breaking the plinth dismisses the Keeper and withdraws the
+            # offer; the ledger keeps its goods for when he is re-posted.
+
+            # Newest tolled items shown on the trophy wall.  Range 0-45.
+            # Default 12.  0 hides the wall; the ledger and ransom still work.
+            vault-display-limit=%d
+
+            # The Keeper's ransom, paid in Charon's Obols.  Range 1-64.
+            # Default 2.  The owner picks obols OR levels, not both.
+            vault-ransom-obols=%d
+
+            # The Keeper's ransom, paid in XP levels.  Range 1-1000.
+            # Default 30.  Keep it well above the toll — the Vault is the
+            # expensive road back, or nobody will fear it.
+            vault-ransom-levels=%d
+
+            # Real-world days before an unransomed item is forfeited to
+            # Charon forever.  Range 1-3650.  Default 30.
+            vault-expiry-days=%d
             """.formatted(setDefaultSize, setMaxSize, wakeTimeoutSeconds,
                 (int) ghostTetherRadius, instantFerry,
                 tollXpPercent, orchardSeedPrice, orchardTreeCap,
                 orchardStage1Ticks, orchardStage2Ticks, orchardFruitFaceTicks,
                 orchardFruitSealTicks, orchardDormancyTicks, motherAbsenceDays,
                 orchardDanceMultiplier, orchardFruitDance,
-                warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
+                war, warServiceMinutes, warKillCreditSeconds, warDownedPenaltySeconds,
                 warRestlessCap, warWindCap, warBreezeCap, warMobCap,
                 warGolemHealth, warGolemDamage,
                 warKits, warGolemCount, warTeams, warMarks, soulGates,
-                soulGateMinArea, soulGateMaxArea);
+                soulGateMinArea, soulGateMaxArea,
+                vaultDisplayLimit, vaultRansomObols, vaultRansomLevels, vaultExpiryDays);
     }
 
     private static int inted(Properties p, String key, int def) {

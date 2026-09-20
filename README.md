@@ -19,6 +19,8 @@ Built for the CurseForge **Minecraft ModJam 2026 — "Echoes of the Past."**
    - **Pay the fare** — one Charon's Obol (craft: echo shard + gold + soul sand,
      soul-bound through death; or buy from the Broker's orchard, below).
    - **Pay the toll** — a cut of your XP.
+   - **Pay in kind** — where a Vault Keeper is posted, Charon takes your most
+     valuable item to his trophy wall; ransom it back later, or lose it forever.
    - **Take the oath** — enlist in the War Below the Moon and pay with time.
 4. **Resurrection at the stone** — items, XP, and a portal home to where you fell.
    Beds never mattered.
@@ -93,7 +95,9 @@ settled ground; the front marches on.
   [sgui](https://github.com/Patbox/sgui) is bundled inside the jar
 
 Every timer, price, cap, and war knob lives in
-`config/charons-echo.properties`, written as a documented manual. Modpacks
+`config/charons-echo.properties`, written as a documented manual. Set
+`war=0` for a peaceful graveyard — no fighting, no oath, keepers stay on
+as groundskeepers. Modpacks
 that want death to move fast can set `instant-ferry=1` — the wake still
 happens, but the ghost walk is skipped and the dead arrive at their grave
 the moment it ends. Death portals only ever rise somewhere the ghost can

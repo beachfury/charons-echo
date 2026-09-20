@@ -144,6 +144,8 @@ public final class SoulGates {
                 return InteractionResult.PASS;
             }
             if (!CharonObol.isObol(player.getItemInHand(hand))) return InteractionResult.PASS;
+            // A CROUCHED obol-touch posts the Vault Keeper (see Vault), not a gate.
+            if (sp.isShiftKeyDown()) return InteractionResult.PASS;
             return consecrate(sp, level, hit.getBlockPos(), hand);
         });
         ServerTickEvents.END_SERVER_TICK.register(SoulGates::tick);

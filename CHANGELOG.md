@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- **Charon's Vault.** A gamemaster posts the **Vault Keeper** (an evoker who
+  audits rather than casts) by placing a gilded blackstone plinth in the
+  graveyard, crouching, and touching it with a Charon's Obol. With a Keeper
+  posted, the stone offers a fourth way back: **pay in kind** — Charon takes
+  the most valuable item from your grave and hangs it on the trophy wall
+  behind the Keeper; everything else returns to you. Owners ransom their
+  goods back from the Keeper (`vault-ransom-obols`, default 2, or
+  `vault-ransom-levels`, default 30); unclaimed goods are forfeited after
+  `vault-expiry-days` (default 30). The wall shows the newest
+  `vault-display-limit` items (default 12); the frames are fixed and cannot
+  be robbed. Breaking the plinth dismisses the Keeper — the ledger keeps
+  its goods for when he is re-posted.
+- **The level-0 toll hole is closed** (where a Vault stands): a player who
+  dies with no XP no longer rides the toll for free — Charon eyes their
+  goods instead. Without a Vault, behavior is unchanged.
+- **New config: `war`** (default 1). Set to 0 for a **peaceful graveyard**:
+  no armies muster, nothing fights, and the stone offers only the fare and
+  the toll — the oath is withdrawn. The keepers stay on as quiet
+  groundskeepers. Anyone under arms when the war goes quiet is stood down,
+  and their service clock holds its place should the war return.
+
 ## 1.2.0 — no soul left stranded
 
 - **Death portals can no longer rise somewhere you can't reach.** The portal

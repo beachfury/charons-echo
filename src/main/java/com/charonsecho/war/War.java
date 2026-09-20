@@ -9,6 +9,7 @@ import com.charonsecho.death.PortalManager;
 import com.charonsecho.graveyard.GraveyardPlots;
 import com.charonsecho.graveyard.GraveyardTerrain;
 import com.charonsecho.item.CharonObol;
+import com.charonsecho.npc.Vault;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -173,6 +174,18 @@ public final class War {
     private static void tick(MinecraftServer server) {
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
+
+        // war=0: a peaceful graveyard. No muster, no clocks, no oath — the
+        // keepers stay on as groundskeepers. Anyone still under arms when the
+        // war goes quiet is stood down (their clock holds, should it return).
+        if (CharonConfig.war == 0) {
+            if (server.getTickCount() % 20 == 0) {
+                for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                    if (isActive(p.getUUID())) quit(p);
+                }
+            }
+            return;
+        }
 
         if (server.getTickCount() % 20 == 0) {
             serviceTick(server, graveyard);
@@ -464,9 +477,13 @@ public final class War {
             if (CharonObol.isObol(inv.getItem(i))) { hasObol = true; break; }
         }
         int tollTake = grave.xpLevels * CharonConfig.tollXpPercent / 100;
+        // Payment in kind is on the table only where a Vault stands to hold it.
+        ItemStack kindTake = Vault.active() ? Vault.mostValuable(grave.items) : null;
 
         SimpleGui gui = new SimpleGui(MenuType.GENERIC_9x3, player, false);
         gui.setTitle(Component.literal("Charon waits"));
+        java.util.List<GuiElementBuilder> choices = new java.util.ArrayList<>();
+
         GuiElementBuilder fare = new GuiElementBuilder(Items.ECHO_SHARD)
                 .setName(Component.literal("Pay the fare").withStyle(ChatFormatting.DARK_AQUA))
                 .addLoreLine(Component.literal(hasObol
@@ -482,37 +499,78 @@ public final class War {
                 }
             });
         }
-        gui.setSlot(10, fare);
-        gui.setSlot(12, new GuiElementBuilder(Items.EXPERIENCE_BOTTLE)
-                .setName(Component.literal("Pay the toll").withStyle(ChatFormatting.GREEN))
-                .addLoreLine(Component.literal("Charon takes " + CharonConfig.tollXpPercent
-                        + "% of your memory (" + tollTake + " of " + grave.xpLevels + " levels).")
-                        .withStyle(ChatFormatting.GRAY))
-                .setCallback((i, t, a, g) -> {
-                    grave.xpLevels -= tollTake;
-                    GraveManager.save();
-                    g.close();
-                    player.sendSystemMessage(Component.literal(
-                            "Charon takes his share of the memory of your deeds.")
-                            .withStyle(ChatFormatting.DARK_PURPLE));
-                    PortalManager.resurrect(player, grave, clicked);
-                }));
-        gui.setSlot(14, new GuiElementBuilder(Items.IRON_SWORD)
-                .setName(Component.literal("Take the oath: KEEPERS").withStyle(ChatFormatting.AQUA))
-                .addLoreLine(Component.literal("Serve the yard. Hold the graves.")
-                        .withStyle(ChatFormatting.GRAY))
-                .addLoreLine(Component.literal("Serve your time, and passage is free.")
-                        .withStyle(ChatFormatting.DARK_GRAY))
-                .hideDefaultTooltip()
-                .setCallback((i, t, a, g) -> { g.close(); enlist(player, Faction.KEEPERS); }));
-        gui.setSlot(16, new GuiElementBuilder(Items.BOW)
-                .setName(Component.literal("Take the oath: RESTLESS").withStyle(ChatFormatting.RED))
-                .addLoreLine(Component.literal("The dead deserve better. Tear it down.")
-                        .withStyle(ChatFormatting.GRAY))
-                .addLoreLine(Component.literal("Serve your time, and passage is free.")
-                        .withStyle(ChatFormatting.DARK_GRAY))
-                .hideDefaultTooltip()
-                .setCallback((i, t, a, g) -> { g.close(); enlist(player, Faction.RESTLESS); }));
+        choices.add(fare);
+
+        GuiElementBuilder toll = new GuiElementBuilder(Items.EXPERIENCE_BOTTLE)
+                .setName(Component.literal("Pay the toll").withStyle(ChatFormatting.GREEN));
+        if (tollTake < 1 && kindTake != null) {
+            // A memory worth nothing is no payment while there are goods to
+            // eye — the level-0 toll is not a free ride past the Vault.
+            toll.addLoreLine(Component.literal("You have no memory worth taking —")
+                            .withStyle(ChatFormatting.DARK_GRAY))
+                    .addLoreLine(Component.literal("Charon eyes your goods instead.")
+                            .withStyle(ChatFormatting.DARK_GRAY));
+        } else {
+            toll.addLoreLine(Component.literal("Charon takes " + CharonConfig.tollXpPercent
+                            + "% of your memory (" + tollTake + " of " + grave.xpLevels + " levels).")
+                            .withStyle(ChatFormatting.GRAY))
+                    .setCallback((i, t, a, g) -> {
+                        grave.xpLevels -= tollTake;
+                        GraveManager.save();
+                        g.close();
+                        player.sendSystemMessage(Component.literal(
+                                "Charon takes his share of the memory of your deeds.")
+                                .withStyle(ChatFormatting.DARK_PURPLE));
+                        PortalManager.resurrect(player, grave, clicked);
+                    });
+        }
+        choices.add(toll);
+
+        if (kindTake != null) {
+            final ItemStack taken = kindTake;
+            choices.add(GuiElementBuilder.from(kindTake.copy())
+                    .setName(Component.literal("Pay in kind").withStyle(ChatFormatting.GOLD))
+                    .addLoreLine(Component.literal("Charon takes "
+                            + taken.getHoverName().getString() + " to his Vault.")
+                            .withStyle(ChatFormatting.GRAY))
+                    .addLoreLine(Component.literal("The rest returns to you.")
+                            .withStyle(ChatFormatting.GRAY))
+                    .addLoreLine(Component.literal("Ransom it later from the Vault Keeper.")
+                            .withStyle(ChatFormatting.DARK_GRAY))
+                    .hideDefaultTooltip()
+                    .setCallback((i, t, a, g) -> {
+                        if (!Vault.toll(player, grave, taken)) return; // goods changed under the click
+                        g.close();
+                        PortalManager.resurrect(player, grave, clicked);
+                    }));
+        }
+
+        // The oath is only offered while the war burns (war=1).
+        if (CharonConfig.war != 0) {
+            choices.add(new GuiElementBuilder(Items.IRON_SWORD)
+                    .setName(Component.literal("Take the oath: KEEPERS").withStyle(ChatFormatting.AQUA))
+                    .addLoreLine(Component.literal("Serve the yard. Hold the graves.")
+                            .withStyle(ChatFormatting.GRAY))
+                    .addLoreLine(Component.literal("Serve your time, and passage is free.")
+                            .withStyle(ChatFormatting.DARK_GRAY))
+                    .hideDefaultTooltip()
+                    .setCallback((i, t, a, g) -> { g.close(); enlist(player, Faction.KEEPERS); }));
+            choices.add(new GuiElementBuilder(Items.BOW)
+                    .setName(Component.literal("Take the oath: RESTLESS").withStyle(ChatFormatting.RED))
+                    .addLoreLine(Component.literal("The dead deserve better. Tear it down.")
+                            .withStyle(ChatFormatting.GRAY))
+                    .addLoreLine(Component.literal("Serve your time, and passage is free.")
+                            .withStyle(ChatFormatting.DARK_GRAY))
+                    .hideDefaultTooltip()
+                    .setCallback((i, t, a, g) -> { g.close(); enlist(player, Faction.RESTLESS); }));
+        }
+
+        // Centered across the middle row, however many ways Charon offers.
+        int[][] layouts = {{13}, {11, 15}, {10, 13, 16}, {10, 12, 14, 16}, {9, 11, 13, 15, 17}};
+        int[] slots = layouts[choices.size() - 1];
+        for (int i = 0; i < choices.size(); i++) {
+            gui.setSlot(slots[i], choices.get(i));
+        }
         gui.open();
     }
 

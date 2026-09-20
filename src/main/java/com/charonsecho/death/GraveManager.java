@@ -177,6 +177,13 @@ public final class GraveManager {
         saveCritical();
     }
 
+    /** A grave's item list was mutated (Charon took payment in kind): the
+     *  cached item encoding is stale and the change is inventory-critical. */
+    public static void itemsChanged(Grave grave) {
+        ENCODED_ITEMS.remove(grave.id);
+        saveCritical();
+    }
+
     private static void queueSnapshot() {
         if (server == null || !dirty) return;
         CharonStorage.write(dataFile(server), snapshot(server));
