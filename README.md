@@ -89,8 +89,9 @@ settled ground; the front marches on.
 
 ## Requirements
 
-- Charon's Echo **1.2.0**
-- Minecraft **26.2** (Fabric)
+- Charon's Echo **1.3.0**
+- Minecraft **26.3** (Fabric) — a **26.2** build is also provided
+  for servers not ready to move
 - [Fabric API](https://modrinth.com/mod/fabric-api) — that's it;
   [sgui](https://github.com/Patbox/sgui) is bundled inside the jar
 

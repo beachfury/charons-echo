@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — the Keeper takes his post
 
+- **Minecraft 26.3.** The mod now targets 26.3 (Fabric); a 26.2 build ships
+  alongside it for servers not ready to move. Under the hood 26.3 renamed a
+  wide band of APIs (signs, the chunk-generation pipeline, inventory
+  prediction, recipe storage) — behavior is unchanged.
 - **Charon's Vault.** A gamemaster posts the **Vault Keeper** (an evoker who
   audits rather than casts) by placing a gilded blackstone plinth in the
   graveyard, crouching, and touching it with a Charon's Obol. With a Keeper
