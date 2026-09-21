@@ -274,7 +274,7 @@ public final class PortalManager {
     public static void resurrect(ServerPlayer player, GraveManager.Grave grave, BlockPos clicked) {
         ServerLevel graveyard = (ServerLevel) player.level();
         for (ItemStack stack : grave.items) {
-            player.getInventory().placeItemBackInInventory(stack.copy());
+            player.getInventory().placeItemBackInInventory(stack.copy(), net.minecraft.util.Prediction.SERVER_ONLY);
         }
         player.setExperienceLevels(grave.xpLevels);
         player.experienceProgress = grave.xpProgress;

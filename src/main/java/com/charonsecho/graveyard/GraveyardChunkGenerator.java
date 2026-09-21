@@ -55,8 +55,12 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState randomState,
-                                                        StructureManager structureManager, ChunkAccess chunk) {
+    public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender,
+            RandomState randomState, StructureManager structureManager, BiomeManager biomeManager,
+            WorldGenRegion region, java.util.Set<Holder<Biome>> biomes) {
+        // 26.3 folded carving and surface-building into this one terrain
+        // stage — this generator always wrote its surface here anyway, and
+        // the graveyard has no caves, ever.
         ChunkPos cp = chunk.getPos();
         int baseX = cp.getMinBlockX(), baseZ = cp.getMinBlockZ();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -266,17 +270,6 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public void applyCarvers(WorldGenRegion region, long seed, RandomState rs, BiomeManager biomes,
-                             StructureManager structures, ChunkAccess chunk) {
-        // No caves, ever.
-    }
-
-    @Override
-    public void buildSurface(WorldGenRegion region, StructureManager structures, RandomState rs, ChunkAccess chunk) {
-        // Surface is written in fillFromNoise.
-    }
-
-    @Override
     public void spawnOriginalMobs(WorldGenRegion region) {
         // Gravekeepers are placed by the mod, not by worldgen.
     }
@@ -297,7 +290,8 @@ public final class GraveyardChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public void addDebugScreenInfo(List<String> lines, RandomState rs, BlockPos pos) {
+    public void addDebugScreenInfo(List<String> lines, RandomState rs, BlockPos pos,
+            net.minecraft.world.level.levelgen.densityfunction.SamplerContext ctx) {
         lines.add("Charon's Echo h=" + GraveyardTerrain.groundHeight(pos.getX(), pos.getZ()));
     }
 }

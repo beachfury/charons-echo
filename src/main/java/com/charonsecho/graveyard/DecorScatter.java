@@ -230,7 +230,7 @@ public final class DecorScatter {
      */
     private static String choosePiece(ServerLevel level, String category, int x, int z) {
         List<String> options = StudioMode.approvedTemplates(category,
-                level.getServer().getStructureManager(), StudioSets.setForRegion(x, z));
+                level.getServer().getStructureTemplateManager(), StudioSets.setForRegion(x, z));
         if (category.equals("big_tree")) {
             // The 6-chain elder never grows wild — every one is earned.
             options = options.stream().filter(o -> !o.equals(Orchard.elderTemplate())).toList();
@@ -241,7 +241,7 @@ public final class DecorScatter {
     }
 
     private static void paste(ServerLevel level, int x, int z, String piece, String category) {
-        var template = level.getServer().getStructureManager()
+        var template = level.getServer().getStructureTemplateManager()
                 .get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, piece));
         if (template.isEmpty()) return;
         int below = StudioMode.belowGradeOf(template.get(), category);

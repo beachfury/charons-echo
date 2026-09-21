@@ -66,7 +66,7 @@ public final class Scrivener {
                 Component.literal("and the stone will keep it forever.")
                         .withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC))));
         if (!player.getInventory().add(book)) {
-            player.drop(book, false);
+            player.drop(book, false, net.minecraft.util.Prediction.SERVER_ONLY);
         }
         player.level().playSound(null, player.blockPosition(),
                 SoundEvents.BOOK_PAGE_TURN, SoundSource.NEUTRAL, 1f, 0.7f);
@@ -121,7 +121,7 @@ public final class Scrivener {
         clerk.setCustomName(Component.literal("the Scrivener").withStyle(ChatFormatting.DARK_AQUA));
         clerk.setCustomNameVisible(true);
         clerk.setNoAi(true);
-        clerk.setInvulnerable(true);
+        clerk.setPermanentlyInvulnerable(true);
         clerk.setSilent(true);
         clerk.setPersistenceRequired();
         graveyard.addFreshEntity(clerk);

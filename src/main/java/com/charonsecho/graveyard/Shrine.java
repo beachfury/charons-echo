@@ -28,7 +28,7 @@ public final class Shrine {
 
     public static int place(ServerPlayer player) {
         ServerLevel level = (ServerLevel) player.level();
-        var opt = level.getServer().getStructureManager().get(
+        var opt = level.getServer().getStructureTemplateManager().get(
                 Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, "spawn_shrine"));
         if (opt.isEmpty()) {
             player.sendSystemMessage(Component.literal(

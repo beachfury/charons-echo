@@ -3,7 +3,6 @@ package com.charonsecho.item;
 import com.charonsecho.CharonsEcho;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -88,16 +87,33 @@ public final class ObolRecipe {
             Field recipesField = RecipeManager.class.getDeclaredField("recipes");
             recipesField.setAccessible(true);
             RecipeMap current = (RecipeMap) recipesField.get(manager);
-            List<RecipeHolder<?>> all = new ArrayList<>(current.values());
+            // 26.3: RecipeMap.create wants a registry lookup, not a list —
+            // so the merged map is rebuilt through the same private pair of
+            // collections the loader fills (byType, byKey).
+            Field byTypeField = RecipeMap.class.getDeclaredField("byType");
+            Field byKeyField = RecipeMap.class.getDeclaredField("byKey");
+            byTypeField.setAccessible(true);
+            byKeyField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            var byType = com.google.common.collect.LinkedHashMultimap.create(
+                    (com.google.common.collect.Multimap<net.minecraft.world.item.crafting.RecipeType<?>,
+                            RecipeHolder<?>>) byTypeField.get(current));
+            @SuppressWarnings("unchecked")
+            var byKey = new java.util.HashMap<>(
+                    (java.util.Map<ResourceKey<Recipe<?>>, RecipeHolder<?>>) byKeyField.get(current));
             boolean changed = false;
             for (RecipeHolder<?> h : List.of(holder, fruitHolder)) {
-                if (all.stream().noneMatch(x -> x.id().equals(h.id()))) {
-                    all.add(h);
+                if (!byKey.containsKey(h.id())) {
+                    byKey.put(h.id(), h);
+                    byType.put(h.value().getType(), h);
                     changed = true;
                 }
             }
             if (changed) {
-                recipesField.set(manager, RecipeMap.create(all));
+                var ctor = RecipeMap.class.getDeclaredConstructor(
+                        com.google.common.collect.Multimap.class, java.util.Map.class);
+                ctor.setAccessible(true);
+                recipesField.set(manager, ctor.newInstance(byType, byKey));
                 manager.finalizeRecipeLoading(server.getWorldData().enabledFeatures());
             }
         } catch (Exception e) {

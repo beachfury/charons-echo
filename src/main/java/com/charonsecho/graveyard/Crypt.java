@@ -25,6 +25,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -222,12 +223,11 @@ public final class Crypt {
     private static void sealSign(ServerLevel graveyard, BlockPos signPos) {
         graveyard.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 2);
         if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(1, Component.literal("The year's halls"))
-                    .setMessage(2, Component.literal("lie sealed beyond."))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
+            SignText text = com.charonsecho.Signs.text(Component.empty(),
+                    Component.literal("The year's halls"),
+                    Component.literal("lie sealed beyond.")).withGlowingText(true);
+            sign.setText(text, SignTextSlot.FRONT);
+            sign.setText(text, SignTextSlot.BACK);
             sign.setChanged();
         }
     }
@@ -284,12 +284,11 @@ public final class Crypt {
         if (graveyard.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
             String label = LocalDate.parse(ym + "-01")
                     .format(DateTimeFormatter.ofPattern("MMMM yyyy"));
-            SignText text = new SignText()
-                    .setMessage(1, Component.literal("The Hall of"))
-                    .setMessage(2, Component.literal(label))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
+            SignText text = com.charonsecho.Signs.text(Component.empty(),
+                    Component.literal("The Hall of"),
+                    Component.literal(label)).withGlowingText(true);
+            sign.setText(text, SignTextSlot.FRONT);
+            sign.setText(text, SignTextSlot.BACK);
             sign.setChanged();
         }
     }

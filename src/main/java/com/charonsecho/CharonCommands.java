@@ -112,7 +112,7 @@ public final class CharonCommands {
     }
 
     private static int giveObols(ServerPlayer player, int count) {
-        player.getInventory().placeItemBackInInventory(CharonObol.create(count));
+        player.getInventory().placeItemBackInInventory(CharonObol.create(count), net.minecraft.util.Prediction.SERVER_ONLY);
         player.sendSystemMessage(Component.literal(
                 count == 1 ? "An obol settles into your palm — the Ferryman's fare."
                            : count + " obols settle into your palm — the Ferryman's fare.")
@@ -286,7 +286,7 @@ public final class CharonCommands {
                                             StudioSets.SetInfo s = StudioSets.get(StringArgumentType.getString(ctx, "name"));
                                             if (s == null) return err(p, "No such set.");
                                             int stamped = StudioMode.approveSetPieces(s.name,
-                                                    p.level().getServer().getStructureManager());
+                                                    p.level().getServer().getStructureTemplateManager());
                                             s.approved = true;
                                             s.trusted = true; // approval implies the lock
                                             s.dirty = false;
@@ -677,7 +677,7 @@ public final class CharonCommands {
                     .withStyle(ChatFormatting.RED));
             return 0;
         }
-        var manager = admin.level().getServer().getStructureManager();
+        var manager = admin.level().getServer().getStructureTemplateManager();
         boolean exported = manager.get(net.minecraft.resources.Identifier
                 .fromNamespaceAndPath(CharonsEcho.MOD_ID, name)).isPresent();
         StudioMode.markApproved(name);

@@ -27,6 +27,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.storage.LevelResource;
 
 /**
@@ -165,13 +166,12 @@ public final class StudioSets {
         BlockPos signPos = new BlockPos(set.originX + 1, surfaceY(studio, set.originX + 1, z1) + 2, z1);
         studio.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
         if (studio.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(0, Component.literal("Set: " + set.name))
-                    .setMessage(1, Component.literal("steward: " + set.stewardName))
-                    .setMessage(2, Component.literal(set.size + "x" + set.size))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
+            SignText text = com.charonsecho.Signs.text(
+                    Component.literal("Set: " + set.name),
+                    Component.literal("steward: " + set.stewardName),
+                    Component.literal(set.size + "x" + set.size)).withGlowingText(true);
+            sign.setText(text, SignTextSlot.FRONT);
+            sign.setText(text, SignTextSlot.BACK);
             sign.setChanged();
         }
     }

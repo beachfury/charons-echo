@@ -143,7 +143,7 @@ public final class Orchard {
 
     /** The big tree with the most chains is the elder; the other is common. */
     public static void detectElder(MinecraftServer server) {
-        var manager = server.getStructureManager();
+        var manager = server.getStructureTemplateManager();
         List<String> bigs = StudioMode.approvedTemplates("big_tree", manager, "default");
         int best = -1;
         for (String name : bigs) {
@@ -398,7 +398,7 @@ public final class Orchard {
      * not fortune).
      */
     static void advanceStage(ServerLevel level, Tree tree, boolean natural) {
-        var manager = level.getServer().getStructureManager();
+        var manager = level.getServer().getStructureTemplateManager();
         String next;
         if (tree.stage == 0) {
             List<String> options = StudioMode.approvedTemplates("tree", manager, "default");
@@ -471,7 +471,7 @@ public final class Orchard {
 
     /** The big-stage roll: elder seeds breed true; plain seeds face the curve. */
     private static String rollBigTemplate(ServerLevel level, Tree tree, boolean natural) {
-        var manager = level.getServer().getStructureManager();
+        var manager = level.getServer().getStructureTemplateManager();
         List<String> bigs = StudioMode.approvedTemplates("big_tree", manager, "default");
         if (bigs.isEmpty()) return "";
         String common = bigs.stream().filter(n -> !n.equals(elderTemplateName)).findFirst()

@@ -275,7 +275,7 @@ public final class Vault {
             keeper.setCustomName(Component.literal("the Vault Keeper").withStyle(ChatFormatting.GOLD));
             keeper.setCustomNameVisible(true);
             keeper.setNoAi(true);
-            keeper.setInvulnerable(true);
+            keeper.setPermanentlyInvulnerable(true);
             keeper.setSilent(true);
             keeper.setPersistenceRequired();
             keeper.addTag(TAG);
@@ -341,7 +341,7 @@ public final class Vault {
                             new AABB(hang), f -> true).isEmpty()) continue;
                     ItemFrame frame = new ItemFrame(level, hang, facing);
                     frame.setItem(ENTRIES.get(hung).item.copy());
-                    frame.setInvulnerable(true);
+                    frame.setPermanentlyInvulnerable(true);
                     frame.setSilent(true);
                     frame.addTag(TAG);
                     level.addFreshEntity(frame);
@@ -428,7 +428,7 @@ public final class Vault {
     private static void release(ServerPlayer player, Entry e) {
         if (!ENTRIES.remove(e)) return; // already ransomed or forfeited
         save();
-        player.getInventory().placeItemBackInInventory(e.item.copy());
+        player.getInventory().placeItemBackInInventory(e.item.copy(), net.minecraft.util.Prediction.SERVER_ONLY);
         if (player.level() instanceof ServerLevel level) {
             if (level.dimension() == CharonsEcho.GRAVEYARD_DIM) refreshWall(level);
             level.playSound(null, player.blockPosition(),

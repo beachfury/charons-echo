@@ -104,7 +104,7 @@ public final class DeathHandler {
         if (grave.isEmpty() && !GhostState.isGhost(player.getUUID())) return false;
         grave.ifPresent(g -> {
             for (ItemStack stack : g.items) {
-                player.getInventory().placeItemBackInInventory(stack.copy());
+                player.getInventory().placeItemBackInInventory(stack.copy(), net.minecraft.util.Prediction.SERVER_ONLY);
             }
             player.setExperienceLevels(g.xpLevels);
             player.experienceProgress = g.xpProgress;

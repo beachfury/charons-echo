@@ -86,7 +86,7 @@ public final class Church {
         if (placed) return;
         ServerLevel graveyard = server.getLevel(CharonsEcho.GRAVEYARD_DIM);
         if (graveyard == null) return;
-        var template = server.getStructureManager()
+        var template = server.getStructureTemplateManager()
                 .get(Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, "church"));
         if (template.isEmpty()) return;
 

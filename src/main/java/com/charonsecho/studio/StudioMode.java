@@ -19,6 +19,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -421,7 +422,7 @@ public final class StudioMode {
      * Never touches a plot containing any block — WIP is sacred.
      */
     public static void restorePlots(ServerLevel level) {
-        var manager = level.getServer().getStructureManager();
+        var manager = level.getServer().getStructureTemplateManager();
         int restored = 0;
         for (StudioPlot p : allPlots()) {
             final StudioPlot fp = p;
@@ -727,13 +728,12 @@ public final class StudioMode {
         BlockPos signPos = new BlockPos(x0 + 2, y + 1, z1);
         level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(0, Component.literal("Set: default"))
-                    .setMessage(1, Component.literal("the shipped"))
-                    .setMessage(2, Component.literal("baseline"))
-                    .setHasGlowingText(true);
-            sign.setText(text, true);
-            sign.setText(text, false);
+            SignText text = com.charonsecho.Signs.text(
+                    Component.literal("Set: default"),
+                    Component.literal("the shipped"),
+                    Component.literal("baseline")).withGlowingText(true);
+            sign.setText(text, SignTextSlot.FRONT);
+            sign.setText(text, SignTextSlot.BACK);
             sign.setChanged();
         }
     }
@@ -768,12 +768,12 @@ public final class StudioMode {
         BlockPos signPos = new BlockPos(p.x0(), y + 1, p.z0() + p.d() + 2);
         level.setBlock(signPos, Blocks.PALE_OAK_SIGN.defaultBlockState(), 3);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            SignText text = new SignText()
-                    .setMessage(0, Component.literal(p.name()))
-                    .setMessage(1, Component.literal(p.w() + "x" + p.d() + ", max h " + p.h()))
-                    .setMessage(2, Component.literal("lime = NW anchor"))
-                    .setMessage(3, Component.literal("orange = south"));
-            sign.setText(text, true);
+            SignText text = com.charonsecho.Signs.text(
+                    Component.literal(p.name()),
+                    Component.literal(p.w() + "x" + p.d() + ", max h " + p.h()),
+                    Component.literal("lime = NW anchor"),
+                    Component.literal("orange = south"));
+            sign.setText(text, SignTextSlot.FRONT);
             sign.setChanged();
         }
     }
@@ -832,7 +832,7 @@ public final class StudioMode {
         int y = surfaceY(level, plot.x0(), plot.z0());
         BlockPos start = new BlockPos(plot.x0(), y + 1 - depth, plot.z0());
         Vec3i size = new Vec3i(plot.w(), plot.h() + depth, plot.d());
-        StructureTemplateManager manager = level.getServer().getStructureManager();
+        StructureTemplateManager manager = level.getServer().getStructureTemplateManager();
         Identifier id = Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, templateId(set, plot.name()));
         StructureTemplate template = manager.getOrCreate(id);
         template.fillFromWorld(level, start, size, false,
@@ -856,7 +856,7 @@ public final class StudioMode {
 
     public static void place(ServerPlayer player, String name) {
         ServerLevel level = (ServerLevel) player.level();
-        StructureTemplateManager manager = level.getServer().getStructureManager();
+        StructureTemplateManager manager = level.getServer().getStructureTemplateManager();
         Identifier id = Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, name);
         var template = manager.get(id);
         if (template.isEmpty()) {

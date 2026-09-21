@@ -56,7 +56,7 @@ public final class DeathWake {
 
     public static void begin(ServerPlayer player, GraveManager.Grave grave) {
         WAKES.put(player.getUUID(), new Wake(grave.id, player.tickCount));
-        player.setInvulnerable(true);
+        player.setPermanentlyInvulnerable(true);
         openGui(player, grave);
     }
 
@@ -148,7 +148,7 @@ public final class DeathWake {
     static void rise(ServerPlayer player) {
         Wake wake = WAKES.remove(player.getUUID());
         if (wake == null) return;
-        player.setInvulnerable(false);
+        player.setPermanentlyInvulnerable(false);
         GraveManager.byId(wake.graveId()).ifPresent(grave ->
                 GhostState.apply(player, grave.pos));
         GhostState.GhostData data = GhostState.get(player.getUUID());

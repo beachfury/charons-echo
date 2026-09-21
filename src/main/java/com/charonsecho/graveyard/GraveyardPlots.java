@@ -17,6 +17,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlac
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
@@ -486,7 +487,7 @@ public final class GraveyardPlots {
      */
     private static void fenceField(ServerLevel level, int fieldIndex) {
         BlockPos c = fieldCenter(fieldIndex);
-        var manager = level.getServer().getStructureManager();
+        var manager = level.getServer().getStructureTemplateManager();
         String set = StudioSets.setForRegion(c.getX(), c.getZ());
 
         boolean gate = placeGate(level, fieldIndex, manager, set);
@@ -518,23 +519,22 @@ public final class GraveyardPlots {
     static void writeFieldSign(SignBlockEntity sign, int fieldIndex) {
         // Hanging signs clip long lines into nothing — every line stays short.
         // Layout: "Field N" / opening date (real calendar) / soul count / "† date" when full.
-        String opened = sign.getFrontText().getMessage(1, false).getString();
+        SignText front = sign.getText(SignTextSlot.FRONT);
+        String opened = com.charonsecho.Signs.line(front, 1).getString();
         if (opened.isEmpty() || !Character.isDigit(opened.charAt(0))) opened = shortDate();
-        String closed = sign.getFrontText().getMessage(3, false).getString();
+        String closed = com.charonsecho.Signs.line(front, 3).getString();
         int souls = 0;
         for (GraveManager.Grave g : GraveManager.all()) {
             if (g.plotIndex >= 0 && g.plotIndex / PER_FIELD == fieldIndex) souls++;
         }
-        SignText text = new SignText()
-                .setMessage(0, Component.literal("Field " + (fieldIndex + 1)))
-                .setMessage(1, Component.literal(opened))
-                .setMessage(2, Component.literal(souls + (souls == 1 ? " soul" : " souls")))
-                .setHasGlowingText(true);
-        if (closed.startsWith("†")) {
-            text = text.setMessage(3, Component.literal(closed));
-        }
-        sign.setText(text, true);
-        sign.setText(text, false);
+        SignText text = com.charonsecho.Signs.text(
+                Component.literal("Field " + (fieldIndex + 1)),
+                Component.literal(opened),
+                Component.literal(souls + (souls == 1 ? " soul" : " souls")),
+                closed.startsWith("†") ? Component.literal(closed) : Component.empty())
+                .withGlowingText(true);
+        sign.setText(text, SignTextSlot.FRONT);
+        sign.setText(text, SignTextSlot.BACK);
         sign.setChanged();
     }
 
@@ -542,11 +542,10 @@ public final class GraveyardPlots {
     private static void markFieldFull(ServerLevel level, int fieldIndex) {
         SignBlockEntity sign = findFieldSign(level, fieldIndex);
         if (sign == null) return;
-        SignText updated = sign.getFrontText()
-                .setMessage(3, Component.literal("† " + shortDate()))
-                .setHasGlowingText(true);
-        sign.setText(updated, true);
-        sign.setText(updated, false);
+        SignText updated = com.charonsecho.Signs.withLine(sign.getText(SignTextSlot.FRONT),
+                3, Component.literal("† " + shortDate())).withGlowingText(true);
+        sign.setText(updated, SignTextSlot.FRONT);
+        sign.setText(updated, SignTextSlot.BACK);
         sign.setChanged();
         writeFieldSign(sign, fieldIndex);
     }
@@ -800,7 +799,7 @@ public final class GraveyardPlots {
     static void placeHeadstone(ServerLevel level, GraveManager.Grave grave) {
         BlockPos o = plotOrigin(grave.plotIndex);
 
-        var manager = level.getServer().getStructureManager();
+        var manager = level.getServer().getStructureTemplateManager();
         if (grave.stoneName.isEmpty()) {
             String set = StudioSets.setForRegion(o.getX(), o.getZ());
             String cls = pickStoneClass(grave, plotRelief(grave.plotIndex));
@@ -882,7 +881,7 @@ public final class GraveyardPlots {
                 for (int dy = 1 - depth; dy <= 5; dy++) {
                     BlockPos pos = new BlockPos(x, y + dy, z);
                     if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
-                        sign.setText(epitaphText(grave), true);
+                        sign.setText(epitaphText(grave), SignTextSlot.FRONT);
                         sign.setChanged();
                         var state = level.getBlockState(pos);
                         level.sendBlockUpdated(pos, state, state, 3);
@@ -913,7 +912,7 @@ public final class GraveyardPlots {
         level.setBlock(signPos, Blocks.PALE_OAK_WALL_SIGN.defaultBlockState()
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.WEST), 2);
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity sign) {
-            sign.setText(epitaphText(grave), true);
+            sign.setText(epitaphText(grave), SignTextSlot.FRONT);
             sign.setChanged();
         }
     }
@@ -930,11 +929,11 @@ public final class GraveyardPlots {
         String date = grave.epochMillis > 0
                 ? new java.text.SimpleDateFormat("MMM d, yyyy").format(new java.util.Date(grave.epochMillis))
                 : "Day " + (grave.gameTime / 24000L);
-        return new SignText()
-                .setMessage(0, Component.literal(grave.ownerName))
-                .setMessage(1, Component.literal(date))
-                .setMessage(2, Component.literal(l3))
-                .setMessage(3, Component.literal(l4));
+        return com.charonsecho.Signs.text(
+                Component.literal(grave.ownerName),
+                Component.literal(date),
+                Component.literal(l3),
+                Component.literal(l4));
     }
 
     /** Re-terrace and re-paste every grave's headstone from its record — run
@@ -961,7 +960,8 @@ public final class GraveyardPlots {
                 for (int dy = 1 - depth; dy <= 5; dy++) {
                     BlockPos pos = new BlockPos(x, y + dy, z);
                     if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
-                        sign.setText(sign.getFrontText().setHasGlowingText(true), true);
+                        sign.setText(sign.getText(SignTextSlot.FRONT).withGlowingText(true),
+                                SignTextSlot.FRONT);
                         sign.setChanged();
                         var state = level.getBlockState(pos);
                         level.sendBlockUpdated(pos, state, state, 3);

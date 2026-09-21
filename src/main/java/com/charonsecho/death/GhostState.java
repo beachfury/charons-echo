@@ -217,7 +217,7 @@ public final class GhostState {
                 } else if (dist > tetherR()) {
                     Vec3 pull = anchor.subtract(player.position()).normalize().scale(0.35);
                     player.setDeltaMovement(player.getDeltaMovement().scale(0.4).add(pull));
-                    player.hurtMarked = true;
+                    player.syncVelocity = true;
                     // The world darkens at the edge of the leash.
                     player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 50, 0, true, false, false));
                     if (player.tickCount % 40 == 0) {

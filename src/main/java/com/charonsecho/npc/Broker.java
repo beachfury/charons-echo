@@ -139,7 +139,7 @@ public final class Broker {
         trader.setCustomName(Component.literal("the Broker").withStyle(ChatFormatting.GOLD));
         trader.setCustomNameVisible(true);
         trader.setNoAi(true);
-        trader.setInvulnerable(true);
+        trader.setPermanentlyInvulnerable(true);
         trader.setSilent(true);
         trader.setPersistenceRequired();
         graveyard.addFreshEntity(trader);
@@ -177,7 +177,7 @@ public final class Broker {
             trader.setCustomName(Component.literal("the Broker").withStyle(ChatFormatting.GOLD));
             trader.setCustomNameVisible(true);
             trader.setNoAi(true);
-            trader.setInvulnerable(true);
+            trader.setPermanentlyInvulnerable(true);
             trader.setSilent(true);
             trader.setPersistenceRequired();
             level.addFreshEntity(trader);
@@ -230,7 +230,7 @@ public final class Broker {
         }
         ItemStack seed = StygianItems.seed(1);
         if (!inv.add(seed)) {
-            player.drop(seed, false);
+            player.drop(seed, false, net.minecraft.util.Prediction.SERVER_ONLY);
         }
         player.level().playSound(null, player.blockPosition(),
                 SoundEvents.VILLAGER_TRADE, SoundSource.NEUTRAL, 1f, 0.8f);
