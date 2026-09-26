@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2 — the Ferryman's mint
+
+- **The direct obol recipe is gone.** Echo shard + gold + soul sand no longer
+  crafts a Charon's Obol — it made the coin too cheap and the orchard
+  pointless. The orchard is now the ONLY mint: grow a Stygian tree (seeds
+  from the Broker) or harvest the wild elders in the graveyard, and craft
+  **four Tollfruit into one obol**, as ever. Recipe books that had learned
+  the old recipe simply forget it; nothing else changes.
+
 ## 1.3.1 — hotfix: modded clients no longer crash on join (26.3)
 
 - **Fixed: every Fabric-API client was kicked at spawn** ("Couldn't place

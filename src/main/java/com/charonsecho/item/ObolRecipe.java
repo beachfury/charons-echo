@@ -26,7 +26,10 @@ import net.minecraft.world.item.crafting.ShapelessRecipe;
  * the recipe RESULT carries full data components via ItemStackTemplate, which
  * a datapack recipe JSON can't do for our marked item):
  *
- *   1 echo shard + 1 gold ingot + 1 soul sand  →  1 Charon's Obol
+ *   4 Tollfruit  →  1 Charon's Obol
+ *
+ * The orchard is the ONLY way to mint an obol — a cheap direct recipe made
+ * the trees pointless, so it was withdrawn (1.3.2).
  */
 public final class ObolRecipe {
 
@@ -67,17 +70,6 @@ public final class ObolRecipe {
 
     private static void inject(MinecraftServer server) {
         try {
-            ShapelessRecipe recipe = new ShapelessRecipe(
-                    new Recipe.CommonInfo(true),
-                    new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, "charons_echo"),
-                    ItemStackTemplate.fromNonEmptyStack(CharonObol.create(1)),
-                    List.of(Ingredient.of(Items.ECHO_SHARD),
-                            Ingredient.of(Items.GOLD_INGOT),
-                            Ingredient.of(Items.SOUL_SAND)));
-            RecipeHolder<?> holder = new RecipeHolder<>(
-                    ResourceKey.create(Registries.RECIPE,
-                            Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, "obol")),
-                    recipe);
             RecipeHolder<?> fruitHolder = new RecipeHolder<>(
                     ResourceKey.create(Registries.RECIPE,
                             Identifier.fromNamespaceAndPath(CharonsEcho.MOD_ID, "tollfruit_obol")),
@@ -102,7 +94,7 @@ public final class ObolRecipe {
             var byKey = new java.util.HashMap<>(
                     (java.util.Map<ResourceKey<Recipe<?>>, RecipeHolder<?>>) byKeyField.get(current));
             boolean changed = false;
-            for (RecipeHolder<?> h : List.of(holder, fruitHolder)) {
+            for (RecipeHolder<?> h : List.of(fruitHolder)) {
                 if (!byKey.containsKey(h.id())) {
                     byKey.put(h.id(), h);
                     byType.put(h.value().getType(), h);
@@ -114,7 +106,7 @@ public final class ObolRecipe {
                         com.google.common.collect.Multimap.class, java.util.Map.class);
                 ctor.setAccessible(true);
                 RecipeMap merged = (RecipeMap) ctor.newInstance(byType, byKey);
-                carryFabricSyncIndex(current, merged, List.of(holder, fruitHolder));
+                carryFabricSyncIndex(current, merged, List.of(fruitHolder));
                 recipesField.set(manager, merged);
                 manager.finalizeRecipeLoading(server.getWorldData().enabledFeatures());
             }

@@ -198,8 +198,10 @@ public final class CharonConfig {
             # ---- The Stygian Orchard ----
 
             # The Broker's price for one Stygian Seed, in emeralds.
-            # Range 1-4096.  Default 32.  Keep it above the cost of crafting
-            # one obol — a tree pays out forever.
+            # Range 1-4096.  Default 32.  The orchard is the ONLY mint for
+            # obols (4 Tollfruit = 1 coin; wild elders in the graveyard bear
+            # fruit too) — a tree pays out forever, so price seeds like the
+            # investment they are.
             orchard-seed-price=%d
 
             # Planted trees one player may have at once.  Range 1-64.

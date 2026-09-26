@@ -16,8 +16,9 @@ Built for the CurseForge **Minecraft ModJam 2026 — "Echoes of the Past."**
    where you fell, until you walk into the portal.
 3. **You arrive at your own grave** in Charon's Echo, and touch the stone.
    Charon offers three ways back:
-   - **Pay the fare** — one Charon's Obol (craft: echo shard + gold + soul sand,
-     soul-bound through death; or buy from the Broker's orchard, below).
+   - **Pay the fare** — one Charon's Obol, soul-bound through death. Obols
+     are minted only from the orchard: four Tollfruit make one coin (see
+     The Stygian Orchard, below).
    - **Pay the toll** — a cut of your XP.
    - **Pay in kind** — where a Vault Keeper is posted, Charon takes your most
      valuable item to his trophy wall; ransom it back later, or lose it forever.
@@ -89,7 +90,7 @@ settled ground; the front marches on.
 
 ## Requirements
 
-- Charon's Echo **1.3.1**
+- Charon's Echo **1.3.2**
 - Minecraft **26.3** (Fabric) — a **26.2** build is also provided
   for servers not ready to move
 - [Fabric API](https://modrinth.com/mod/fabric-api) — that's it;
