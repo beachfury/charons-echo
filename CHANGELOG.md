@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1 — hotfix: modded clients no longer crash on join (26.3)
+
+- **Fixed: every Fabric-API client was kicked at spawn** ("Couldn't place
+  player in world" / "Invalid player data") on 26.3 servers whenever any
+  installed mod used Fabric API's recipe synchronization. The obol recipe
+  injection now carries Fabric's hidden recipe-sync index across to the
+  merged recipe map instead of leaving it null. Vanilla and Bedrock/Geyser
+  clients were never affected; the 26.2 build was never affected.
+
 ## 1.3.0 — the Keeper takes his post
 
 - **Minecraft 26.3.** The mod now targets 26.3 (Fabric); a 26.2 build ships
